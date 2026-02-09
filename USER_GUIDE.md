@@ -88,7 +88,7 @@ ollama list
 | 요약/태깅 | $0.05/일 | **$0** (로컬 무료) |
 | 임베딩 | $0.01/일 | **$0** (로컬 무료) |
 | 글쓰기 | $0.10/일 | $0.10/일 (클라우드) |
-| **일일 총비용** | $0.15 | **$0.10** |
+| **일일 총비용** | $0.16 | **$0.10** |
 
 **클라우드 LLM 가격:**
 - **GPT-4o Mini**: $0.60/$2.40 per 1M토큰 (입력/출력)
@@ -448,38 +448,41 @@ dry-run이 정상이면 실제로 저장해보세요.
 python -m scripts.daily_collector
 ```
 
-### 4단계: Digest 확인 및 승인
+### 4단계: Input 노트에서 글쓰기 방법 선택
 
-Obsidian에서 다음 파일을 엽니다:
+Obsidian에서 Input 노트를 엽니다:
+
+```
+Inbox/Inputs/input_xxx.md
+```
+
+각 노트 상단에 글쓰기 처리 방법을 선택하세요:
+
+```markdown
+> [!tip] 글쓰기 처리 방법 선택
+> - [ ] **자동 작성**: API로 블로그/소셜 미디어 콘텐츠 자동 생성 (체크하고 저장)
+> - [ ] **수동 작성**: GPT Web 등에서 직접 작성 완료 후, 아래에 결과를 입력하세요
+```
+
+**선택 옵션:**
+- **자동 작성 체크**: API로 자동 생성 (Digest에서 체크 필요 없음)
+- **수동 작성 체크**: 직접 작성 (API 건너뜸)
+- **둘 다 안 체크**: 나중에 결정 가능
+
+### 5단계: Digest 확인 및 글쓰기 실행
+
+Digest에서 최종 확인 후 실행합니다:
 
 ```
 Inbox/Inputs/_digests/2026-02-09.md
 ```
 
-다음과 같이 승인할 항목을 체크하세요:
-
-```markdown
-## [ ] OpenAI의 새로운 모델 발표
-
-- **ID**: input_7ce483b7a9e4
-- **Score**: 0.85 (N:0.90 R:0.80 Q:0.85)
-- **Source**: [TechCrunch](https://techcrunch.com/...)
-- > GPT-5가 곧 출시된다고...
-
-## [x] Claude 4의 새로운 기능   ← 체크!
-
-- **ID**: input_abc123def456
-- **Score**: 0.92
-- **Source**: [AI News](...)
-- > Anthropic이 새로운 기능을...
-```
-
-### 5단계: 콘텐츠 생성
-
-승인한 항목으로 콘텐츠를 생성하세요.
-
 ```bash
+# 체크된 항목만 글쓰기
 python -m scripts.generate_content --date 2026-02-09
+
+# 모든 항목 자동 처리 (수동 작업 거부 시)
+python -m scripts.generate_content --date 2026-02-09 --auto-all
 ```
 
 **예상 출력:**
@@ -526,14 +529,20 @@ python -m scripts.daily_collector
 python -m scripts.daily_collector --sources techcrunch ai_news
 ```
 
-**2. Digest 확인 및 승인**
+**2. Input 노트에서 글쓰기 방법 선택**
 
-Obsidian에서 `Inbox/Inputs/_digests/오늘날짜.md` 열고 승인할 항목 체크
+Obsidian에서 각 Input 노트를 열고 글쓰기 방법 선택:
+- `[ ] **자동 작성**`: 체크하면 API로 자동 생성
+- `[ ] **수동 작성**`: 체크하면 GPT Web 등에서 직접 작성
 
-**3. 콘텐츠 생성**
+**3. 글쓰기 실행**
 
 ```bash
+# 체크된 항목만 처리
 python -m scripts.generate_content
+
+# 모든 항목 자동 처리 (수동 작업 건너뛰기)
+python -m scripts.generate_content --auto-all
 ```
 
 **4. 품질 검증**
