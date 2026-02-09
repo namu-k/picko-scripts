@@ -111,10 +111,10 @@ class TemplateRenderer:
     def render_input_note(self, content: dict) -> str:
         """
         Input 노트 렌더링
-        
+
         Args:
             content: 콘텐츠 정보
-        
+
         Returns:
             마크다운 문자열
         """
@@ -126,6 +126,7 @@ source_url: {{ source_url }}
 publish_date: {{ publish_date }}
 collected_at: {{ collected_at }}
 status: inbox
+writing_status: pending
 score:
   novelty: {{ score.novelty }}
   relevance: {{ score.relevance }}
@@ -140,6 +141,10 @@ tags:
 > [!info] 소스
 > [{{ source }}]({{ source_url }}) | {{ publish_date | format_date }}
 
+> [!tip] 글쓰기 처리 방법 선택
+> - [ ] **자동 작성**: API로 블로그/소셜 미디어 콘텐츠 자동 생성 (체크하고 저장)
+> - [ ] **수동 작성**: GPT Web 등에서 직접 작성完成后, 아래에 결과를 입력하세요
+
 ## 요약
 
 {{ summary }}
@@ -152,17 +157,24 @@ tags:
 ## 원문 발췌
 
 {{ excerpt }}
+
+---
+
+## 수동 작성 결과 (수동 작성 선택 시)
+
+<!-- 자동 작성을 원하시면 위 체크박스에 체크하고 저장하세요 -->
+<!-- 수동 작성 완료 후에는 writing_status를 'completed'로 변경하세요 -->
 """
         return self.render_string(template, **content)
     
     def render_digest(self, date: str, items: list[dict]) -> str:
         """
         Digest 노트 렌더링
-        
+
         Args:
             date: 날짜 (YYYY-MM-DD)
             items: 콘텐츠 항목 리스트
-        
+
         Returns:
             마크다운 문자열
         """
@@ -175,11 +187,16 @@ total_items: {{ items | length }}
 
 # Daily Digest: {{ date }}
 
+> [!info] 처리 방법
+> - 체크박스 `[ ]`를 `[x]`로 변경하고 저장하면 글쓰기 API가 실행됩니다
+> - 수동 작성을 원하시면 Input 노트에서 "수동 작성"을 체크하세요
+
 {% for item in items %}
+{% if item.writing_status != 'completed' %}
 ## [ ] {{ item.title }}
 
 - **ID**: {{ item.id }}
-- **Account**: {{ item.account_id }}
+- **Writing Status**: {{ item.writing_status | default("pending") }}
 - **Score**: {{ item.score.total | round(2) }} (N:{{ item.score.novelty | round(2) }} R:{{ item.score.relevance | round(2) }} Q:{{ item.score.quality | round(2) }})
 - **Source**: [{{ item.source }}]({{ item.source_url }})
 - **Input**: {{ item.id | wikilink }}
@@ -187,6 +204,15 @@ total_items: {{ items | length }}
 > {{ item.summary | truncate_smart(150) }}
 
 ---
+{% endif %}
+{% endfor %}
+
+## 완료된 항목
+
+{% for item in items %}
+{% if item.writing_status == 'completed' %}
+- [x] {{ item.title }} ({{ item.id }})
+{% endif %}
 {% endfor %}
 """
         return self.render_string(

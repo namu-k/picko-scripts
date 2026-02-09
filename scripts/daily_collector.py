@@ -370,11 +370,17 @@ class DailyCollector:
     def _create_digest(self, items: list[dict], date: str) -> Path:
         """Digest 노트 생성"""
         # 표시할 항목만 필터링
-        display_items = [
-            item for item in items
-            if self.scorer.should_display(item.get("score_obj", ContentScore()))
-        ]
-        
+        display_items = []
+        for item in items:
+            if not self.scorer.should_display(item.get("score_obj", ContentScore())):
+                continue
+
+            # writing_status 추가 (기본값: pending)
+            if "writing_status" not in item:
+                item["writing_status"] = "pending"
+
+            display_items.append(item)
+
         # Digest 렌더링
         content = self.renderer.render_digest(date, display_items)
         

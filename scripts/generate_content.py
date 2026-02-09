@@ -35,7 +35,8 @@ class ContentGenerator:
         self,
         date: str = None,
         content_types: list[str] = None,
-        force: bool = False
+        force: bool = False,
+        auto_all: bool = False
     ) -> dict:
         """
         콘텐츠 생성 파이프라인 실행
@@ -67,7 +68,7 @@ class ContentGenerator:
         
         try:
             # 1. Digest에서 승인된 항목 파싱
-            approved_items = self._parse_digest(date)
+            approved_items = self._parse_digest(date, auto_all=auto_all)
             results["approved_items"] = len(approved_items)
             logger.info(f"Found {len(approved_items)} approved items")
             
@@ -82,7 +83,13 @@ class ContentGenerator:
                     input_content = self._load_input(item["input_id"])
                     if not input_content:
                         continue
-                    
+
+                    # writing_status 확인: manual 또는 completed이면 스킵
+                    writing_status = input_content.get("writing_status", "pending")
+                    if writing_status in ["manual", "completed"]:
+                        logger.info(f"Skipping {writing_status} item: {item['input_id']}")
+                        continue
+
                     # 이미 생성된 경우 스킵 (force가 아니면)
                     if not force and item.get("status") == "generated":
                         logger.debug(f"Skipping already generated: {item['input_id']}")
@@ -122,82 +129,102 @@ class ContentGenerator:
     # Digest 파싱
     # ─────────────────────────────────────────────────────────────
     
-    def _parse_digest(self, date: str) -> list[dict]:
+    def _parse_digest(self, date: str, auto_all: bool = False) -> list[dict]:
         """
         Digest에서 승인된 항목 파싱
-        [x] 체크된 항목 추출
-        
+        [x] 체크된 항목 추출 (auto_all=True면 미체크도 포함)
+
         Args:
             date: Digest 날짜
-        
+            auto_all: 미체크 항목도 모두 포함
+
         Returns:
             승인된 항목 리스트
         """
         digest_path = f"{self.config.vault.digests}/{date}.md"
-        
+
         try:
             meta, content = self.vault.read_note(digest_path)
         except FileNotFoundError:
             logger.warning(f"Digest not found: {digest_path}")
             return []
-        
+
         approved = []
-        
-        # [x] 패턴 매칭
-        # ## [x] Title 또는 ## [ ] Title
-        pattern = r'##\s*\[([xX])\]\s*(.+?)(?:\n|$)'
-        
+
+        # [x] 또는 [ ] 패턴 매칭
+        pattern = r'##\s*\[([xX ])\]\s*(.+?)(?:\n|$)'
+
         # ID 패턴: **ID**: input_xxx
         id_pattern = r'\*\*ID\*\*:\s*(\S+)'
-        
+
         # Account 패턴: **Account**: xxx
         account_pattern = r'\*\*Account\*\*:\s*(\S+)'
-        
+
         lines = content.split("\n")
         current_item = None
-        
+
         for i, line in enumerate(lines):
             # 새 항목 시작
             match = re.match(pattern, line)
             if match:
                 if current_item:
                     approved.append(current_item)
-                
-                checked = match.group(1).lower() == 'x'
+
+                checkbox = match.group(1).strip()
                 title = match.group(2).strip()
-                
-                if checked:
+
+                # [x] 체크된 항목 또는 auto_all=True면 포함
+                if checkbox.lower() == 'x' or auto_all:
                     current_item = {
                         "title": title,
                         "input_id": None,
-                        "account_id": None
+                        "account_id": None,
+                        "checked": (checkbox.lower() == 'x')
                     }
                 else:
                     current_item = None
                 continue
-            
+
             # 현재 항목의 세부 정보 파싱
             if current_item:
                 id_match = re.search(id_pattern, line)
                 if id_match:
                     current_item["input_id"] = id_match.group(1)
-                
+
                 account_match = re.search(account_pattern, line)
                 if account_match:
                     current_item["account_id"] = account_match.group(1)
-        
+
         # 마지막 항목
         if current_item:
             approved.append(current_item)
-        
+
         return [item for item in approved if item.get("input_id")]
     
     def _load_input(self, input_id: str) -> dict | None:
         """Input 노트 로드"""
         input_path = f"{self.config.vault.inbox}/{input_id}.md"
-        
+
         try:
             meta, content = self.vault.read_note(input_path)
+
+            # writing_status 확인 (본문 체크박스도 확인)
+            writing_status = meta.get("writing_status", "pending")
+
+            # 본문에서 체크박스 상태 확인
+            if writing_status == "pending":
+                # 자동 작성 체크박스 확인
+                if "[x] **자동 작성**" in content or "[x] 자동 작성" in content:
+                    writing_status = "auto_ready"
+                    # 메타데이터 업데이트
+                    meta["writing_status"] = writing_status
+                    self.vault.write_note(input_path, content, metadata=meta, overwrite=True)
+                # 수동 작성 체크박스 확인
+                elif "[x] **수동 작성**" in content or "[x] 수동 작성" in content:
+                    writing_status = "manual"
+                    meta["writing_status"] = writing_status
+                    self.vault.write_note(input_path, content, metadata=meta, overwrite=True)
+
             return {
                 "id": input_id,
                 "meta": meta,
@@ -206,7 +233,8 @@ class ContentGenerator:
                 "summary": self._extract_section(content, "요약"),
                 "key_points": self._extract_list(content, "핵심 포인트"),
                 "excerpt": self._extract_section(content, "원문 발췌"),
-                "tags": meta.get("tags", [])
+                "tags": meta.get("tags", []),
+                "writing_status": writing_status
             }
         except FileNotFoundError:
             logger.warning(f"Input not found: {input_path}")
@@ -432,9 +460,21 @@ class ContentGenerator:
         return True
     
     def _update_digest_status(self, date: str, input_id: str) -> None:
-        """Digest 항목 상태 업데이트"""
-        # TODO: Digest 파일에서 해당 항목의 status를 generated로 업데이트
-        pass
+        """Input 노트의 writing_status 업데이트"""
+        input_path = f"{self.config.vault.inbox}/{input_id}.md"
+
+        try:
+            meta, content = self.vault.read_note(input_path)
+
+            # writing_status 업데이트
+            meta["writing_status"] = "completed"
+            meta["generated_at"] = datetime.now().isoformat()
+
+            # 다시 쓰기
+            self.vault.write_note(input_path, content, metadata=meta, overwrite=True)
+            logger.info(f"Updated writing_status to completed: {input_id}")
+        except Exception as e:
+            logger.warning(f"Failed to update status for {input_id}: {e}")
     
     def _parse_frontmatter(self, content: str) -> dict:
         """frontmatter 파싱"""
@@ -472,20 +512,26 @@ def main():
         action="store_true",
         help="저장 없이 시뮬레이션"
     )
-    
+    parser.add_argument(
+        "--auto-all",
+        action="store_true",
+        help="체크되지 않은 항목도 자동으로 처리 (수동 작업 거부 시)"
+    )
+
     args = parser.parse_args()
-    
+
     # 타입 처리
     content_types = args.type
     if "all" in content_types:
         content_types = ["longform", "packs", "images"]
-    
+
     generator = ContentGenerator(dry_run=args.dry_run)
-    
+
     results = generator.run(
         date=args.date,
         content_types=content_types,
-        force=args.force
+        force=args.force,
+        auto_all=args.auto_all
     )
     
     print(f"\n{'='*50}")
