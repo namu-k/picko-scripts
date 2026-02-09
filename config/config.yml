@@ -11,22 +11,46 @@ vault:
   archive: "Archive"
   logs_publish: "Logs/Publish"
 
-# LLM 설정
+# LLM 설정 (기본/호환용)
 llm:
-  provider: "openai"  # openai | anthropic
-  model: "gpt-4o"
+  provider: "openai"
+  model: "gpt-4o-mini"
   temperature: 0.7
   max_tokens: 4000
-  api_key_env: "OPENAI_API_KEY"  # 환경변수명
+  api_key_env: "OPENAI_API_KEY"
 
-# 임베딩 설정
-embedding:
-  provider: "ollama"  # openai | ollama
-  model: "mxbai-embed-large"
-  dimensions: 1024
+# 요약/태깅용 LLM 설정 (로컬 우선)
+summary_llm:
+  provider: "ollama"  # ollama | openai | anthropic
+  model: "deepseek-r1:7b"  # qwen2.5:7b | deepseek-r1:7b | llama3.3:70b
+  temperature: 0.3
+  max_tokens: 1000
   base_url: "http://localhost:11434"
+  # 로컬 실패 시 폴백
+  fallback_provider: "openai"
+  fallback_model: "gpt-4o-mini"
+  fallback_api_key_env: "OPENAI_API_KEY"
+
+# 글쓰기용 LLM 설정 (클라우드)
+writer_llm:
+  provider: "openai"  # openai | anthropic
+  model: "gpt-4o-mini"  # gpt-4o-mini | claude-3.5-sonnet
+  temperature: 0.8
+  max_tokens: 2000
+  api_key_env: "OPENAI_API_KEY"
+
+# 임베딩 설정 (로컬 우선)
+embedding:
+  provider: "local"  # local | ollama | openai
+  model: "BAAI/bge-m3"  # BAAI/bge-m3 | BAAI/bge-base-en-v1.5 | sentence-transformers/all-MiniLM-L6-v2
+  dimensions: 1024  # bge-m3: 1024, bge-base-en-v1.5: 768, all-MiniLM-L6-v2: 384
+  device: "cpu"  # cpu | cuda
   cache_enabled: true
   cache_dir: "cache/embeddings"
+  # 로컬 실패 시 폴백
+  fallback_provider: "openai"
+  fallback_model: "text-embedding-3-small"
+  fallback_api_key_env: "OPENAI_API_KEY"
 
 # 점수 계산 설정
 scoring:

@@ -12,3 +12,4 @@ numpy>=1.24.0
 tiktoken>=0.5.0
 xxhash>=3.4.0
 ollama>=0.3.0
+sentence-transformers>=2.2.0

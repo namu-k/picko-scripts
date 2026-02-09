@@ -11,7 +11,7 @@ from typing import Any
 
 from picko.config import get_config
 from picko.vault_io import VaultIO
-from picko.llm_client import get_llm_client
+from picko.llm_client import get_writer_client
 from picko.templates import get_renderer
 from picko.logger import setup_logger
 
@@ -20,11 +20,12 @@ logger = setup_logger("generate_content")
 
 class ContentGenerator:
     """콘텐츠 생성기"""
-    
+
     def __init__(self, dry_run: bool = False):
         self.config = get_config()
         self.vault = VaultIO()
-        self.llm = get_llm_client()
+        # 글쓰기용 클라우드 LLM 사용
+        self.llm = get_writer_client()
         self.renderer = get_renderer()
         self.dry_run = dry_run
         

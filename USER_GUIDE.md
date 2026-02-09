@@ -43,30 +43,58 @@ Picko는 다음과 같은 작업을 자동화합니다:
 ### 1. 필수 요구사항
 
 **하드웨어**
-- RAM: 최소 4GB (권장 8GB 이상)
+- RAM: 최소 4GB (로컬 LLM 시 16GB 권장)
 - 디스크: 최소 1GB 여유 공간
 
 **소프트웨어**
 - Python 3.13 이상
 - Git (선택사항)
+- Ollama (로컬 LLM 사용 시)
 
 **계정**
-- OpenAI API 계정 및 API 키 (GPT-4o 모델 사용)
+- OpenAI API 계정 및 API 키 (글쓰기용)
   - [OpenAI API 키 발급 방법](https://platform.openai.com/api-keys)
 
-### 2. 비용 안내
+### 2. 로컬 LLM 설치 (선택사항, 권장)
 
-OpenAI API 사용에 따른 비용이 발생합니다:
+요약/태깅과 임베딩 작업은 로컬에서 무료로 처리할 수 있습니다.
 
-- **GPT-4o**: 텍스트 생성 시 약 $0.005/1K토큰
-- **text-embedding-3-small**: 임베딩 시 약 $0.00002/1K토큰
+**Ollama 설치 (로컬 LLM용)**
 
-예상 비용 (하루 10개 콘텐츠 처리 기준):
-- 수집 및 분석: $0.05
-- 콘텐츠 생성: $0.10
-- **일일 총비용**: 약 $0.15 (월 $4-5)
+1. [Ollama 다운로드](https://ollama.ai/download)
+2. 설치 후 터미널에서 다음 실행:
 
-### 3. 콘텐츠 소스 준비
+```bash
+# DeepSeek-R1 (요약/태깅용, 7B 모델)
+ollama pull deepseek-r1:7b
+
+# 또는 Qwen2.5 (대안)
+ollama pull qwen2.5:7b
+
+# 확인
+ollama list
+```
+
+**설치되는 라이브러리 (requirements.txt에 포함):**
+- `ollama`: 로컬 LLM 실행
+- `sentence-transformers`: 로컬 임베딩 (bge-m3 등)
+
+### 3. 비용 안내
+
+로컬 LLM + 임베딩 사용 시 비용이 크게 절감됩니다:
+
+| 작업 | 클라우드 전용 | 로컬+클라우드 혼합 |
+|------|---------------|-------------------|
+| 요약/태깅 | $0.05/일 | **$0** (로컬 무료) |
+| 임베딩 | $0.01/일 | **$0** (로컬 무료) |
+| 글쓰기 | $0.10/일 | $0.10/일 (클라우드) |
+| **일일 총비용** | $0.15 | **$0.10** |
+
+**클라우드 LLM 가격:**
+- **GPT-4o Mini**: $0.60/$2.40 per 1M토큰 (입력/출력)
+- **Claude 3.5 Sonnet**: 경쟁력 있는 가격, 코딩 최고
+
+### 4. 콘텐츠 소스 준비
 
 수집할 콘텐츠 소스를 준비하세요:
 
@@ -109,15 +137,17 @@ pip install -r requirements.txt
 ```
 
 설치되는 주요 라이브러리:
-- `openai`: OpenAI API 클라이언트
-- `anthropic`: Anthropic Claude API 클라이언트
+- `openai`: OpenAI API 클라이언트 (글쓰기용)
+- `anthropic`: Anthropic Claude API 클라이언트 (대안)
+- `ollama`: 로컬 LLM 클라이언트 (요약/태깅용)
+- `sentence-transformers`: 로컬 임베딩 (bge-m3 등)
 - `httpx`: HTTP 요청
 - `feedparser`: RSS 피드 파싱
 - `beautifulsoup4`: HTML 파싱
 - `loguru`: 로깅
 - `jinja2`: 템플릿 렌더링
 
-### 4. OpenAI API 키 설정
+### 4. API 키 설정 (글쓰기용)
 
 ```bash
 # Windows
@@ -148,18 +178,43 @@ vault:
 # LLM 설정
 llm:
   provider: "openai"
-  model: "gpt-4o"
+  model: "gpt-4o-mini"
   temperature: 0.7
   max_tokens: 4000
   api_key_env: "OPENAI_API_KEY"
 
-# 임베딩 설정
+# 요약/태깅용 LLM 설정 (로컬 우선)
+summary_llm:
+  provider: "ollama"  # ollama | openai | anthropic
+  model: "deepseek-r1:7b"  # qwen2.5:7b | deepseek-r1:7b | llama3.3:70b
+  temperature: 0.3
+  max_tokens: 1000
+  base_url: "http://localhost:11434"
+  # 로컬 실패 시 폴백
+  fallback_provider: "openai"
+  fallback_model: "gpt-4o-mini"
+  fallback_api_key_env: "OPENAI_API_KEY"
+
+# 글쓰기용 LLM 설정 (클라우드)
+writer_llm:
+  provider: "openai"  # openai | anthropic
+  model: "gpt-4o-mini"  # gpt-4o-mini | claude-3.5-sonnet
+  temperature: 0.8
+  max_tokens: 2000
+  api_key_env: "OPENAI_API_KEY"
+
+# 임베딩 설정 (로컬 우선)
 embedding:
-  provider: "openai"
-  model: "text-embedding-3-small"
-  dimensions: 1536
+  provider: "local"  # local | ollama | openai
+  model: "BAAI/bge-m3"  # BAAI/bge-m3 | BAAI/bge-base-en-v1.5 | sentence-transformers/all-MiniLM-L6-v2
+  dimensions: 1024  # bge-m3: 1024, bge-base-en-v1.5: 768, all-MiniLM-L6-v2: 384
+  device: "cpu"  # cpu | cuda
   cache_enabled: true
   cache_dir: "cache/embeddings"
+  # 로컬 실패 시 폴백
+  fallback_provider: "openai"
+  fallback_model: "text-embedding-3-small"
+  fallback_api_key_env: "OPENAI_API_KEY"
 
 # 점수 계산 설정
 scoring:
@@ -655,9 +710,45 @@ logs/2026-02-09/errors.log
 
 ### 비용 절감
 
-1. **임베딩 캐시 활성화**: `embedding.cache_enabled: true`로 설정
-2. **소스 수 제한**: 불필요한 소스 비활성화
-3. **API 사용량 모니터링**: OpenAI 대시보드에서 사용량 확인
+1. **로컬 LLM 활용**: 요약/태깅/임베딩은 로컬에서 무료로 처리
+2. **임베딩 캐시 활성화**: `embedding.cache_enabled: true`로 설정
+3. **소스 수 제한**: 불필요한 소스 비활성화
+4. **적절한 모델 선택**: 요약엔 로컬, 글쓰기엔 GPT-4o Mini 사용
+
+### 로컬 LLM 활용 팁
+
+**추천 로컬 모델:**
+
+| 작업 | 추천 모델 | 특징 |
+|------|----------|------|
+| 요약/태깅 | deepseek-r1:7b | 빠르고 정확, 7GB RAM |
+| 요약/태깅 | qwen2.5:7b | 다국어 지원, 균형형 |
+| 임베딩 | BAAI/bge-m3 | MTEB 상위, 다국어 |
+| 가벼운 임베딩 | all-MiniLM-L6-v2 | 리소스 효율적 |
+
+**Ollama 명령어:**
+
+```bash
+# 모델 설치
+ollama pull deepseek-r1:7b
+
+# 모델 목록 확인
+ollama list
+
+# 로컬 LLM 테스트
+ollama run deepseek-r1:7b "다음 텍스트를 요약해주세요: ..."
+```
+
+**Sentence Transformers 설치:**
+
+```bash
+# PyTorch (CPU 버전)
+pip install torch sentence-transformers
+
+# CUDA 지원 (GPU 있을 때)
+pip install torch --index-url https://download.pytorch.org/whl/cu118
+pip install sentence-transformers
+```
 
 ---
 
@@ -666,8 +757,11 @@ logs/2026-02-09/errors.log
 - **클래스 및 함수 레퍼런스**: 각 모듈의 docstring 참조
 - **예시 설정**: `config/` 디렉토리의 예시 파일들
 - **로그**: `logs/` 디렉토리의 상세 실행 로그
+- **Ollama 공식 문서**: [https://ollama.ai](https://ollama.ai)
+- **Sentence Transformers 문서**: [https://sbert.net](https://sbert.net)
 
 ---
 
-버전: 0.1.0
+버전: 0.2.0
 최종 업데이트: 2026-02-09
+모델 아키텍처: 요약/태깅(로컬) + 임베딩(로컬) + 글쓰기(클라우드)

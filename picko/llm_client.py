@@ -107,18 +107,18 @@ class OpenAIClient(BaseLLMClient):
 
 class AnthropicClient(BaseLLMClient):
     """Anthropic Claude API 클라이언트"""
-    
+
     def __init__(self, config: LLMConfig):
         self.config = config
         self._client = None
-    
+
     @property
     def client(self):
         if self._client is None:
             from anthropic import Anthropic
             self._client = Anthropic(api_key=self.config.api_key)
         return self._client
-    
+
     def generate(
         self,
         prompt: str,
@@ -136,9 +136,9 @@ class AnthropicClient(BaseLLMClient):
             temperature=temperature or self.config.temperature,
             **kwargs
         )
-        
+
         return response.content[0].text
-    
+
     def generate_stream(
         self,
         prompt: str,
@@ -157,6 +157,63 @@ class AnthropicClient(BaseLLMClient):
                 yield text
 
 
+class OllamaClient(BaseLLMClient):
+    """Ollama 로컬 LLM 클라이언트"""
+
+    def __init__(self, config):
+        self.config = config
+        self._client = None
+
+    @property
+    def client(self):
+        if self._client is None:
+            import ollama
+            self._client = ollama.Client(host=getattr(self.config, 'base_url', 'http://localhost:11434'))
+        return self._client
+
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: str = None,
+        temperature: float = None,
+        max_tokens: int = None,
+        **kwargs
+    ) -> str:
+        """텍스트 생성"""
+        options = {}
+        if temperature is not None:
+            options['temperature'] = temperature
+        if max_tokens is not None:
+            options['num_predict'] = max_tokens
+
+        response = self.client.generate(
+            model=self.config.model,
+            prompt=prompt,
+            system=system_prompt or "",
+            options=options if options else None,
+            **kwargs
+        )
+
+        return response.get('response', '')
+
+    def generate_stream(
+        self,
+        prompt: str,
+        system_prompt: str = None,
+        **kwargs
+    ) -> Generator[str, None, None]:
+        """스트리밍 텍스트 생성"""
+        for chunk in self.client.generate(
+            model=self.config.model,
+            prompt=prompt,
+            system=system_prompt or "",
+            stream=True,
+            **kwargs
+        ):
+            if 'response' in chunk:
+                yield chunk['response']
+
+
 class LLMClient:
     """
     LLM 클라이언트 래퍼
@@ -164,7 +221,7 @@ class LLMClient:
     - 응답 캐싱
     - 프로바이더 추상화
     """
-    
+
     def __init__(
         self,
         config: LLMConfig = None,
@@ -173,19 +230,21 @@ class LLMClient:
     ):
         if config is None:
             config = get_config().llm
-        
+
         self.config = config
         self.cache_enabled = cache_enabled
         self.cache_dir = Path(cache_dir or "cache/responses")
-        
+
         # 프로바이더별 클라이언트 초기화
         if config.provider == "openai":
             self._client = OpenAIClient(config)
         elif config.provider == "anthropic":
             self._client = AnthropicClient(config)
+        elif config.provider == "ollama":
+            self._client = OllamaClient(config)
         else:
             raise ValueError(f"Unknown LLM provider: {config.provider}")
-        
+
         logger.debug(f"LLMClient initialized: {config.provider}/{config.model}")
     
     def generate(
@@ -343,6 +402,8 @@ class LLMClient:
 
 # 편의 함수
 _default_client: LLMClient | None = None
+_summary_client: LLMClient | None = None
+_writer_client: LLMClient | None = None
 
 
 def get_llm_client() -> LLMClient:
@@ -351,3 +412,49 @@ def get_llm_client() -> LLMClient:
     if _default_client is None:
         _default_client = LLMClient()
     return _default_client
+
+
+def get_summary_client() -> LLMClient:
+    """요약/태깅용 LLM 클라이언트 반환 (로컬 우선)"""
+    global _summary_client
+    if _summary_client is None:
+        from .config import get_config, SummaryLLMConfig
+        config = get_config().summary_llm
+
+        # SummaryLLMConfig를 LLMConfig 형태로 변환
+        llm_config = LLMConfig(
+            provider=config.provider,
+            model=config.model,
+            temperature=config.temperature,
+            max_tokens=config.max_tokens
+        )
+
+        # Ollama의 경우 base_url 속성 추가
+        if config.provider == "ollama":
+            llm_config.base_url = config.base_url
+            llm_config.fallback_provider = config.fallback_provider
+            llm_config.fallback_model = config.fallback_model
+            llm_config.fallback_api_key_env = config.fallback_api_key_env
+
+        _summary_client = LLMClient(config=llm_config)
+    return _summary_client
+
+
+def get_writer_client() -> LLMClient:
+    """글쓰기용 LLM 클라이언트 반환 (클라우드)"""
+    global _writer_client
+    if _writer_client is None:
+        from .config import get_config, WriterLLMConfig
+        config = get_config().writer_llm
+
+        # WriterLLMConfig를 LLMConfig 형태로 변환
+        llm_config = LLMConfig(
+            provider=config.provider,
+            model=config.model,
+            temperature=config.temperature,
+            max_tokens=config.max_tokens,
+            api_key_env=config.api_key_env
+        )
+
+        _writer_client = LLMClient(config=llm_config)
+    return _writer_client

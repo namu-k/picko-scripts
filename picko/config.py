@@ -45,11 +45,44 @@ class VaultConfig:
 class LLMConfig:
     """LLM 설정"""
     provider: str = "openai"
-    model: str = "gpt-4o"
+    model: str = "gpt-4o-mini"
     temperature: float = 0.7
     max_tokens: int = 4000
     api_key_env: str = "OPENAI_API_KEY"
-    
+
+    @property
+    def api_key(self) -> str:
+        """환경변수에서 API 키 로드"""
+        key = os.environ.get(self.api_key_env)
+        if not key:
+            logger.warning(f"API key not found in environment: {self.api_key_env}")
+        return key or ""
+
+
+@dataclass
+class SummaryLLMConfig:
+    """요약/태깅용 LLM 설정 (로컬 우선)"""
+    provider: str = "ollama"
+    model: str = "deepseek-r1:7b"
+    temperature: float = 0.3
+    max_tokens: int = 1000
+    base_url: str = "http://localhost:11434"
+
+    # 폴백옵션 (로컬 실패 시 클라우드 사용)
+    fallback_provider: str = "openai"
+    fallback_model: str = "gpt-4o-mini"
+    fallback_api_key_env: str = "OPENAI_API_KEY"
+
+
+@dataclass
+class WriterLLMConfig:
+    """글쓰기용 LLM 설정 (클라우드)"""
+    provider: str = "openai"
+    model: str = "gpt-4o-mini"
+    temperature: float = 0.8
+    max_tokens: int = 2000
+    api_key_env: str = "OPENAI_API_KEY"
+
     @property
     def api_key(self) -> str:
         """환경변수에서 API 키 로드"""
@@ -62,12 +95,17 @@ class LLMConfig:
 @dataclass
 class EmbeddingConfig:
     """임베딩 설정"""
-    provider: str = "openai"
-    model: str = "text-embedding-3-small"
-    dimensions: int = 1536
-    base_url: str = "http://localhost:11434"
+    provider: str = "local"  # local | openai | ollama
+    model: str = "BAAI/bge-m3"  # sentence-transformers 모델
+    dimensions: int = 1024  # bge-m3: 1024, all-MiniLM-L6-v2: 384
+    device: str = "cpu"  # cpu | cuda
     cache_enabled: bool = True
     cache_dir: str = "cache/embeddings"
+
+    # OpenAI 폴백 (로컬 실패 시)
+    fallback_provider: str = "openai"
+    fallback_model: str = "text-embedding-3-small"
+    fallback_api_key_env: str = "OPENAI_API_KEY"
 
 
 @dataclass
@@ -108,6 +146,8 @@ class Config:
     """전체 설정"""
     vault: VaultConfig
     llm: LLMConfig
+    summary_llm: SummaryLLMConfig
+    writer_llm: WriterLLMConfig
     embedding: EmbeddingConfig
     scoring: ScoringConfig
     logging: LoggingConfig
@@ -170,6 +210,8 @@ def load_config(config_path: str | Path = None) -> Config:
     return Config(
         vault=VaultConfig(**raw.get("vault", {})),
         llm=LLMConfig(**raw.get("llm", {})),
+        summary_llm=SummaryLLMConfig(**raw.get("summary_llm", {})),
+        writer_llm=WriterLLMConfig(**raw.get("writer_llm", {})),
         embedding=EmbeddingConfig(**raw.get("embedding", {})),
         scoring=ScoringConfig(**raw.get("scoring", {})),
         logging=LoggingConfig(**raw.get("logging", {})),

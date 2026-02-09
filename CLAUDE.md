@@ -56,20 +56,41 @@ set OPENAI_API_KEY=your_api_key_here
 
 ### Core Modules (`picko/`)
 
-- **config.py**: Central configuration loader with YAML support and environment variable overrides
+- **config.py**: Central configuration loader with task-specific LLM configs (summary_llm, writer_llm)
 - **vault_io.py**: Obsidian Vault interface for reading/writing markdown notes with frontmatter
-- **llm_client.py**: OpenAI/Anthropic API client with caching and retry logic
-- **embedding.py**: Text embedding generation and similarity calculations using OpenAI
+- **llm_client.py**: Multi-provider LLM client with Ollama (local), OpenAI, Anthropic support
+- **embedding.py**: Local-first embedding with sentence-transformers, OpenAI fallback
 - **scoring.py**: Content scoring algorithm (novelty, relevance, quality) with configurable weights
 - **templates.py**: Jinja2-based template rendering for different content formats
 - **logger.py**: Unified logging setup using loguru with daily rotation
 
+### LLM Architecture (Task-Specific)
+
+The system uses different LLMs for different tasks:
+
+| Task | LLM Client | Provider | Model | Purpose |
+|------|-----------|----------|-------|---------|
+| Summary/Tagging | `get_summary_client()` | Ollama (local) | deepseek-r1:7b | Cost-effective NLP |
+| Embedding | `get_embedding_manager()` | sentence-transformers | BAAI/bge-m3 | Local similarity |
+| Writing | `get_writer_client()` | OpenAI (cloud) | gpt-4o-mini | Quality content |
+
+**Design Rationale:**
+- **Local LLMs** for high-volume, low-complexity tasks (summary, tagging, embedding)
+- **Cloud LLMs** for creative writing requiring higher quality
+- **Automatic fallback** to cloud if local models fail
+
 ### Scripts (`scripts/`)
 
+#### Phase 1: Core Scripts
 - **daily_collector.py**: Main ingestion pipeline - fetches RSS, deduplicates, extracts content, scores, and creates digest
 - **generate_content.py**: Creates longform articles, social media packs, and image prompts from approved digest items
 - **validate_output.py**: Validates generated content for required frontmatter fields, sections, and wikilinks
 - **health_check.py**: Checks system health - API keys, vault access, RSS sources, disk space
+
+#### Phase 2: Utility Scripts
+- **archive_manager.py**: Archives old unapproved content and cleans related cache
+- **retry_failed.py**: Retries failed items from logs by specific stage (fetch/nlp/embed/score/export)
+- **publish_log.py**: Creates and manages publication logs with platform tracking
 
 ### Configuration Structure
 
@@ -113,7 +134,22 @@ python -m scripts.daily_collector --date 2026-02-09 --dry-run
 ## Environment Variables
 
 Required:
-- `OPENAI_API_KEY`: OpenAI API key for LLM and embeddings
+- `OPENAI_API_KEY`: OpenAI API key for writer LLM (and fallback for summary/embedding)
 
 Optional:
-- Override any config value by setting environment variables with `PICKO_` prefix (e.g., `PICKO_LLM_MODEL=gpt-4-turbo`)
+- Override any config value by setting environment variables with `PICKO_` prefix
+
+## Local LLM Setup
+
+For local LLM usage (summary/tagging/embedding):
+
+1. **Install Ollama**: [https://ollama.ai/download](https://ollama.ai/download)
+2. **Pull models**: `ollama pull deepseek-r1:7b`
+3. **Configure**: Set `summary_llm.provider: ollama` in config.yml
+4. **Install dependencies**: `pip install ollama sentence-transformers`
+
+**Supported local models:**
+- deepseek-r1:7b (summary/tagging)
+- qwen2.5:7b (alternative)
+- BAAI/bge-m3 (embedding)
+- sentence-transformers/all-MiniLM-L6-v2 (lightweight embedding)
