@@ -1,29 +1,175 @@
 # Picko - Content Pipeline
 
-콘텐츠 수집 → 생성 → 발행 파이프라인 자동화 시스템
+> RSS 피드와 웹 소스에서 콘텐츠를 자동 수집하고, AI를 활용해 블로그 포스트와 소셜 미디어 콘텐츠를 생성하는 파이프라인 시스템
 
-## 설치
+## 📋 개요
+
+Picko는 다음 작업을 자동화합니다:
+
+- 🤖 **AI 기반 콘텐츠 분석**: 요약, 핵심 포인트 추출, 태깅
+- 📊 **스마트 점수 매기기**: 참신도, 관련도, 품질 기반 자동 필터링
+- ✍️ **다양한 형식 생성**: 블로그, 트위터, 링크드인, 뉴스레터
+- 📝 **Obsidian 통합**: 마크다운 기반 콘텐츠 관리
+
+## 🚀 빠른 시작
+
+### 1. 사전 준비
+
+- Python 3.13 이상
+- OpenAI API 키 ([발급 방법](https://platform.openai.com/api-keys))
+
+### 2. 설치
 
 ```bash
+# 리포지토리 클론
+git clone https://github.com/your-username/picko-scripts.git
+cd picko-scripts
+
+# 가상환경 생성 및 활성화
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+source .venv/bin/activate  # macOS/Linux
+
+# 의존성 설치
 pip install -r requirements.txt
+
+# API 키 설정
+set OPENAI_API_KEY=sk-your-key-here  # Windows
+export OPENAI_API_KEY=sk-your-key-here  # macOS/Linux
 ```
 
-## 사용법
+### 3. 설정
+
+`config/config.yml`에서 본인의 Obsidian Vault 경로와 OpenAI 설정을 수정하세요.
+
+### 4. 첫 실행
 
 ```bash
-# 일일 콘텐츠 수집
+# 시스템 건강 확인
+python -m scripts.health_check
+
+# 콘텐츠 수집 (테스트용)
+python -m scripts.daily_collector --dry-run
+
+# 실제 콘텐츠 수집
+python -m scripts.daily_collector
+
+# 콘텐츠 생성 (Digest에서 승인 후)
+python -m scripts.generate_content
+```
+
+## 📖 상세 가이드
+
+처음 사용하시나요? [**USER_GUIDE.md**](USER_GUIDE.md)에서 다음을 확인하세요:
+
+- 단계별 설치 및 설정 방법
+- 콘텐츠 파이프라인 상세 설명
+- 일일/주간 작업 흐름
+- 문제 해결 가이드
+- 팁과 모범 사례
+
+## 🛠️ 주요 명령어
+
+### 콘텐츠 수집
+
+```bash
+# 오늘 날짜로 수집
+python -m scripts.daily_collector
+
+# 특정 날짜로 수집
 python -m scripts.daily_collector --date 2026-02-09
 
-# 승인된 콘텐츠 생성
-python -m scripts.generate_content --date 2026-02-09
+# 특정 소스만 수집
+python -m scripts.daily_collector --sources techcrunch ai_news
 
-# 생성물 검증
-python -m scripts.validate_output --path Content/Longform/
-
-# 상태 점검
-python -m scripts.health_check
+# Dry-run (저장 없이 테스트)
+python -m scripts.daily_collector --dry-run
 ```
 
-## 설정
+### 콘텐츠 생성
 
-`config/config.yml` 파일에서 설정 관리
+```bash
+# 오늘 승인된 콘텐츠 생성
+python -m scripts.generate_content
+
+# 특정 타입만 생성
+python -m scripts.generate_content --type longform packs
+
+# 강제 재생성
+python -m scripts.generate_content --force
+```
+
+### 검증 및 관리
+
+```bash
+# 생성된 콘텐츠 검증
+python -m scripts.validate_output --path Content/ --recursive --verbose
+
+# 시스템 상태 확인
+python -m scripts.health_check
+
+# 오래된 콘텐츠 아카이브
+python -m scripts.archive_manager --days 30
+
+# 실패한 항목 재시도
+python -m scripts.retry_failed --date 2026-02-09
+```
+
+## 📁 프로젝트 구조
+
+```
+picko-scripts/
+├── config/              # 설정 파일
+│   ├── config.yml      # 메인 설정
+│   ├── sources.yml     # RSS 소스
+│   └── accounts/       # 계정 프로필
+├── picko/              # 핵심 모듈
+├── scripts/            # 실행 스크립트
+├── templates/          # 템플릿 파일
+├── logs/              # 실행 로그
+├── cache/             # 임베딩 캐시
+└── mock_vault/        # 테스트용 Obsidian Vault
+```
+
+## ⚙️ 설정
+
+### 메인 설정 (`config/config.yml`)
+
+- Vault 경로
+- LLM 모델 및 API 설정
+- 점수 계산 가중치
+- 로깅 설정
+
+### 소스 설정 (`config/sources.yml`)
+
+- RSS 피드 URL
+- 카테고리별 설정
+- 활성화/비활성화
+
+### 계정 프로필 (`config/accounts/*.yml`)
+
+- 관심 주제
+- 키워드 가중치
+- 채널별 톤앤매너
+
+## 💰 비용 안내
+
+OpenAI API 사용에 따른 비용이 발생합니다:
+
+- **GPT-4o**: 약 $0.005/1K토큰
+- **text-embedding-3-small**: 약 $0.00002/1K토큰
+- **예상 일일 비용**: 약 $0.15 (하루 10개 콘텐츠 기준)
+
+## 🤝 기여
+
+이 프로젝트에 기여하고 싶으시면 Pull Request를 제출해주세요.
+
+## 📄 라이선스
+
+MIT License
+
+## 📞 지원
+
+- 문제 신고: [GitHub Issues](https://github.com/your-username/picko-scripts/issues)
+- 사용자 가이드: [USER_GUIDE.md](USER_GUIDE.md)
+- 개발자 가이드: [CLAUDE.md](CLAUDE.md)
