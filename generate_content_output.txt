@@ -1,0 +1,26 @@
+[32m21:54:55[0m | [1mINFO    [0m | [36mconfig[0m | Loaded config from C:\picko-scripts\config\config.yml
+[32m21:54:55[0m | [1mINFO    [0m | [36mgenerate_content[0m | ContentGenerator initialized
+[32m21:54:55[0m | [1mINFO    [0m | [36mgenerate_content[0m | Starting content generation for 2026-02-09, types: ['longform', 'packs', 'images']
+[32m21:54:55[0m | [1mINFO    [0m | [36mgenerate_content[0m | Found 1 approved items
+[32m21:54:55[0m | [1mINFO    [0m | [36mgenerate_content[0m | Generating longform for: input_7ce483b7a9e4
+[32m21:54:55[0m | [1mINFO    [0m | [36mvault_io[0m | Wrote note: c:\picko-scripts\mock_vault\Content\Longform\longform_input_7ce483b7a9e4.md
+[32m21:54:55[0m | [1mINFO    [0m | [36mgenerate_content[0m | Created longform: Content/Longform/longform_input_7ce483b7a9e4.md
+[32m21:54:55[0m | [1mINFO    [0m | [36mgenerate_content[0m | Generating packs for: input_7ce483b7a9e4
+[32m21:54:55[0m | [1mINFO    [0m | [36mvault_io[0m | Wrote note: c:\picko-scripts\mock_vault\Content\Packs\twitter\pack_input_7ce483b7a9e4_twitter.md
+[32m21:54:55[0m | [1mINFO    [0m | [36mgenerate_content[0m | Created pack: Content/Packs/twitter/pack_input_7ce483b7a9e4_twitter.md
+[32m21:54:55[0m | [1mINFO    [0m | [36mvault_io[0m | Wrote note: c:\picko-scripts\mock_vault\Content\Packs\linkedin\pack_input_7ce483b7a9e4_linkedin.md
+[32m21:54:55[0m | [1mINFO    [0m | [36mgenerate_content[0m | Created pack: Content/Packs/linkedin/pack_input_7ce483b7a9e4_linkedin.md
+[32m21:54:55[0m | [1mINFO    [0m | [36mvault_io[0m | Wrote note: c:\picko-scripts\mock_vault\Content\Packs\newsletter\pack_input_7ce483b7a9e4_newsletter.md
+[32m21:54:55[0m | [1mINFO    [0m | [36mgenerate_content[0m | Created pack: Content/Packs/newsletter/pack_input_7ce483b7a9e4_newsletter.md
+[32m21:54:55[0m | [1mINFO    [0m | [36mgenerate_content[0m | Generating image prompt for: input_7ce483b7a9e4
+[32m21:54:55[0m | [1mINFO    [0m | [36mvault_io[0m | Wrote note: c:\picko-scripts\mock_vault\Assets\Images\_prompts\img_input_7ce483b7a9e4.md
+[32m21:54:55[0m | [1mINFO    [0m | [36mgenerate_content[0m | Created image prompt: Assets/Images/_prompts/img_input_7ce483b7a9e4.md
+[32m21:54:55[0m | [1mINFO    [0m | [36mgenerate_content[0m | Content generation complete: {'date': '2026-02-09', 'approved_items': 1, 'longform_created': 1, 'packs_created': 3, 'image_prompts_created': 1, 'errors': []}
+
+==================================================
+Content Generation Results for 2026-02-09
+==================================================
+Approved Items:      1
+Longform Created:    1
+Packs Created:       3
+Image Prompts:       1

@@ -1,0 +1,60 @@
+# Vault 경로
+vault:
+  root: "c:/picko-scripts/mock_vault"
+  inbox: "Inbox/Inputs"
+  digests: "Inbox/Inputs/_digests"
+  content: "Content"
+  longform: "Content/Longform"
+  packs: "Content/Packs"
+  assets: "Assets"
+  images_prompts: "Assets/Images/_prompts"
+  archive: "Archive"
+  logs_publish: "Logs/Publish"
+
+# LLM 설정
+llm:
+  provider: "openai"  # openai | anthropic
+  model: "gpt-4o"
+  temperature: 0.7
+  max_tokens: 4000
+  api_key_env: "OPENAI_API_KEY"  # 환경변수명
+
+# 임베딩 설정
+embedding:
+  provider: "ollama"  # openai | ollama
+  model: "mxbai-embed-large"
+  dimensions: 1024
+  base_url: "http://localhost:11434"
+  cache_enabled: true
+  cache_dir: "cache/embeddings"
+
+# 점수 계산 설정
+scoring:
+  weights:
+    novelty: 0.3
+    relevance: 0.4
+    quality: 0.3
+  thresholds:
+    auto_approve: 0.85
+    auto_reject: 0.3
+    minimum_display: 0.4
+
+# 로깅 설정
+logging:
+  level: "INFO"
+  format: "{time:YYYY-MM-DD HH:mm:ss} | {level} | {name} | {message}"
+  dir: "logs"
+  retention_days: 30
+
+# 소스 설정 (별도 파일 참조)
+sources_file: "config/sources.yml"
+
+# 계정 프로필 디렉토리
+accounts_dir: "config/accounts"
+
+# 처리 설정
+processing:
+  batch_size: 10
+  max_retries: 3
+  retry_delay_seconds: 5
+  request_timeout_seconds: 30

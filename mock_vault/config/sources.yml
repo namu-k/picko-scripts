@@ -1,0 +1,47 @@
+# 콘텐츠 소스 목록
+
+sources:
+  # RSS 피드
+  - id: "techcrunch"
+    type: "rss"
+    url: "https://techcrunch.com/feed/"
+    category: "tech_news"
+    enabled: true
+    
+  - id: "hacker_news"
+    type: "rss"
+    url: "https://hnrss.org/frontpage"
+    category: "tech_community"
+    enabled: true
+    
+  - id: "ai_news"
+    type: "rss"
+    url: "https://www.artificialintelligence-news.com/feed/"
+    category: "ai"
+    enabled: true
+
+  # 크롤링 소스 (예시)
+  # - id: "product_hunt"
+  #   type: "crawler"
+  #   url: "https://www.producthunt.com/"
+  #   selector: ".post-item"
+  #   category: "products"
+  #   enabled: false
+
+# 카테고리별 기본 설정
+categories:
+  tech_news:
+    relevance_boost: 1.0
+    max_items_per_day: 20
+    
+  tech_community:
+    relevance_boost: 0.8
+    max_items_per_day: 15
+    
+  ai:
+    relevance_boost: 1.2
+    max_items_per_day: 25
+    
+  products:
+    relevance_boost: 0.7
+    max_items_per_day: 10

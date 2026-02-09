@@ -1,0 +1,357 @@
+"""
+템플릿 렌더링 모듈
+Jinja2 기반 콘텐츠 템플릿 처리
+"""
+
+from pathlib import Path
+from datetime import datetime
+from typing import Any
+
+from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+from .config import get_config
+from .logger import get_logger
+
+logger = get_logger("templates")
+
+# 기본 템플릿 디렉토리
+DEFAULT_TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
+
+
+class TemplateRenderer:
+    """Jinja2 템플릿 렌더러"""
+    
+    def __init__(self, templates_dir: str | Path = None):
+        if templates_dir is None:
+            templates_dir = DEFAULT_TEMPLATES_DIR
+        
+        self.templates_dir = Path(templates_dir)
+        self.templates_dir.mkdir(parents=True, exist_ok=True)
+        
+        self.env = Environment(
+            loader=FileSystemLoader(str(self.templates_dir)),
+            autoescape=select_autoescape(["html", "xml"]),
+            trim_blocks=True,
+            lstrip_blocks=True
+        )
+        
+        # 커스텀 필터 등록
+        self._register_filters()
+        
+        logger.debug(f"TemplateRenderer initialized: {self.templates_dir}")
+    
+    def _register_filters(self):
+        """커스텀 Jinja2 필터 등록"""
+        
+        def format_date(value, fmt="%Y-%m-%d"):
+            if isinstance(value, str):
+                try:
+                    value = datetime.fromisoformat(value)
+                except ValueError:
+                    return value
+            if isinstance(value, datetime):
+                return value.strftime(fmt)
+            return value
+        
+        def truncate_smart(value, length=100):
+            """단어 경계에서 자르기"""
+            if len(value) <= length:
+                return value
+            truncated = value[:length].rsplit(" ", 1)[0]
+            return truncated + "..."
+        
+        def to_wikilink(value):
+            """Obsidian wikilink 형식으로 변환"""
+            return f"[[{value}]]"
+        
+        def to_hashtag(value):
+            """해시태그 형식으로 변환"""
+            tag = value.replace(" ", "_").lower()
+            return f"#{tag}"
+        
+        self.env.filters["format_date"] = format_date
+        self.env.filters["truncate_smart"] = truncate_smart
+        self.env.filters["wikilink"] = to_wikilink
+        self.env.filters["hashtag"] = to_hashtag
+    
+    def render(self, template_name: str, **context) -> str:
+        """
+        템플릿 렌더링
+        
+        Args:
+            template_name: 템플릿 파일명
+            **context: 템플릿 변수
+        
+        Returns:
+            렌더링된 문자열
+        """
+        template = self.env.get_template(template_name)
+        result = template.render(**context)
+        logger.debug(f"Rendered template: {template_name}")
+        return result
+    
+    def render_string(self, template_string: str, **context) -> str:
+        """
+        문자열 템플릿 렌더링
+        
+        Args:
+            template_string: 템플릿 문자열
+            **context: 템플릿 변수
+        
+        Returns:
+            렌더링된 문자열
+        """
+        template = self.env.from_string(template_string)
+        return template.render(**context)
+    
+    # ─────────────────────────────────────────────────────────────
+    # 콘텐츠 타입별 렌더링
+    # ─────────────────────────────────────────────────────────────
+    
+    def render_input_note(self, content: dict) -> str:
+        """
+        Input 노트 렌더링
+        
+        Args:
+            content: 콘텐츠 정보
+        
+        Returns:
+            마크다운 문자열
+        """
+        template = """---
+id: {{ id }}
+title: "{{ title }}"
+source: {{ source }}
+source_url: {{ source_url }}
+publish_date: {{ publish_date }}
+collected_at: {{ collected_at }}
+status: inbox
+score:
+  novelty: {{ score.novelty }}
+  relevance: {{ score.relevance }}
+  quality: {{ score.quality }}
+  total: {{ score.total }}
+tags:
+{% for tag in tags %}  - {{ tag }}
+{% endfor %}---
+
+# {{ title }}
+
+> [!info] 소스
+> [{{ source }}]({{ source_url }}) | {{ publish_date | format_date }}
+
+## 요약
+
+{{ summary }}
+
+## 핵심 포인트
+
+{% for point in key_points %}- {{ point }}
+{% endfor %}
+
+## 원문 발췌
+
+{{ excerpt }}
+"""
+        return self.render_string(template, **content)
+    
+    def render_digest(self, date: str, items: list[dict]) -> str:
+        """
+        Digest 노트 렌더링
+        
+        Args:
+            date: 날짜 (YYYY-MM-DD)
+            items: 콘텐츠 항목 리스트
+        
+        Returns:
+            마크다운 문자열
+        """
+        template = """---
+type: digest
+date: {{ date }}
+created_at: {{ created_at }}
+total_items: {{ items | length }}
+---
+
+# Daily Digest: {{ date }}
+
+{% for item in items %}
+## [ ] {{ item.title }}
+
+- **ID**: {{ item.id }}
+- **Account**: {{ item.account_id }}
+- **Score**: {{ item.score.total | round(2) }} (N:{{ item.score.novelty | round(2) }} R:{{ item.score.relevance | round(2) }} Q:{{ item.score.quality | round(2) }})
+- **Source**: [{{ item.source }}]({{ item.source_url }})
+- **Input**: {{ item.id | wikilink }}
+
+> {{ item.summary | truncate_smart(150) }}
+
+---
+{% endfor %}
+"""
+        return self.render_string(
+            template,
+            date=date,
+            created_at=datetime.now().isoformat(),
+            items=items
+        )
+    
+    def render_longform(self, content: dict, channel_config: dict = None) -> str:
+        """
+        Longform 콘텐츠 렌더링
+        
+        Args:
+            content: 콘텐츠 정보
+            channel_config: 채널별 설정
+        
+        Returns:
+            마크다운 문자열
+        """
+        template = """---
+id: {{ id }}
+title: "{{ title }}"
+type: longform
+status: draft
+source_input: {{ source_input_id | wikilink }}
+created_at: {{ created_at }}
+{% if tags %}tags:
+{% for tag in tags %}  - {{ tag }}
+{% endfor %}{% endif %}
+---
+
+# {{ title }}
+
+{{ intro }}
+
+## 핵심 내용
+
+{{ main_content }}
+
+## 주요 시사점
+
+{{ takeaways }}
+
+{% if cta %}
+---
+
+{{ cta }}
+{% endif %}
+"""
+        return self.render_string(
+            template,
+            created_at=datetime.now().isoformat(),
+            **content
+        )
+    
+    def render_pack(
+        self,
+        content: dict,
+        channel: str,
+        channel_config: dict = None
+    ) -> str:
+        """
+        채널별 패키징 콘텐츠 렌더링
+        
+        Args:
+            content: 콘텐츠 정보
+            channel: 채널명 (twitter, linkedin 등)
+            channel_config: 채널 설정
+        
+        Returns:
+            마크다운 문자열
+        """
+        channel_config = channel_config or {}
+        max_length = channel_config.get("max_length", 280)
+        tone = channel_config.get("tone", "casual")
+        use_hashtags = channel_config.get("hashtags", True)
+        
+        template = """---
+id: {{ id }}
+type: pack
+channel: {{ channel }}
+source_longform: {{ source_longform_id | wikilink }}
+status: draft
+created_at: {{ created_at }}
+---
+
+# {{ channel | title }} Pack
+
+**Character Count**: {{ text | length }} / {{ max_length }}
+
+---
+
+{{ text }}
+
+{% if use_hashtags and hashtags %}
+{{ hashtags | join(" ") }}
+{% endif %}
+"""
+        return self.render_string(
+            template,
+            channel=channel,
+            max_length=max_length,
+            use_hashtags=use_hashtags,
+            created_at=datetime.now().isoformat(),
+            **content
+        )
+    
+    def render_image_prompt(self, content: dict) -> str:
+        """
+        이미지 프롬프트 렌더링
+        
+        Args:
+            content: 프롬프트 정보
+        
+        Returns:
+            마크다운 문자열
+        """
+        template = """---
+id: {{ id }}
+type: image_prompt
+source_content: {{ source_content_id | wikilink }}
+status: pending
+created_at: {{ created_at }}
+---
+
+# Image Prompt
+
+## 메인 프롬프트
+
+{{ prompt }}
+
+## 스타일 가이드
+
+- **Style**: {{ style | default("modern, clean") }}
+- **Mood**: {{ mood | default("professional") }}
+- **Colors**: {{ colors | default("brand colors") }}
+
+## 네거티브 프롬프트
+
+{{ negative_prompt | default("text, watermark, low quality") }}
+
+## 참고 이미지
+
+{% if reference_images %}
+{% for img in reference_images %}- {{ img }}
+{% endfor %}
+{% else %}
+없음
+{% endif %}
+"""
+        return self.render_string(
+            template,
+            created_at=datetime.now().isoformat(),
+            **content
+        )
+
+
+# 편의 함수
+_default_renderer: TemplateRenderer | None = None
+
+
+def get_renderer() -> TemplateRenderer:
+    """기본 TemplateRenderer 반환"""
+    global _default_renderer
+    if _default_renderer is None:
+        _default_renderer = TemplateRenderer()
+    return _default_renderer

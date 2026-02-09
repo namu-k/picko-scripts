@@ -1,0 +1,17 @@
+[32m21:53:36[0m | [1mINFO    [0m | [36mconfig[0m | Loaded config from C:\picko-scripts\config\config.yml
+[32m21:53:36[0m | [1mINFO    [0m | [36mdaily_collector[0m | DailyCollector initialized for account: socialbuilders
+[32m21:53:36[0m | [1mINFO    [0m | [36mdaily_collector[0m | Starting collection for date: 2026-02-09
+[32m21:53:36[0m | [1mINFO    [0m | [36mdaily_collector[0m | Collected 20 items from sources
+[32m21:53:36[0m | [1mINFO    [0m | [36mdaily_collector[0m | After dedupe: 20 unique items
+[32m21:53:37[0m | [1mINFO    [0m | [36mdaily_collector[0m | Fetched content for 20 items
+[32m21:53:37[0m | [1mINFO    [0m | [36mvault_io[0m | Wrote note: c:\picko-scripts\mock_vault\Inbox\Inputs\input_7ce483b7a9e4.md
+[32m21:53:38[0m | [1mINFO    [0m | [36mvault_io[0m | Wrote note: c:\picko-scripts\mock_vault\Inbox\Inputs\_digests\2026-02-09.md
+[32m21:53:38[0m | [1mINFO    [0m | [36mdaily_collector[0m | Created digest for 2026-02-09
+[32m21:53:38[0m | [1mINFO    [0m | [36mdaily_collector[0m | Collection complete: {'date': '2026-02-09', 'collected': 20, 'processed': 20, 'exported': 1, 'errors': []}
+
+==================================================
+Collection Results for 2026-02-09
+==================================================
+Collected: 20
+Processed: 20
+Exported:  1
