@@ -10,11 +10,12 @@ Picko는 RSS 피드와 웹 소스에서 콘텐츠를 자동으로 수집하고, 
 2. [사전 준비 사항](#사전-준비-사항)
 3. [설치 및 초기 설정](#설치-및-초기-설정)
 4. [콘텐츠 파이프라인 이해하기](#콘텐츠-파이프라인-이해하기)
-5. [첫 실행: 단계별 가이드](#첫-실행-단계별-가이드)
-6. [일일 작업 흐름](#일일-작업-흐름)
-7. [구성 요소 상세 설명](#구성-요소-상세-설명)
-8. [문제 해결](#문제-해결)
-9. [팁과 모범 사례](#팁과-모범-사례)
+5. [Pre-writing Approval 워크플로우](#pre-writing-approval-워크플로우)
+6. [첫 실행: 단계별 가이드](#첫-실행-단계별-가이드)
+7. [일일 작업 흐름](#일일-작업-흐름)
+8. [구성 요소 상세 설명](#구성-요소-상세-설명)
+9. [문제 해결](#문제-해결)
+10. [팁과 모범 사례](#팁과-모범-사례)
 
 ---
 
@@ -379,6 +380,114 @@ PickoVault/                 # Obsidian Vault
 
 ---
 
+## Pre-writing Approval 워크플로우
+
+Picko는 글쓰기 전에 사용자가 자동 생성 vs 수동 작성을 선택할 수 있는 **Pre-writing Approval 워크플로우**를 제공합니다.
+
+### 워크플로우 개요
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  1. 수집된 콘텐츠는 writing_status: pending으로 시작         │
+└────────────────────┬────────────────────────────────────────┘
+                     ▼
+┌─────────────────────────────────────────────────────────────┐
+│  2. Input 노트에서 글쓰기 방법 선택 (체크박스)               │
+│                                                             │
+│  > [!tip] 글쓰기 처리 방법 선택                              │
+│  > - [ ] **자동 작성**: API로 블로그/소셜 미디어 자동 생성   │
+│  > - [ ] **수동 작성**: GPT Web 등에서 직접 작성            │
+└────────────────────┬────────────────────────────────────────┘
+                     ▼
+          ┌──────────┴──────────┐
+          ▼                     ▼
+┌─────────────────┐   ┌─────────────────┐
+│ 자동 작성 선택   │   │ 수동 작성 선택   │
+│ writing_status: │   │ writing_status: │
+│   auto_ready    │   │   manual        │
+└────────┬────────┘   └────────┬────────┘
+         │                     │
+         ▼                     ▼
+┌─────────────────┐   ┌─────────────────┐
+│ Digest에서 체크  │   │ generate_content │
+│ 후 자동 생성     │   │ 에서 스킵됨     │
+└─────────────────┘   └─────────────────┘
+```
+
+### Writing Status 상태값
+
+| 상태값 | 설명 | 동작 |
+|-------|------|------|
+| `pending` | 기본값, 아직 선택 안 함 | Digest에 표시, 처리 대기 |
+| `auto_ready` | 자동 작성 체크됨 | Digest 체크 시 API 생성 실행 |
+| `manual` | 수동 작성 체크됨 | generate_content에서 스킵 |
+| `completed` | 생성 완료 | Digest에서 "완료된 항목" 섹션으로 이동 |
+
+### 사용 방법
+
+#### 1. Input 노트에서 글쓰기 방법 선택
+
+수집된 각 Input 노트(`Inbox/Inputs/input_xxx.md`)에는 글쓰기 방법 선택 체크박스가 있습니다:
+
+```markdown
+> [!tip] 글쓰기 처리 방법 선택
+> - [ ] **자동 작성**: API로 블로그/소셜 미디어 콘텐츠 자동 생성 (체크하고 저장)
+> - [ ] **수동 작성**: GPT Web 등에서 직접 작성完成后, 아래에 결과를 입력하세요
+```
+
+**자동 작성 선택 시:**
+- `[ ]` → `[x]`로 변경 후 저장
+- `writing_status`가 `auto_ready`로 자동 변경됨
+- Digest에서 체크하면 API로 자동 생성
+
+**수동 작성 선택 시:**
+- `[ ]` → `[x]`로 변경 후 저장
+- `writing_status`가 `manual`로 자동 변경됨
+- GPT Web, Claude 등에서 직접 작성 후 하단 "수동 작성 결과" 섹션에 입력
+- 완료 후 `writing_status`를 `completed`로 변경
+
+#### 2. Digest에서 확인 및 승인
+
+Digest(`Inbox/Inputs/_digests/YYYY-MM-DD.md`)에는 각 항목의 `writing_status`가 표시됩니다:
+
+```markdown
+## [ ] OpenAI의 새로운 모델 발표
+
+- **ID**: input_7ce483b7a9e4
+- **Writing Status**: auto_ready  ← 자동 작성 대기 중
+- **Score**: 0.85 (N:0.90 R:0.80 Q:0.85)
+- **Source**: [TechCrunch](...)
+```
+
+#### 3. 콘텐츠 생성
+
+```bash
+# 자동 작성으로 체크된 항목만 생성
+python -m scripts.generate_content --date 2026-02-09
+
+# 수동 작업으로 인해 미체크된 항목도 강제로 생성
+python -m scripts.generate_content --date 2026-02-09 --auto-all
+```
+
+**동작:**
+- `auto_ready` 상태 + Digest 체크 → API로 생성
+- `manual` 상태 → 스킵 (수동 작성으로 간주)
+- `completed` 상태 → 이미 완료된 항목, 스킵
+- `--auto-all` 옵션 → `pending` 상태 항목도 강제 생성
+
+### 완료된 항목 관리
+
+Digest 하단에는 완료된 항목이 별도 섹션으로 표시됩니다:
+
+```markdown
+## 완료된 항목
+
+- [x] Claude 4의 새로운 기능 (input_abc123def456)
+- [x] GPT-5 출시 예정 (input_def456ghi789)
+```
+
+---
+
 ## 첫 실행: 단계별 가이드
 
 ### 1단계: 시스템 건강 확인
@@ -448,40 +557,53 @@ dry-run이 정상이면 실제로 저장해보세요.
 python -m scripts.daily_collector
 ```
 
-### 4단계: Input 노트에서 글쓰기 방법 선택
+### 4단계: Digest 확인 및 승인
 
-Obsidian에서 Input 노트를 엽니다:
-
-```
-Inbox/Inputs/input_xxx.md
-```
-
-각 노트 상단에 글쓰기 처리 방법을 선택하세요:
-
-```markdown
-> [!tip] 글쓰기 처리 방법 선택
-> - [ ] **자동 작성**: API로 블로그/소셜 미디어 콘텐츠 자동 생성 (체크하고 저장)
-> - [ ] **수동 작성**: GPT Web 등에서 직접 작성 완료 후, 아래에 결과를 입력하세요
-```
-
-**선택 옵션:**
-- **자동 작성 체크**: API로 자동 생성 (Digest에서 체크 필요 없음)
-- **수동 작성 체크**: 직접 작성 (API 건너뜸)
-- **둘 다 안 체크**: 나중에 결정 가능
-
-### 5단계: Digest 확인 및 글쓰기 실행
-
-Digest에서 최종 확인 후 실행합니다:
+Obsidian에서 다음 파일을 엽니다:
 
 ```
 Inbox/Inputs/_digests/2026-02-09.md
 ```
 
+다음과 같이 승인할 항목을 체크하세요:
+
+```markdown
+## [ ] OpenAI의 새로운 모델 발표
+
+- **ID**: input_7ce483b7a9e4
+- **Writing Status**: auto_ready  ← 자동 작성 대기 중
+- **Score**: 0.85 (N:0.90 R:0.80 Q:0.85)
+- **Source**: [TechCrunch](https://techcrunch.com/...)
+- > GPT-5가 곧 출시된다고...
+
+## [x] Claude 4의 새로운 기능   ← 체크!
+
+- **ID**: input_abc123def456
+- **Writing Status**: auto_ready
+- **Score**: 0.92
+- **Source**: [AI News](...)
+- > Anthropic이 새로운 기능을...
+```
+
+### 5단계: Input 노트에서 글쓰기 방법 선택 (선택사항)
+
+각 Input 노트를 열어 글쓰기 방법을 선택할 수 있습니다:
+
+```markdown
+> [!tip] 글쓰기 처리 방법 선택
+> - [x] **자동 작성**: API로 블로그/소셜 미디어 콘텐츠 자동 생성 (체크하고 저장)
+> - [ ] **수동 작성**: GPT Web 등에서 직접 작성完成后, 아래에 결과를 입력하세요
+```
+
+### 6단계: 콘텐츠 생성
+
+승인한 항목으로 콘텐츠를 생성하세요.
+
 ```bash
-# 체크된 항목만 글쓰기
+# 자동 작성으로 체크된 항목만 생성
 python -m scripts.generate_content --date 2026-02-09
 
-# 모든 항목 자동 처리 (수동 작업 거부 시)
+# 수동 작업이 없고 모든 항목을 자동 생성하려면
 python -m scripts.generate_content --date 2026-02-09 --auto-all
 ```
 
@@ -504,7 +626,7 @@ Packs Created:       2
 Image Prompts:       1
 ```
 
-### 6단계: 생성된 콘텐츠 확인
+### 7단계: 생성된 콘텐츠 확인
 
 Obsidian에서 다음 위치를 확인하세요:
 
@@ -522,8 +644,11 @@ Obsidian에서 다음 위치를 확인하세요:
 **1. 콘텐츠 수집 (자동화 가능)**
 
 ```bash
-# 오늘 날짜로 수집
+# 오늘 날짜로 수집 (기본 계정: socialbuilders)
 python -m scripts.daily_collector
+
+# 특정 계정 프로필로 수집
+python -m scripts.daily_collector --account mychannel
 
 # 특정 소스만 수집
 python -m scripts.daily_collector --sources techcrunch ai_news
@@ -531,21 +656,31 @@ python -m scripts.daily_collector --sources techcrunch ai_news
 
 **2. Input 노트에서 글쓰기 방법 선택**
 
-Obsidian에서 각 Input 노트를 열고 글쓰기 방법 선택:
-- `[ ] **자동 작성**`: 체크하면 API로 자동 생성
-- `[ ] **수동 작성**`: 체크하면 GPT Web 등에서 직접 작성
+Obsidian에서 `Inbox/Inputs/` 폴더의 노트들을 열고 글쓰기 방법 선택:
+- **자동 작성**: `[x] **자동 작성**` 체크
+- **수동 작성**: `[x] **수동 작성**` 체크 후 GPT Web 등에서 직접 작성
 
-**3. 글쓰기 실행**
+**3. Digest 확인 및 승인**
+
+Obsidian에서 `Inbox/Inputs/_digests/오늘날짜.md` 열고 자동 생성할 항목 체크
+
+**4. 콘텐츠 생성**
 
 ```bash
-# 체크된 항목만 처리
+# 자동 작성으로 체크된 항목만 생성
 python -m scripts.generate_content
 
-# 모든 항목 자동 처리 (수동 작업 건너뛰기)
+# 미체크 항목도 강제로 자동 생성 (수동 작업 없을 때)
 python -m scripts.generate_content --auto-all
+
+# 특정 타입만 생성
+python -m scripts.generate_content --type longform packs
+
+# 이미 생성된 항목 재생성
+python -m scripts.generate_content --force
 ```
 
-**4. 품질 검증**
+**5. 품질 검증**
 
 ```bash
 python -m scripts.validate_output --path Content/ --recursive --verbose
@@ -574,6 +709,31 @@ python -m scripts.retry_failed --date yesterday
 ```bash
 python -m scripts.publish_log create --content Content/Longform/longform_xxx.md --platform linkedin
 ```
+
+---
+
+## CLI 옵션 참고
+
+### daily_collector
+
+| 옵션 | 설명 | 예시 |
+|------|------|------|
+| `--date, -d` | 대상 날짜 (YYYY-MM-DD) | `--date 2026-02-09` |
+| `--account, -a` | 계정 프로필 ID | `--account mychannel` |
+| `--sources, -s` | 특정 소스만 처리 | `--sources techcrunch ai_news` |
+| `--dry-run` | 저장 없이 시뮬레이션 | `--dry-run` |
+
+### generate_content
+
+| 옵션 | 설명 | 예시 |
+|------|------|------|
+| `--date, -d` | Digest 날짜 (YYYY-MM-DD) | `--date 2026-02-09` |
+| `--type, -t` | 생성할 콘텐츠 타입 | `--type longform packs` |
+| `--force, -f` | 이미 생성된 항목도 재생성 | `--force` |
+| `--auto-all` | 미체크 항목도 자동 처리 | `--auto-all` |
+| `--dry-run` | 저장 없이 시뮬레이션 | `--dry-run` |
+
+**content 타입:** `longform`, `packs`, `images`, `all`
 
 ---
 
@@ -771,6 +931,7 @@ pip install sentence-transformers
 
 ---
 
-버전: 0.2.0
-최종 업데이트: 2026-02-09
+버전: 0.3.0
+최종 업데이트: 2026-02-10
 모델 아키텍처: 요약/태깅(로컬) + 임베딩(로컬) + 글쓰기(클라우드)
+주요 변경사항: Pre-writing Approval 워크플로우 추가
