@@ -8,7 +8,7 @@ import json
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Generator
+from typing import TYPE_CHECKING, Any, Generator
 
 from .config import LLMConfig, get_config
 from .logger import get_logger
@@ -193,6 +193,7 @@ class LLMClient:
         self.config = config
         self.cache_enabled = cache_enabled
         self.cache_dir = Path(cache_dir or "cache/responses")
+        self._client: Any = None  # Will be set based on provider
 
         # 프로바이더별 클라이언트 초기화
         if config.provider == "openai":

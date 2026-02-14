@@ -50,6 +50,11 @@ class LLMConfig:
     temperature: float = 0.7
     max_tokens: int = 4000
     api_key_env: str = "OPENAI_API_KEY"
+    # Optional fallback attributes (for ollama/local LLMs)
+    base_url: str = ""
+    fallback_provider: str = ""
+    fallback_model: str = ""
+    fallback_api_key_env: str = ""
 
     @property
     def api_key(self) -> str:

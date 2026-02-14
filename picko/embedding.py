@@ -5,6 +5,7 @@
 import hashlib
 import os
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -23,8 +24,8 @@ class EmbeddingManager:
 
         self.config = config
         self.cache_dir = Path(config.cache_dir)
-        self._client = None
-        self._local_model = None
+        self._client: Any = None
+        self._local_model: Any = None
 
         if config.cache_enabled:
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -32,7 +33,7 @@ class EmbeddingManager:
         logger.debug(f"EmbeddingManager initialized: {config.provider}/{config.model}")
 
     @property
-    def client(self):
+    def client(self) -> Any:
         """OpenAI 클라이언트 (lazy 로드)"""
         if self._client is None:
             from openai import OpenAI
@@ -42,7 +43,7 @@ class EmbeddingManager:
         return self._client
 
     @property
-    def local_model(self):
+    def local_model(self) -> Any:
         """로컬 임베딩 모델 (lazy 로드)"""
         if self._local_model is None:
             try:
