@@ -1,5 +1,7 @@
 # Picko - Content Pipeline
 
+[![Test](https://github.com/your-username/picko-scripts/actions/workflows/test.yml/badge.svg)](https://github.com/your-username/picko-scripts/actions/workflows/test.yml)
+
 > RSS 피드와 웹 소스에서 콘텐츠를 자동 수집하고, AI를 활용해 블로그 포스트와 소셜 미디어 콘텐츠를 생성하는 파이프라인 시스템
 
 ## 📋 개요
@@ -113,6 +115,19 @@ python -m scripts.archive_manager --days 30
 
 # 실패한 항목 재시도
 python -m scripts.retry_failed --date 2026-02-09
+```
+
+### Phase 3: 성과 분석 (선택)
+
+```bash
+# 플랫폼 성과 메트릭 동기화
+python -m scripts.engagement_sync --days 7
+
+# 점수 가중치 분석 및 조정 제안
+python -m scripts.score_calibrator --days 30
+
+# 중복 콘텐츠 탐지
+python -m scripts.duplicate_checker --directory "Inbox/Inputs"
 ```
 
 ## 📁 프로젝트 구조

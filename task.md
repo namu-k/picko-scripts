@@ -2,6 +2,11 @@
 
 ## 현재 작업
 - [x] Phase 1 스크립트 구현
+- [x] Phase 2 스크립트 구현
+- [x] Phase 3 스크립트 스캐폴드 구현
+- [x] 테스트 프레임워크 추가 (pytest)
+- [x] GitHub Actions CI 설정
+- [x] Windows Task Scheduler 설정 스크립트
 
 ## 작업 단계
 - [x] 운영단계별 스크립트 구현 계획 문서 작성
@@ -20,4 +25,39 @@
   - [x] scripts/validate_output.py
   - [x] scripts/health_check.py
   - [x] config/config.yml
-- [ ] Phase 2 스크립트 구현 (필요시)
+- [x] Phase 2 스크립트 구현
+  - [x] scripts/archive_manager.py
+  - [x] scripts/retry_failed.py
+  - [x] scripts/publish_log.py
+- [x] Phase 3 스크립트 스캐폴드 구현
+  - [x] scripts/engagement_sync.py (성과 메트릭 동기화)
+  - [x] scripts/score_calibrator.py (점수 보정 분석)
+  - [x] scripts/duplicate_checker.py (중복 콘텐츠 탐지)
+- [x] 테스트 및 CI/CD
+  - [x] tests/ 디렉토리 구조 (pytest)
+  - [x] tests/test_config.py (설정 로더 테스트)
+  - [x] tests/test_scoring.py (점수 계산 테스트)
+  - [x] tests/test_templates.py (템플릿 렌더링 테스트)
+  - [x] tests/test_integration.py (통합 테스트)
+  - [x] .github/workflows/test.yml (CI 워크플로우)
+  - [x] .flake8 (린트 설정)
+- [x] 운영 자동화
+  - [x] scripts/setup_scheduler.ps1 (Windows Task Scheduler 설정)
+  - [x] scripts/run_daily_collector.ps1 (스케줄러 실행 스크립트)
+
+## Phase 3 구현 상세
+
+### engagement_sync.py
+- 플랫폼 API 연결 플레이스홀더 구조
+- 성과 메트릭 자동 동기화 기능
+- 발행 로그 업데이트
+
+### score_calibrator.py
+- 실제 성과 vs 예측 점수 상관관계 분석
+- 가중치 조정 제안
+- 개선 효과 추정
+
+### duplicate_checker.py
+- 임베딩 기반 유사도 검사
+- 단일/디렉토리/페어 비교 모드
+- 임계값 설정 가능

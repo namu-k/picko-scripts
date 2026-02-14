@@ -13,3 +13,5 @@ tiktoken>=0.5.0
 xxhash>=3.4.0
 ollama>=0.3.0
 sentence-transformers>=2.2.0
+pytest>=7.4.0
+pytest-cov>=4.1.0

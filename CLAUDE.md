@@ -104,6 +104,11 @@ The system uses different LLMs for different tasks:
 - **retry_failed.py**: Retries failed items from logs by specific stage (fetch/nlp/embed/score/export)
 - **publish_log.py**: Creates and manages publication logs with platform tracking
 
+#### Phase 3: Analytics Scripts (Placeholder Implementations)
+- **engagement_sync.py**: Syncs platform metrics (views, likes, etc.) to publish logs - requires API integration
+- **score_calibrator.py**: Analyzes performance vs predicted scores, suggests weight adjustments
+- **duplicate_checker.py**: Finds duplicate/similar content using embedding similarity
+
 ### Configuration Structure
 
 ```
@@ -168,7 +173,20 @@ picko-scripts/
 │   ├── health_check.py      # System health verification
 │   ├── archive_manager.py   # Old content archival
 │   ├── retry_failed.py      # Retry failed pipeline items
-│   └── publish_log.py       # Publication logging
+│   ├── publish_log.py       # Publication logging
+│   ├── engagement_sync.py   # Platform metrics sync (Phase 3)
+│   ├── score_calibrator.py  # Score weight analysis (Phase 3)
+│   ├── duplicate_checker.py # Duplicate detection (Phase 3)
+│   ├── setup_scheduler.ps1  # Windows Task Scheduler setup
+│   └── run_daily_collector.ps1  # Scheduler runner script
+├── tests/                   # Pytest tests
+│   ├── conftest.py          # Shared fixtures
+│   ├── test_config.py       # Config loader tests
+│   ├── test_scoring.py      # Scoring algorithm tests
+│   ├── test_templates.py    # Template rendering tests
+│   └── test_integration.py  # Integration tests
+├── .github/workflows/       # CI/CD workflows
+│   └── test.yml             # Automated testing
 ├── config/                  # Configuration files
 ├── logs/                    # Daily rotated logs
 ├── cache/                   # Embedding cache
