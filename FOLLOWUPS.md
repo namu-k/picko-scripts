@@ -11,12 +11,13 @@ This document tracks follow-up items from the hardening plan execution. Each ite
 - **Command**: `pytest tests/ -v`
 - **Acceptance**: All tests pass (46/46)
 
-### [ ] 2. Fix flake8 lint warnings
+### [x] 2. Fix flake8 lint warnings
 - **Priority**: P1
-- **Owner**: Unassigned
+- **Owner**: Completed (commit 03a333f)
 - **Description**: Run flake8 and fix all warnings
 - **Command**: `flake8 picko/ scripts/`
 - **Acceptance**: Zero flake8 warnings (E9, F63, F7, F82)
+- **Result**: All files compile successfully, no critical issues found
 
 ### [ ] 3. Add type hints to core modules
 - **Priority**: P2
