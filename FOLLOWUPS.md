@@ -4,12 +4,12 @@ This document tracks follow-up items from the hardening plan execution. Each ite
 
 ## Critical (Must Complete)
 
-### [ ] 1. Fix failing tests
+### [x] 1. Fix failing tests
 - **Priority**: P1
-- **Owner**: Unassigned
+- **Owner**: Completed (commit 575e7b7)
 - **Description**: Run full test suite and fix any failures
 - **Command**: `pytest tests/ -v`
-- **Acceptance**: All tests pass
+- **Acceptance**: All tests pass (46/46)
 
 ### [ ] 2. Fix flake8 lint warnings
 - **Priority**: P1
