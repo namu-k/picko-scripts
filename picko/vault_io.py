@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any
 
 import frontmatter
-import yaml
 
 from .config import get_config
 from .logger import get_logger

@@ -3,7 +3,6 @@
 모든 스크립트에서 통일된 로깅 형식 사용
 """
 
-import os
 from datetime import datetime
 from pathlib import Path
 

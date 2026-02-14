@@ -8,7 +8,6 @@ from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
-from .config import get_config
 from .logger import get_logger
 
 logger = get_logger("templates")
@@ -196,7 +195,8 @@ total_items: {{ items | length }}
 
 - **ID**: {{ item.id }}
 - **Writing Status**: {{ item.writing_status | default("pending") }}
-- **Score**: {{ item.score.total | round(2) }} (N:{{ item.score.novelty | round(2) }} R:{{ item.score.relevance | round(2) }} Q:{{ item.score.quality | round(2) }})
+- **Score**: {{ item.score.total | round(2) }} (N:{{ item.score.novelty | round(2) }} R:{{
+  item.score.relevance | round(2) }} Q:{{ item.score.quality | round(2) }})
 - **Source**: [{{ item.source }}]({{ item.source_url }})
 - **Input**: {{ item.id | wikilink }}
 
@@ -273,7 +273,6 @@ created_at: {{ created_at }}
         """
         channel_config = channel_config or {}
         max_length = channel_config.get("max_length", 280)
-        tone = channel_config.get("tone", "casual")
         use_hashtags = channel_config.get("hashtags", True)
 
         template = """---

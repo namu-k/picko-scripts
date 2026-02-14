@@ -3,7 +3,6 @@
 """
 
 import hashlib
-import json
 import os
 from pathlib import Path
 
@@ -102,7 +101,7 @@ class EmbeddingManager:
 
         # 실패 시 빈 벡터 반환
         if embedding is None:
-            logger.warning(f"Failed to generate embedding, returning zero vector")
+            logger.warning("Failed to generate embedding, returning zero vector")
             return [0.0] * self.config.dimensions
 
         # 캐시 저장

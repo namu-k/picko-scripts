@@ -5,7 +5,6 @@ OpenAI/Anthropic API 추상화 및 재시도 로직
 
 import hashlib
 import json
-import os
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -370,7 +369,7 @@ def get_summary_client() -> LLMClient:
     """요약/태깅용 LLM 클라이언트 반환 (로컬 우선)"""
     global _summary_client
     if _summary_client is None:
-        from .config import SummaryLLMConfig, get_config
+        from .config import get_config
 
         config = get_config().summary_llm
 
@@ -394,7 +393,7 @@ def get_writer_client() -> LLMClient:
     """글쓰기용 LLM 클라이언트 반환 (클라우드)"""
     global _writer_client
     if _writer_client is None:
-        from .config import WriterLLMConfig, get_config
+        from .config import get_config
 
         config = get_config().writer_llm
 
