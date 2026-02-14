@@ -22,8 +22,11 @@ python -m scripts.daily_collector --dry-run
 
 ### Content Generation
 ```bash
-# Generate approved content from digest
+# Generate approved content from digest (only auto_ready items)
 python -m scripts.generate_content --date 2026-02-09
+
+# Force generate all items regardless of writing_status
+python -m scripts.generate_content --auto-all
 
 # Generate specific content types
 python -m scripts.generate_content --type longform packs
@@ -44,12 +47,21 @@ python -m scripts.health_check --json
 ```
 
 ### Environment Setup
+
+**Requirements**: Python 3.13+
+
 ```bash
+# Create and activate virtual environment
+python -m venv .venv
+.venv\Scripts\activate  # Windows
+source .venv/bin/activate  # macOS/Linux
+
 # Install dependencies
 pip install -r requirements.txt
 
 # Set up API key (OpenAI)
-set OPENAI_API_KEY=your_api_key_here
+set OPENAI_API_KEY=your_api_key_here  # Windows
+export OPENAI_API_KEY=your_api_key_here  # macOS/Linux
 ```
 
 ## Architecture Overview
@@ -102,12 +114,23 @@ config/
     └── socialbuilders.yml  # Target audience, interests, channel settings
 ```
 
+**Configuration Architecture:**
+- Uses `dataclass` types for type-safe configuration (`picko/config.py`)
+- Lazy loading: sources and account profiles loaded on-demand
+- Environment variable override: prefix any config key with `PICKO_` (e.g., `PICKO_VAULT_ROOT`)
+- Singleton pattern via `get_config()` for consistent access across modules
+
 ## Content Flow
 
 1. **Ingestion**: RSS feeds → Content extraction → NLP processing → Scoring → Export to `Inbox/Inputs/`
-2. **Curation**: Review daily digest in `Inbox/Inputs/_digests/` - check items to approve
-3. **Generation**: Approved items → Longform articles (`Content/Longform/`) → Social packs (`Content/Packs/`) → Image prompts (`Assets/Images/_prompts/`)
-4. **Validation**: All generated content validated for structure and completeness
+2. **Writing Method Selection**: Each input has `writing_status` field:
+   - `pending`: Not yet selected (default)
+   - `auto_ready`: Marked for automatic generation via API
+   - `manual`: Marked for manual writing (e.g., GPT Web)
+   - `completed`: Content generation finished
+3. **Curation**: Review daily digest in `Inbox/Inputs/_digests/` - check items to approve
+4. **Generation**: Only items with `auto_ready` status + digest checkbox are processed by `generate_content.py`
+5. **Validation**: All generated content validated for structure and completeness
 
 ## Key Design Patterns
 
@@ -119,16 +142,51 @@ config/
 
 ## Important File Locations
 
-- **Vault Root**: `mock_vault/` (simulated Obsidian vault)
-- **Logs**: `logs/YYYY-MM-DD/` (rotated daily)
-- **Cache**: `cache/embeddings/` (cached OpenAI embeddings)
-- **Templates**: Embedded in `templates.py` (no physical template files)
+- **Vault Root**: Configured in `config.yml` under `vault.root` (default: `mock_vault/`)
+- **Logs**: `logs/YYYY-MM-DD/` (rotated daily, retention configurable)
+- **Cache**: `cache/embeddings/` (cached OpenAI embeddings for cost savings)
+- **Templates**: Embedded in `picko/templates.py` as Jinja2 strings (no physical template files)
+- **Project Root**: Auto-detected via `PROJECT_ROOT` in `picko/config.py`
+
+## Project Structure
+
+```
+picko-scripts/
+├── picko/                   # Core modules (importable package)
+│   ├── __init__.py
+│   ├── config.py            # Configuration loading with dataclasses
+│   ├── vault_io.py          # Obsidian markdown I/O with frontmatter
+│   ├── llm_client.py        # Multi-provider LLM client
+│   ├── embedding.py         # Local-first embedding manager
+│   ├── scoring.py           # Content scoring algorithm
+│   ├── templates.py         # Jinja2 template definitions (embedded)
+│   └── logger.py            # Loguru-based logging setup
+├── scripts/                 # Executable CLI scripts
+│   ├── daily_collector.py   # Main ingestion pipeline
+│   ├── generate_content.py  # Content generation from digests
+│   ├── validate_output.py   # Content validation
+│   ├── health_check.py      # System health verification
+│   ├── archive_manager.py   # Old content archival
+│   ├── retry_failed.py      # Retry failed pipeline items
+│   └── publish_log.py       # Publication logging
+├── config/                  # Configuration files
+├── logs/                    # Daily rotated logs
+├── cache/                   # Embedding cache
+├── requirements.txt         # Python dependencies
+└── pyproject.toml          # Project metadata (requires Python >=3.13)
+```
 
 ## Testing
 
 Use `--dry-run` flag with daily_collector to test without writing:
 ```bash
 python -m scripts.daily_collector --date 2026-02-09 --dry-run
+```
+
+Use health_check to verify system status:
+```bash
+python -m scripts.health_check          # Human-readable output
+python -m scripts.health_check --json   # Machine-readable output
 ```
 
 ## Environment Variables
