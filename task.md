@@ -91,14 +91,27 @@
   - INI 문법 올바르게 수정 ([mypy-module.*] 형식)
   - frontmind.* 모듈 추가
 
-- [ ] 2. Fix flake8 lint warnings
+- [x] 2. Fix flake8 lint warnings (Commit 03a333f, efa89fe)
+  - Black formatting 적용 (7개 파일)
+  - Isort import 정렬 (17개 파일)
+  - 모든 파일 컴파일 성공
+  - 치명적 에러 없음 (E9, F63, F7, F82)
+
 - [ ] 3. Add type hints to core modules (mypy compliance)
 - [ ] 4. Enable and test pre-commit hooks
 - [ ] 5. Pin all dependencies
 - [ ] 6. Run security audit (safety, pip-audit)
+
+- [x] 10. Test Windows Task Scheduler script (Commit 514568a)
+  - setup_scheduler.ps1 -WhatIf 테스트 통과
+  - 'Picko Daily Collector' 태스크 생성 확인
+  - 스케줄: 매일 8:00 AM
 
 ### 참조
 - Commit 753183c: Phase 3 완료, 테스트, CI/CD 추가
 - Commit 6843cd8: 하드닝 플랜 실행, 개발 도구 및 문서화 완료
 - Commit 575e7b7: 테스트 수정
 - Commit ce5234b: mypy.ini 설정 수정
+- Commit 03a333f: black/isort formatting
+- Commit efa89fe: flake8 task 완료
+- Commit 514568a: Windows scheduler 테스트 완료
