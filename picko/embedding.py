@@ -17,7 +17,7 @@ logger = get_logger("embedding")
 class EmbeddingManager:
     """임베딩 생성 및 캐시 관리"""
 
-    def __init__(self, config: EmbeddingConfig = None):
+    def __init__(self, config: EmbeddingConfig | None = None):
         if config is None:
             config = get_config().embedding
 

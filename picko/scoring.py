@@ -33,7 +33,7 @@ class ContentScore:
 class ContentScorer:
     """콘텐츠 점수 계산기"""
 
-    def __init__(self, config: ScoringConfig = None, account_profile: dict = None):
+    def __init__(self, config: ScoringConfig | None = None, account_profile: dict | None = None):
         if config is None:
             config = get_config().scoring
 
@@ -45,7 +45,7 @@ class ContentScorer:
 
         logger.debug(f"ContentScorer initialized with weights: {self.weights}")
 
-    def score(self, content: dict, existing_embeddings: list[list[float]] = None) -> ContentScore:
+    def score(self, content: dict, existing_embeddings: list[list[float]] | None = None) -> ContentScore:
         """
         콘텐츠 점수 계산
 
@@ -71,7 +71,7 @@ class ContentScorer:
         logger.debug(f"Scored content: {score.to_dict()}")
         return score
 
-    def _calculate_novelty(self, content: dict, existing_embeddings: list[list[float]] = None) -> float:
+    def _calculate_novelty(self, content: dict, existing_embeddings: list[list[float]] | None = None) -> float:
         """
         참신도 계산 (기존 콘텐츠와의 유사도 기반)
 
@@ -209,7 +209,7 @@ class ContentScorer:
 
 
 # 편의 함수
-def score_content(content: dict, account_id: str = None, existing_embeddings: list[list[float]] = None) -> ContentScore:
+def score_content(content: dict, account_id: str | None = None, existing_embeddings: list[list[float]] | None = None) -> ContentScore:
     """
     콘텐츠 점수 계산 (편의 함수)
 

@@ -186,7 +186,7 @@ class LLMClient:
     - 프로바이더 추상화
     """
 
-    def __init__(self, config: LLMConfig = None, cache_enabled: bool = True, cache_dir: str | Path = None):
+    def __init__(self, config: LLMConfig | None = None, cache_enabled: bool = True, cache_dir: str | Path | None = None):
         if config is None:
             config = get_config().llm
 
@@ -295,7 +295,7 @@ class LLMClient:
         result = self.generate(prompt)
         return [k.strip() for k in result.split(",")]
 
-    def generate_tags(self, text: str, existing_tags: list[str] = None) -> list[str]:
+    def generate_tags(self, text: str, existing_tags: list[str] | None = None) -> list[str]:
         """태그 생성"""
         tags_hint = ""
         if existing_tags:
