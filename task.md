@@ -7,6 +7,11 @@
 - [x] 테스트 프레임워크 추가 (pytest)
 - [x] GitHub Actions CI 설정
 - [x] Windows Task Scheduler 설정 스크립트
+- [x] 개발 도구 설정 (pre-commit, mypy, black, isort)
+- [x] CI 하드닝 (시크릿 검사, 커버리지, 보안 스캔)
+- [x] CHANGELOG.md 작성 (v0.2.0)
+- [x] 버전 bump (pyproject.toml → 0.2.0)
+- [x] 문서화 (REVIEW_CHECKLIST.md, MONITORING.md)
 
 ## 작업 단계
 - [x] 운영단계별 스크립트 구현 계획 문서 작성

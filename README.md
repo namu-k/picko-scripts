@@ -188,3 +188,7 @@ MIT License
 - 문제 신고: [GitHub Issues](https://github.com/your-username/picko-scripts/issues)
 - 사용자 가이드: [USER_GUIDE.md](USER_GUIDE.md)
 - 개발자 가이드: [CLAUDE.md](CLAUDE.md)
+- 변경 로그: [CHANGELOG.md](CHANGELOG.md)
+- 코드 리뷰 체크리스트: [REVIEW_CHECKLIST.md](REVIEW_CHECKLIST.md)
+- 모니터링: [MONITORING.md](MONITORING.md)
+- 후속 작업: [FOLLOWUPS.md](FOLLOWUPS.md)

@@ -1,6 +1,108 @@
 [project]
 name = "picko-scripts"
-version = "0.1.0"
-description = "Add your description here"
+version = "0.2.0"
+description = "Content pipeline automation system for RSS feeds and AI-generated content"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "pyyaml>=6.0",
+    "loguru>=0.7.0",
+    "httpx>=0.25.0",
+    "feedparser>=6.0.10",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=4.9.0",
+    "openai>=1.0.0",
+    "anthropic>=0.18.0",
+    "jinja2>=3.1.0",
+    "python-frontmatter>=1.0.0",
+    "numpy>=1.24.0",
+    "tiktoken>=0.5.0",
+    "xxhash>=3.4.0",
+    "ollama>=0.3.0",
+    "sentence-transformers>=2.2.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-cov>=4.1.0",
+    "flake8>=7.0.0",
+    "black>=24.0.0",
+    "isort>=5.13.0",
+    "mypy>=1.8.0",
+    "pre-commit>=3.6.0",
+    "safety>=3.0.0",
+    "pip-audit>=2.7.0",
+]
+
+[project.scripts]
+picko-collect = "picko.__main__:main"
+picko-generate = "picko.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.black]
+line-length = 120
+target-version = ["py313"]
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+line_length = 120
+skip_gitignore = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-v --tb=short --strict-markers"
+markers = [
+    "unit: Unit tests",
+    "integration: Integration tests",
+    "slow: Slow running tests",
+]
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+warn_unreachable = true
+strict_equality = true
+
+[[tool.mypy.overrides]]
+module = ["feedparser.*", "bs4.*", "lxml.*", "loguru.*", "sentence_transformers.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+
+[tool.coverage.run]
+source = ["picko"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__pycache__/*",
+    "*/venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstract",
+]
+precision = 2
+fail_under = 85
