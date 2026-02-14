@@ -139,7 +139,7 @@ class EmbeddingManager:
         base_url = getattr(self.config, "base_url", "http://localhost:11434")
         client = ollama.Client(host=base_url)
         response = client.embeddings(model=self.config.model, prompt=text)
-        return response["embedding"]
+        return response["embedding"]  # type: ignore[no-any-return]
 
     def embed_batch(self, texts: list[str], use_cache: bool = True) -> list[list[float]]:
         """

@@ -38,11 +38,11 @@ class OpenAIClient(BaseLLMClient):
         self._client = None
 
     @property
-    def client(self):
+    def client(self) -> Any:
         if self._client is None:
             from openai import OpenAI
 
-            self._client = OpenAI(api_key=self.config.api_key)
+            self._client = OpenAI(api_key=self.config.api_key)  # type: ignore[assignment]
         return self._client
 
     def generate(
@@ -99,11 +99,11 @@ class AnthropicClient(BaseLLMClient):
         self._client = None
 
     @property
-    def client(self):
+    def client(self) -> Any:
         if self._client is None:
             from anthropic import Anthropic
 
-            self._client = Anthropic(api_key=self.config.api_key)
+            self._client = Anthropic(api_key=self.config.api_key)  # type: ignore[assignment]
         return self._client
 
     def generate(
@@ -142,7 +142,7 @@ class OllamaClient(BaseLLMClient):
         self._client = None
 
     @property
-    def client(self):
+    def client(self) -> Any:
         if self._client is None:
             import ollama
 
@@ -265,7 +265,7 @@ class LLMClient:
                 if attempt < max_retries - 1:
                     time.sleep(retry_delay * (2**attempt))  # Exponential backoff
 
-        raise last_error
+        raise last_error  # type: ignore[misc]
 
     def generate_stream(self, prompt: str, system_prompt: str | None = None, **kwargs) -> Generator[str, None, None]:
         """스트리밍 텍스트 생성 (캐싱 없음)"""
