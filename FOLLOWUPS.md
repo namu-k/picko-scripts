@@ -19,12 +19,13 @@ This document tracks follow-up items from the hardening plan execution. Each ite
 - **Acceptance**: Zero flake8 warnings (E9, F63, F7, F82)
 - **Result**: All files compile successfully, no critical issues found
 
-### [ ] 3. Add type hints to core modules
+### [x] 3. Add type hints to core modules
 - **Priority**: P2
-- **Owner**: Unassigned
+- **Owner**: Completed (commits 1b83f67, fcd7c89, 9e042d7, d606b7f, 2931637)
 - **Description**: Add type hints to `picko/*.py` for mypy compliance
-- **Files**: config.py, vault_io.py, llm_client.py, embedding.py, scoring.py
+- **Files**: config.py, vault_io.py, llm_client.py, embedding.py, scoring.py, logger.py, templates.py
 - **Acceptance**: `mypy picko/` passes without errors
+- **Result**: SUCCESS - 0 mypy errors (reduced from 101 initial errors)
 
 ## High Priority
 
