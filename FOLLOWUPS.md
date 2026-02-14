@@ -73,11 +73,12 @@ This document tracks follow-up items from the hardening plan execution. Each ite
 - **Description**: Add detailed instructions for setting up GitHub Actions Secrets
 - **Location**: README.md or separate DEPLOYMENT.md
 
-### [ ] 10. Test Windows Task Scheduler script
+### [x] 10. Test Windows Task Scheduler script
 - **Priority**: P2
-- **Owner**: Unassigned
+- **Owner**: Completed
 - **Description**: Verify `setup_scheduler.ps1` works correctly
 - **Command**: `.\scripts\setup_scheduler.ps1 -VaultPath "C:\picko-scripts\mock_vault" -Hour 8 -Minute 0 -WhatIf`
+- **Result**: PASS - Would create task 'Picko Daily Collector' successfully
 
 ## Low Priority
 
