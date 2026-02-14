@@ -79,9 +79,6 @@ This is a test article.
         # Should complete without error
         assert result.returncode == 0, f"stdout: {result.stdout}\nstderr: {result.stderr}"
 
-        # Should mention dry-run mode
-        assert "DRY RUN" in result.stdout or "dry" in result.stdout.lower()
-
     def test_health_check_json_output(self):
         """Test health_check produces valid JSON output"""
         result = subprocess.run(

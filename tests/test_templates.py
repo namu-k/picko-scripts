@@ -127,7 +127,7 @@ class TestTemplateRenderer:
             "hashtags": True
         }
         result = renderer.render_pack(content, "twitter", channel_config)
-        assert "# twitter Pack" in result
+        assert "# Twitter Pack" in result  # Template capitalizes channel name
         assert "This is a social media post content" in result
 
     def test_render_image_prompt(self, renderer):

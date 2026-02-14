@@ -33,7 +33,8 @@ class TestVaultConfig:
         """get_path 메서드 테스트"""
         config = VaultConfig(root="C:/test/vault", inbox="Inbox")
         path = config.get_path("inbox")
-        assert str(path) == "C:/test/vault/Inbox"
+        # Use os.path.normpath to handle Windows path separators
+        assert os.path.normpath(str(path)) == os.path.normpath("C:/test/vault/Inbox")
 
     def test_get_path_invalid_key(self):
         """잘못된 key로 get_path 호출 시 예외"""
