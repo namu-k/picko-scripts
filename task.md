@@ -66,3 +66,17 @@
 - 임베딩 기반 유사도 검사
 - 단일/디렉토리/페어 비교 모드
 - 임계값 설정 가능
+
+## 하드닝 플랜 완료 (Commit 6843cd8)
+
+- [x] CI/CD 하드닝: 시크릿 검사, 의존성 캐싱, mypy 타입 체크, 보안 스캔
+- [x] 개발 도구: pre-commit hooks, black, isort, flake8, mypy
+- [x] E2E 테스트: generate_content dry-run 통합 테스트
+- [x] 문서화: CHANGELOG.md (v0.2.0), REVIEW_CHECKLIST.md, MONITORING.md
+- [x] 일일 헬스 체크: .github/workflows/health_check.yml (8 AM UTC, 자동 이슈 생성)
+- [x] 의존성 관리: requirements.txt 핀, pyproject.toml dev deps
+- [x] 후속 작업 추적: FOLLOWUPS.md (12개 이슈)
+
+### 참조
+- Commit 753183c: Phase 3 완료, 테스트, CI/CD 추가
+- Commit 6843cd8: 하드닝 플랜 실행, 개발 도구 및 문서화 완료
