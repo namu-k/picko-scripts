@@ -19,7 +19,7 @@ DEFAULT_TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 class TemplateRenderer:
     """Jinja2 템플릿 렌더러"""
 
-    def __init__(self, templates_dir: str | Path = None):
+    def __init__(self, templates_dir: str | Path | None = None):
         if templates_dir is None:
             templates_dir = DEFAULT_TEMPLATES_DIR
 
@@ -216,7 +216,7 @@ total_items: {{ items | length }}
 """
         return self.render_string(template, date=date, created_at=datetime.now().isoformat(), items=items)
 
-    def render_longform(self, content: dict, channel_config: dict = None) -> str:
+    def render_longform(self, content: dict, channel_config: dict | None = None) -> str:
         """
         Longform 콘텐츠 렌더링
 
@@ -259,7 +259,7 @@ created_at: {{ created_at }}
 """
         return self.render_string(template, created_at=datetime.now().isoformat(), **content)
 
-    def render_pack(self, content: dict, channel: str, channel_config: dict = None) -> str:
+    def render_pack(self, content: dict, channel: str, channel_config: dict | None = None) -> str:
         """
         채널별 패키징 콘텐츠 렌더링
 

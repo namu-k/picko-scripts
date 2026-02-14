@@ -5,16 +5,23 @@
 
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from loguru import logger
+
+if TYPE_CHECKING:
+    from loguru import Logger as LoggerType
 
 # 기본 로그 디렉토리
 DEFAULT_LOG_DIR = Path(__file__).parent.parent / "logs"
 
 
 def setup_logger(
-    script_name: str, log_dir: str | Path = None, level: str = "INFO", retention_days: int = 30
-) -> "logger":
+    script_name: str,
+    log_dir: str | Path | None = None,
+    level: str = "INFO",
+    retention_days: int = 30,
+) -> "LoggerType":
     """
     스크립트별 로거 설정
 
@@ -74,7 +81,7 @@ def setup_logger(
     return logger.bind(script=script_name)
 
 
-def get_logger(script_name: str) -> "logger":
+def get_logger(script_name: str) -> "LoggerType":
     """
     간단한 로거 획득 (기본 설정 사용)
 

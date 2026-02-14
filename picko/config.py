@@ -183,7 +183,7 @@ class Config:
         return self._accounts[account_id]
 
 
-def load_config(config_path: str | Path = None) -> Config:
+def load_config(config_path: str | Path | None = None) -> Config:
     """
     설정 파일 로드
 
@@ -225,7 +225,7 @@ def load_config(config_path: str | Path = None) -> Config:
 _config: Config | None = None
 
 
-def get_config(config_path: str | Path = None) -> Config:
+def get_config(config_path: str | Path | None = None) -> Config:
     """
     싱글톤 설정 인스턴스 반환
 
@@ -241,7 +241,7 @@ def get_config(config_path: str | Path = None) -> Config:
     return _config
 
 
-def reload_config(config_path: str | Path = None) -> Config:
+def reload_config(config_path: str | Path | None = None) -> Config:
     """
     설정 다시 로드
 

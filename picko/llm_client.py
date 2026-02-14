@@ -46,7 +46,7 @@ class OpenAIClient(BaseLLMClient):
         return self._client
 
     def generate(
-        self, prompt: str, system_prompt: str = None, temperature: float = None, max_tokens: int = None, **kwargs
+        self, prompt: str, system_prompt: str | None = None, temperature: float | None = None, max_tokens: int | None = None, **kwargs
     ) -> str:
         """
         텍스트 생성
@@ -75,7 +75,7 @@ class OpenAIClient(BaseLLMClient):
 
         return response.choices[0].message.content
 
-    def generate_stream(self, prompt: str, system_prompt: str = None, **kwargs) -> Generator[str, None, None]:
+    def generate_stream(self, prompt: str, system_prompt: str | None = None, **kwargs) -> Generator[str, None, None]:
         """스트리밍 텍스트 생성"""
         messages = []
         if system_prompt:
@@ -107,7 +107,7 @@ class AnthropicClient(BaseLLMClient):
         return self._client
 
     def generate(
-        self, prompt: str, system_prompt: str = None, temperature: float = None, max_tokens: int = None, **kwargs
+        self, prompt: str, system_prompt: str | None = None, temperature: float | None = None, max_tokens: int | None = None, **kwargs
     ) -> str:
         """텍스트 생성"""
         response = self.client.messages.create(
@@ -121,7 +121,7 @@ class AnthropicClient(BaseLLMClient):
 
         return response.content[0].text
 
-    def generate_stream(self, prompt: str, system_prompt: str = None, **kwargs) -> Generator[str, None, None]:
+    def generate_stream(self, prompt: str, system_prompt: str | None = None, **kwargs) -> Generator[str, None, None]:
         """스트리밍 텍스트 생성"""
         with self.client.messages.stream(
             model=self.config.model,
@@ -150,7 +150,7 @@ class OllamaClient(BaseLLMClient):
         return self._client
 
     def generate(
-        self, prompt: str, system_prompt: str = None, temperature: float = None, max_tokens: int = None, **kwargs
+        self, prompt: str, system_prompt: str | None = None, temperature: float | None = None, max_tokens: int | None = None, **kwargs
     ) -> str:
         """텍스트 생성"""
         options = {}
@@ -169,7 +169,7 @@ class OllamaClient(BaseLLMClient):
 
         return response.get("response", "")
 
-    def generate_stream(self, prompt: str, system_prompt: str = None, **kwargs) -> Generator[str, None, None]:
+    def generate_stream(self, prompt: str, system_prompt: str | None = None, **kwargs) -> Generator[str, None, None]:
         """스트리밍 텍스트 생성"""
         for chunk in self.client.generate(
             model=self.config.model, prompt=prompt, system=system_prompt or "", stream=True, **kwargs
@@ -209,7 +209,7 @@ class LLMClient:
     def generate(
         self,
         prompt: str,
-        system_prompt: str = None,
+        system_prompt: str | None = None,
         use_cache: bool = True,
         max_retries: int = 3,
         retry_delay: float = 1.0,
@@ -266,7 +266,7 @@ class LLMClient:
 
         raise last_error
 
-    def generate_stream(self, prompt: str, system_prompt: str = None, **kwargs) -> Generator[str, None, None]:
+    def generate_stream(self, prompt: str, system_prompt: str | None = None, **kwargs) -> Generator[str, None, None]:
         """스트리밍 텍스트 생성 (캐싱 없음)"""
         return self._client.generate_stream(prompt, system_prompt=system_prompt, **kwargs)
 
@@ -315,7 +315,7 @@ class LLMClient:
     # 캐싱 로직
     # ─────────────────────────────────────────────────────────────
 
-    def _get_cache_key(self, prompt: str, system_prompt: str = None) -> str:
+    def _get_cache_key(self, prompt: str, system_prompt: str | None = None) -> str:
         """캐시 키 생성"""
         content = f"{self.config.model}:{system_prompt or ''}:{prompt}"
         return hashlib.sha256(content.encode()).hexdigest()[:16]

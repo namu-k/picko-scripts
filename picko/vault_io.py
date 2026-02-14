@@ -19,7 +19,7 @@ logger = get_logger("vault_io")
 class VaultIO:
     """Obsidian Vault 파일 입출력 클래스"""
 
-    def __init__(self, vault_root: str | Path = None):
+    def __init__(self, vault_root: str | Path | None = None):
         """
         Args:
             vault_root: Vault 루트 경로 (기본: config에서 로드)
@@ -83,7 +83,7 @@ class VaultIO:
     # 노트 쓰기
     # ─────────────────────────────────────────────────────────────
 
-    def write_note(self, path: str | Path, content: str, metadata: dict = None, overwrite: bool = False) -> Path:
+    def write_note(self, path: str | Path, content: str, metadata: dict | None = None, overwrite: bool = False) -> Path:
         """
         마크다운 노트 쓰기
 
