@@ -7,7 +7,6 @@ import argparse
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from picko.config import get_config
 from picko.llm_client import get_writer_client

@@ -7,7 +7,6 @@ import argparse
 import hashlib
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 from urllib.parse import urlparse
 
 import feedparser

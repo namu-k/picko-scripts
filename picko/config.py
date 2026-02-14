@@ -6,7 +6,6 @@ config.yml 및 계정 프로필 로드
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 import yaml
 

@@ -4,7 +4,6 @@ novelty, relevance, quality, total 점수 계산
 """
 
 from dataclasses import dataclass
-from typing import Any
 
 from .config import ScoringConfig, get_config
 from .embedding import get_embedding_manager

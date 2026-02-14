@@ -9,7 +9,7 @@ import os
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any, Generator
+from typing import Generator
 
 from .config import LLMConfig, get_config
 from .logger import get_logger

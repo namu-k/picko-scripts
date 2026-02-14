@@ -5,7 +5,6 @@ Jinja2 기반 콘텐츠 템플릿 처리
 
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
