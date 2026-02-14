@@ -1,5 +1,0 @@
-2026-02-09 22:44:01 | INFO     | config | Loaded config from C:\picko-scripts\config\config.yml
-2026-02-09 22:44:46 | INFO     | config | Loaded config from C:\picko-scripts\config\config.yml
-2026-02-09 22:44:46 | INFO     | retry_failed | RetryManager initialized (max_attempts: 3)
-2026-02-09 22:44:46 | INFO     | retry_failed | Starting retry for date: 2026-02-09, stage: all
-2026-02-09 22:44:46 | INFO     | retry_failed | No failed items found

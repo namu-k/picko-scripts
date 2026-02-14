@@ -1,5 +1,0 @@
-2026-02-09 22:42:03 | INFO     | config | Loaded config from C:\picko-scripts\config\config.yml
-2026-02-09 22:42:03 | INFO     | publish_log | PublishLogManager initialized
-2026-02-09 22:42:03 | INFO     | publish_log | Creating publish log for: Content/Longform/longform_input_7ce483b7a9e4.md
-2026-02-09 22:42:03 | INFO     | vault_io | Wrote note: c:\picko-scripts\mock_vault\Logs\Publish\pub_longform_input_7ce483b7a9e4_20260209224203.md
-2026-02-09 22:42:03 | INFO     | publish_log | Created publish log: Logs/Publish/pub_longform_input_7ce483b7a9e4_20260209224203.md
