@@ -120,7 +120,7 @@ class EmbeddingManager:
                 return None
 
             embedding = model.encode(text, convert_to_numpy=True)
-            return embedding.tolist()
+            return embedding.tolist()  # type: ignore[no-any-return]
         except Exception as e:
             logger.warning(f"Local embedding failed: {e}")
             return None
@@ -130,7 +130,7 @@ class EmbeddingManager:
         response = self.client.embeddings.create(
             model=getattr(self.config, "fallback_model", "text-embedding-3-small"), input=text
         )
-        return response.data[0].embedding
+        return response.data[0].embedding  # type: ignore[no-any-return]
 
     def _embed_ollama(self, text: str) -> list[float]:
         """Ollama 임베딩 생성"""
@@ -310,7 +310,7 @@ class EmbeddingManager:
         cache_file = self.cache_dir / f"{key}.npy"
         if cache_file.exists():
             try:
-                return np.load(cache_file).tolist()
+                return np.load(cache_file).tolist()  # type: ignore[no-any-return]
             except Exception:
                 pass
         return None

@@ -73,7 +73,7 @@ class OpenAIClient(BaseLLMClient):
             **kwargs,
         )
 
-        return response.choices[0].message.content
+        return response.choices[0].message.content  # type: ignore[no-any-return]
 
     def generate_stream(self, prompt: str, system_prompt: str | None = None, **kwargs) -> Generator[str, None, None]:
         """스트리밍 텍스트 생성"""
@@ -119,7 +119,7 @@ class AnthropicClient(BaseLLMClient):
             **kwargs,
         )
 
-        return response.content[0].text
+        return response.content[0].text  # type: ignore[no-any-return]
 
     def generate_stream(self, prompt: str, system_prompt: str | None = None, **kwargs) -> Generator[str, None, None]:
         """스트리밍 텍스트 생성"""
@@ -167,7 +167,7 @@ class OllamaClient(BaseLLMClient):
             **kwargs,
         )
 
-        return response.get("response", "")
+        return response.get("response", "")  # type: ignore[no-any-return]
 
     def generate_stream(self, prompt: str, system_prompt: str | None = None, **kwargs) -> Generator[str, None, None]:
         """스트리밍 텍스트 생성"""
@@ -257,7 +257,7 @@ class LLMClient:
                 if self.cache_enabled and use_cache:
                     self._save_cache(cache_key, result)
 
-                return result
+                return result  # type: ignore[no-any-return]
 
             except Exception as e:
                 last_error = e
@@ -269,7 +269,7 @@ class LLMClient:
 
     def generate_stream(self, prompt: str, system_prompt: str | None = None, **kwargs) -> Generator[str, None, None]:
         """스트리밍 텍스트 생성 (캐싱 없음)"""
-        return self._client.generate_stream(prompt, system_prompt=system_prompt, **kwargs)
+        return self._client.generate_stream(prompt, system_prompt=system_prompt, **kwargs)  # type: ignore[no-any-return]
 
     # ─────────────────────────────────────────────────────────────
     # 고수준 메서드
@@ -328,7 +328,7 @@ class LLMClient:
             try:
                 with open(cache_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
-                    return data.get("response")
+                    return data.get("response")  # type: ignore[no-any-return]
             except Exception:
                 pass
         return None

@@ -197,15 +197,15 @@ class ContentScorer:
 
     def should_auto_approve(self, score: ContentScore) -> bool:
         """자동 승인 여부"""
-        return score.total >= self.thresholds.get("auto_approve", 0.85)
+        return score.total >= self.thresholds.get("auto_approve", 0.85)  # type: ignore[no-any-return]
 
     def should_auto_reject(self, score: ContentScore) -> bool:
         """자동 거부 여부"""
-        return score.total <= self.thresholds.get("auto_reject", 0.3)
+        return score.total <= self.thresholds.get("auto_reject", 0.3)  # type: ignore[no-any-return]
 
     def should_display(self, score: ContentScore) -> bool:
         """Digest에 표시 여부"""
-        return score.total >= self.thresholds.get("minimum_display", 0.4)
+        return score.total >= self.thresholds.get("minimum_display", 0.4)  # type: ignore[no-any-return]
 
 
 # 편의 함수

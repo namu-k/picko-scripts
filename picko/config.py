@@ -38,7 +38,7 @@ class VaultConfig:
         relative = getattr(self, key, None)
         if relative is None:
             raise ValueError(f"Unknown vault path key: {key}")
-        return Path(self.root) / relative
+        return Path(self.root) / relative  # type: ignore[no-any-return]
 
 
 @dataclass
@@ -185,7 +185,7 @@ class Config:
             else:
                 logger.warning(f"Account profile not found: {account_id}")
                 self._accounts[account_id] = {}
-        return self._accounts[account_id]
+        return self._accounts[account_id]  # type: ignore[no-any-return]
 
 
 def load_config(config_path: str | Path | None = None) -> Config:
