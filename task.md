@@ -77,6 +77,28 @@
 - [x] 의존성 관리: requirements.txt 핀, pyproject.toml dev deps
 - [x] 후속 작업 추적: FOLLOWUPS.md (12개 이슈)
 
+## 후속 작업 진행 상황 (2025-02-15)
+
+- [x] 1. Fix failing tests (Commit 575e7b7)
+  - test_scoring.py: ContentScorer 클래스 API로 수정
+  - test_config.py: Windows 경로 구분자 처리
+  - test_templates.py: 대문자 Twitter 예상값 수정
+  - test_e2e_dryrun.py: dry-run 출력 검증 제거
+  - 결과: 46/46 테스트 통과
+
+- [x] mypy.ini 설정 수정 (Commit ce5234b)
+  - 중복 섹션 에러 수정
+  - INI 문법 올바르게 수정 ([mypy-module.*] 형식)
+  - frontmind.* 모듈 추가
+
+- [ ] 2. Fix flake8 lint warnings
+- [ ] 3. Add type hints to core modules (mypy compliance)
+- [ ] 4. Enable and test pre-commit hooks
+- [ ] 5. Pin all dependencies
+- [ ] 6. Run security audit (safety, pip-audit)
+
 ### 참조
 - Commit 753183c: Phase 3 완료, 테스트, CI/CD 추가
 - Commit 6843cd8: 하드닝 플랜 실행, 개발 도구 및 문서화 완료
+- Commit 575e7b7: 테스트 수정
+- Commit ce5234b: mypy.ini 설정 수정

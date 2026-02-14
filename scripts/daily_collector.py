@@ -15,12 +15,12 @@ import httpx
 from bs4 import BeautifulSoup
 
 from picko.config import get_config
-from picko.vault_io import VaultIO
-from picko.llm_client import get_summary_client
 from picko.embedding import get_embedding_manager
-from picko.scoring import ContentScorer, ContentScore
-from picko.templates import get_renderer
+from picko.llm_client import get_summary_client
 from picko.logger import setup_logger
+from picko.scoring import ContentScore, ContentScorer
+from picko.templates import get_renderer
+from picko.vault_io import VaultIO
 
 logger = setup_logger("daily_collector")
 

@@ -12,9 +12,9 @@ from typing import Any
 import numpy as np
 
 from picko.config import get_config
-from picko.vault_io import VaultIO
-from picko.scoring import calculate_score
 from picko.logger import setup_logger
+from picko.scoring import calculate_score
+from picko.vault_io import VaultIO
 
 logger = setup_logger("score_calibrator")
 

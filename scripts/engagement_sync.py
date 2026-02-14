@@ -10,8 +10,8 @@ from pathlib import Path
 from typing import Any
 
 from picko.config import get_config
-from picko.vault_io import VaultIO
 from picko.logger import setup_logger
+from picko.vault_io import VaultIO
 
 logger = setup_logger("engagement_sync")
 

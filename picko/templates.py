@@ -3,8 +3,8 @@
 Jinja2 기반 콘텐츠 템플릿 처리
 """
 
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
@@ -20,29 +20,29 @@ DEFAULT_TEMPLATES_DIR = Path(__file__).parent.parent / "templates"
 
 class TemplateRenderer:
     """Jinja2 템플릿 렌더러"""
-    
+
     def __init__(self, templates_dir: str | Path = None):
         if templates_dir is None:
             templates_dir = DEFAULT_TEMPLATES_DIR
-        
+
         self.templates_dir = Path(templates_dir)
         self.templates_dir.mkdir(parents=True, exist_ok=True)
-        
+
         self.env = Environment(
             loader=FileSystemLoader(str(self.templates_dir)),
             autoescape=select_autoescape(["html", "xml"]),
             trim_blocks=True,
-            lstrip_blocks=True
+            lstrip_blocks=True,
         )
-        
+
         # 커스텀 필터 등록
         self._register_filters()
-        
+
         logger.debug(f"TemplateRenderer initialized: {self.templates_dir}")
-    
+
     def _register_filters(self):
         """커스텀 Jinja2 필터 등록"""
-        
+
         def format_date(value, fmt="%Y-%m-%d"):
             if isinstance(value, str):
                 try:
@@ -52,36 +52,36 @@ class TemplateRenderer:
             if isinstance(value, datetime):
                 return value.strftime(fmt)
             return value
-        
+
         def truncate_smart(value, length=100):
             """단어 경계에서 자르기"""
             if len(value) <= length:
                 return value
             truncated = value[:length].rsplit(" ", 1)[0]
             return truncated + "..."
-        
+
         def to_wikilink(value):
             """Obsidian wikilink 형식으로 변환"""
             return f"[[{value}]]"
-        
+
         def to_hashtag(value):
             """해시태그 형식으로 변환"""
             tag = value.replace(" ", "_").lower()
             return f"#{tag}"
-        
+
         self.env.filters["format_date"] = format_date
         self.env.filters["truncate_smart"] = truncate_smart
         self.env.filters["wikilink"] = to_wikilink
         self.env.filters["hashtag"] = to_hashtag
-    
+
     def render(self, template_name: str, **context) -> str:
         """
         템플릿 렌더링
-        
+
         Args:
             template_name: 템플릿 파일명
             **context: 템플릿 변수
-        
+
         Returns:
             렌더링된 문자열
         """
@@ -89,25 +89,25 @@ class TemplateRenderer:
         result = template.render(**context)
         logger.debug(f"Rendered template: {template_name}")
         return result
-    
+
     def render_string(self, template_string: str, **context) -> str:
         """
         문자열 템플릿 렌더링
-        
+
         Args:
             template_string: 템플릿 문자열
             **context: 템플릿 변수
-        
+
         Returns:
             렌더링된 문자열
         """
         template = self.env.from_string(template_string)
         return template.render(**context)
-    
+
     # ─────────────────────────────────────────────────────────────
     # 콘텐츠 타입별 렌더링
     # ─────────────────────────────────────────────────────────────
-    
+
     def render_input_note(self, content: dict) -> str:
         """
         Input 노트 렌더링
@@ -166,7 +166,7 @@ tags:
 <!-- 수동 작성 완료 후에는 writing_status를 'completed'로 변경하세요 -->
 """
         return self.render_string(template, **content)
-    
+
     def render_digest(self, date: str, items: list[dict]) -> str:
         """
         Digest 노트 렌더링
@@ -215,21 +215,16 @@ total_items: {{ items | length }}
 {% endif %}
 {% endfor %}
 """
-        return self.render_string(
-            template,
-            date=date,
-            created_at=datetime.now().isoformat(),
-            items=items
-        )
-    
+        return self.render_string(template, date=date, created_at=datetime.now().isoformat(), items=items)
+
     def render_longform(self, content: dict, channel_config: dict = None) -> str:
         """
         Longform 콘텐츠 렌더링
-        
+
         Args:
             content: 콘텐츠 정보
             channel_config: 채널별 설정
-        
+
         Returns:
             마크다운 문자열
         """
@@ -263,26 +258,17 @@ created_at: {{ created_at }}
 {{ cta }}
 {% endif %}
 """
-        return self.render_string(
-            template,
-            created_at=datetime.now().isoformat(),
-            **content
-        )
-    
-    def render_pack(
-        self,
-        content: dict,
-        channel: str,
-        channel_config: dict = None
-    ) -> str:
+        return self.render_string(template, created_at=datetime.now().isoformat(), **content)
+
+    def render_pack(self, content: dict, channel: str, channel_config: dict = None) -> str:
         """
         채널별 패키징 콘텐츠 렌더링
-        
+
         Args:
             content: 콘텐츠 정보
             channel: 채널명 (twitter, linkedin 등)
             channel_config: 채널 설정
-        
+
         Returns:
             마크다운 문자열
         """
@@ -290,7 +276,7 @@ created_at: {{ created_at }}
         max_length = channel_config.get("max_length", 280)
         tone = channel_config.get("tone", "casual")
         use_hashtags = channel_config.get("hashtags", True)
-        
+
         template = """---
 id: {{ id }}
 type: pack
@@ -318,16 +304,16 @@ created_at: {{ created_at }}
             max_length=max_length,
             use_hashtags=use_hashtags,
             created_at=datetime.now().isoformat(),
-            **content
+            **content,
         )
-    
+
     def render_image_prompt(self, content: dict) -> str:
         """
         이미지 프롬프트 렌더링
-        
+
         Args:
             content: 프롬프트 정보
-        
+
         Returns:
             마크다운 문자열
         """
@@ -364,11 +350,7 @@ created_at: {{ created_at }}
 없음
 {% endif %}
 """
-        return self.render_string(
-            template,
-            created_at=datetime.now().isoformat(),
-            **content
-        )
+        return self.render_string(template, created_at=datetime.now().isoformat(), **content)
 
 
 # 편의 함수

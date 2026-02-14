@@ -10,10 +10,10 @@ from pathlib import Path
 from typing import Any
 
 from picko.config import get_config
-from picko.vault_io import VaultIO
-from picko.llm_client import get_llm_client
 from picko.embedding import get_embedding_manager
+from picko.llm_client import get_llm_client
 from picko.logger import setup_logger
+from picko.vault_io import VaultIO
 
 logger = setup_logger("retry_failed")
 

@@ -2,15 +2,15 @@
 임베딩 생성 및 관리 모듈
 """
 
-import json
 import hashlib
+import json
 import os
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from .config import get_config, EmbeddingConfig
+from .config import EmbeddingConfig, get_config
 from .logger import get_logger
 
 logger = get_logger("embedding")
@@ -38,6 +38,7 @@ class EmbeddingManager:
         """OpenAI 클라이언트 (lazy 로드)"""
         if self._client is None:
             from openai import OpenAI
+
             api_key = os.environ.get(self.config.fallback_api_key_env, "")
             self._client = OpenAI(api_key=api_key)
         return self._client
@@ -48,17 +49,15 @@ class EmbeddingManager:
         if self._local_model is None:
             try:
                 from sentence_transformers import SentenceTransformer
-                device = self.config.device if hasattr(self.config, 'device') else 'cpu'
-                self._local_model = SentenceTransformer(
-                    self.config.model,
-                    device=device
-                )
+
+                device = self.config.device if hasattr(self.config, "device") else "cpu"
+                self._local_model = SentenceTransformer(self.config.model, device=device)
                 logger.info(f"Loaded local embedding model: {self.config.model}")
             except Exception as e:
                 logger.warning(f"Failed to load local model {self.config.model}: {e}")
                 self._local_model = False  # 실패 표시
         return self._local_model if self._local_model is not False else None
-    
+
     def embed(self, text: str, use_cache: bool = True) -> list[float]:
         """
         텍스트 임베딩 생성
@@ -89,7 +88,7 @@ class EmbeddingManager:
         # 1. 로컬 모델 시도 (sentence-transformers)
         if self.config.provider == "local":
             embedding = self._embed_local(text)
-            if embedding is None and hasattr(self.config, 'fallback_provider'):
+            if embedding is None and hasattr(self.config, "fallback_provider"):
                 # 폴백: OpenAI
                 logger.info("Local model failed, falling back to OpenAI")
                 embedding = self._embed_openai(text)
@@ -130,24 +129,20 @@ class EmbeddingManager:
     def _embed_openai(self, text: str) -> list[float]:
         """OpenAI 임베딩 생성"""
         response = self.client.embeddings.create(
-            model=getattr(self.config, 'fallback_model', 'text-embedding-3-small'),
-            input=text
+            model=getattr(self.config, "fallback_model", "text-embedding-3-small"), input=text
         )
         return response.data[0].embedding
 
     def _embed_ollama(self, text: str) -> list[float]:
         """Ollama 임베딩 생성"""
         import ollama
-        base_url = getattr(self.config, 'base_url', 'http://localhost:11434')
+
+        base_url = getattr(self.config, "base_url", "http://localhost:11434")
         client = ollama.Client(host=base_url)
         response = client.embeddings(model=self.config.model, prompt=text)
         return response["embedding"]
-    
-    def embed_batch(
-        self,
-        texts: list[str],
-        use_cache: bool = True
-    ) -> list[list[float]]:
+
+    def embed_batch(self, texts: list[str], use_cache: bool = True) -> list[list[float]]:
         """
         배치 임베딩 생성
 
@@ -215,8 +210,7 @@ class EmbeddingManager:
             # OpenAI (배치 API 지원)
             else:
                 response = self.client.embeddings.create(
-                    model=getattr(self.config, 'fallback_model', 'text-embedding-3-small'),
-                    input=uncached_texts
+                    model=getattr(self.config, "fallback_model", "text-embedding-3-small"), input=uncached_texts
                 )
 
                 for j, data in enumerate(response.data):
@@ -232,46 +226,42 @@ class EmbeddingManager:
         # 인덱스 순서대로 정렬
         results.sort(key=lambda x: x[0])
         return [emb for _, emb in results]
-    
+
     # ─────────────────────────────────────────────────────────────
     # 유사도 계산
     # ─────────────────────────────────────────────────────────────
-    
-    def cosine_similarity(
-        self,
-        embedding1: list[float],
-        embedding2: list[float]
-    ) -> float:
+
+    def cosine_similarity(self, embedding1: list[float], embedding2: list[float]) -> float:
         """
         두 임베딩 간 코사인 유사도 계산
-        
+
         Args:
             embedding1: 첫 번째 임베딩
             embedding2: 두 번째 임베딩
-        
+
         Returns:
             유사도 (0~1)
         """
         a = np.array(embedding1)
         b = np.array(embedding2)
         return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
-    
+
     def find_similar(
         self,
         query_embedding: list[float],
         candidate_embeddings: list[list[float]],
         top_k: int = 5,
-        threshold: float = 0.0
+        threshold: float = 0.0,
     ) -> list[tuple[int, float]]:
         """
         유사한 임베딩 검색
-        
+
         Args:
             query_embedding: 쿼리 임베딩
             candidate_embeddings: 후보 임베딩 리스트
             top_k: 반환할 최대 개수
             threshold: 최소 유사도
-        
+
         Returns:
             (인덱스, 유사도) 튜플 리스트 (유사도 내림차순)
         """
@@ -280,46 +270,42 @@ class EmbeddingManager:
             sim = self.cosine_similarity(query_embedding, emb)
             if sim >= threshold:
                 similarities.append((i, sim))
-        
+
         similarities.sort(key=lambda x: x[1], reverse=True)
         return similarities[:top_k]
-    
-    def calculate_novelty(
-        self,
-        new_embedding: list[float],
-        existing_embeddings: list[list[float]]
-    ) -> float:
+
+    def calculate_novelty(self, new_embedding: list[float], existing_embeddings: list[list[float]]) -> float:
         """
         새 콘텐츠의 참신도 계산 (기존 콘텐츠와의 최대 유사도 기반)
-        
+
         Args:
             new_embedding: 새 콘텐츠 임베딩
             existing_embeddings: 기존 콘텐츠 임베딩들
-        
+
         Returns:
             참신도 점수 (0~1, 높을수록 참신)
         """
         if not existing_embeddings:
             return 1.0  # 기존 콘텐츠 없으면 완전 참신
-        
+
         # 가장 유사한 기존 콘텐츠와의 유사도
         max_similarity = 0.0
         for emb in existing_embeddings:
             sim = self.cosine_similarity(new_embedding, emb)
             max_similarity = max(max_similarity, sim)
-        
+
         # 참신도 = 1 - 최대유사도
         return 1.0 - max_similarity
-    
+
     # ─────────────────────────────────────────────────────────────
     # 캐싱 로직
     # ─────────────────────────────────────────────────────────────
-    
+
     def _get_cache_key(self, text: str) -> str:
         """캐시 키 생성"""
         content = f"{self.config.model}:{text}"
         return hashlib.sha256(content.encode()).hexdigest()[:16]
-    
+
     def _get_cached(self, key: str) -> list[float] | None:
         """캐시 조회"""
         cache_file = self.cache_dir / f"{key}.npy"
@@ -329,22 +315,22 @@ class EmbeddingManager:
             except Exception:
                 pass
         return None
-    
+
     def _save_cache(self, key: str, embedding: list[float]) -> None:
         """캐시 저장"""
         cache_file = self.cache_dir / f"{key}.npy"
         np.save(cache_file, np.array(embedding))
-    
+
     def clear_cache(self) -> int:
         """캐시 전체 삭제"""
         if not self.cache_dir.exists():
             return 0
-        
+
         count = 0
         for cache_file in self.cache_dir.glob("*.npy"):
             cache_file.unlink()
             count += 1
-        
+
         logger.info(f"Cleared {count} cached embeddings")
         return count
 

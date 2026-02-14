@@ -4,9 +4,9 @@ config.yml 및 계정 프로필 로드
 """
 
 import os
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
-from dataclasses import dataclass, field
 
 import yaml
 
@@ -22,6 +22,7 @@ DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "config.yml"
 @dataclass
 class VaultConfig:
     """Vault 경로 설정"""
+
     root: str
     inbox: str = "Inbox/Inputs"
     digests: str = "Inbox/Inputs/_digests"
@@ -32,7 +33,7 @@ class VaultConfig:
     images_prompts: str = "Assets/Images/_prompts"
     archive: str = "Archive"
     logs_publish: str = "Logs/Publish"
-    
+
     def get_path(self, key: str) -> Path:
         """경로 키로 전체 경로 반환"""
         relative = getattr(self, key, None)
@@ -44,6 +45,7 @@ class VaultConfig:
 @dataclass
 class LLMConfig:
     """LLM 설정"""
+
     provider: str = "openai"
     model: str = "gpt-4o-mini"
     temperature: float = 0.7
@@ -62,6 +64,7 @@ class LLMConfig:
 @dataclass
 class SummaryLLMConfig:
     """요약/태깅용 LLM 설정 (로컬 우선)"""
+
     provider: str = "ollama"
     model: str = "deepseek-r1:7b"
     temperature: float = 0.3
@@ -77,6 +80,7 @@ class SummaryLLMConfig:
 @dataclass
 class WriterLLMConfig:
     """글쓰기용 LLM 설정 (클라우드)"""
+
     provider: str = "openai"
     model: str = "gpt-4o-mini"
     temperature: float = 0.8
@@ -95,6 +99,7 @@ class WriterLLMConfig:
 @dataclass
 class EmbeddingConfig:
     """임베딩 설정"""
+
     provider: str = "local"  # local | openai | ollama
     model: str = "BAAI/bge-m3"  # sentence-transformers 모델
     dimensions: int = 1024  # bge-m3: 1024, all-MiniLM-L6-v2: 384
@@ -111,21 +116,15 @@ class EmbeddingConfig:
 @dataclass
 class ScoringConfig:
     """점수 계산 설정"""
-    weights: dict = field(default_factory=lambda: {
-        "novelty": 0.3,
-        "relevance": 0.4,
-        "quality": 0.3
-    })
-    thresholds: dict = field(default_factory=lambda: {
-        "auto_approve": 0.85,
-        "auto_reject": 0.3,
-        "minimum_display": 0.4
-    })
+
+    weights: dict = field(default_factory=lambda: {"novelty": 0.3, "relevance": 0.4, "quality": 0.3})
+    thresholds: dict = field(default_factory=lambda: {"auto_approve": 0.85, "auto_reject": 0.3, "minimum_display": 0.4})
 
 
 @dataclass
 class LoggingConfig:
     """로깅 설정"""
+
     level: str = "INFO"
     format: str = "{time:YYYY-MM-DD HH:mm:ss} | {level} | {name} | {message}"
     dir: str = "logs"
@@ -135,6 +134,7 @@ class LoggingConfig:
 @dataclass
 class ProcessingConfig:
     """처리 설정"""
+
     batch_size: int = 10
     max_retries: int = 3
     retry_delay_seconds: int = 5
@@ -144,6 +144,7 @@ class ProcessingConfig:
 @dataclass
 class Config:
     """전체 설정"""
+
     vault: VaultConfig
     llm: LLMConfig
     summary_llm: SummaryLLMConfig
@@ -154,10 +155,10 @@ class Config:
     processing: ProcessingConfig
     sources_file: str = "config/sources.yml"
     accounts_dir: str = "config/accounts"
-    
+
     _sources: dict = field(default_factory=dict, repr=False)
     _accounts: dict = field(default_factory=dict, repr=False)
-    
+
     @property
     def sources(self) -> dict:
         """소스 설정 로드 (lazy)"""
@@ -168,7 +169,7 @@ class Config:
                     self._sources = yaml.safe_load(f) or {}
                 logger.debug(f"Loaded sources from {sources_path}")
         return self._sources
-    
+
     def get_account(self, account_id: str) -> dict:
         """계정 프로필 로드"""
         if account_id not in self._accounts:
@@ -186,26 +187,26 @@ class Config:
 def load_config(config_path: str | Path = None) -> Config:
     """
     설정 파일 로드
-    
+
     Args:
         config_path: 설정 파일 경로 (기본: config/config.yml)
-    
+
     Returns:
         Config 인스턴스
     """
     if config_path is None:
         config_path = DEFAULT_CONFIG_PATH
-    
+
     config_path = Path(config_path)
-    
+
     if not config_path.exists():
         raise FileNotFoundError(f"Config file not found: {config_path}")
-    
+
     with open(config_path, "r", encoding="utf-8") as f:
         raw = yaml.safe_load(f)
-    
+
     logger.info(f"Loaded config from {config_path}")
-    
+
     # 각 섹션별로 dataclass 생성
     return Config(
         vault=VaultConfig(**raw.get("vault", {})),
@@ -217,7 +218,7 @@ def load_config(config_path: str | Path = None) -> Config:
         logging=LoggingConfig(**raw.get("logging", {})),
         processing=ProcessingConfig(**raw.get("processing", {})),
         sources_file=raw.get("sources_file", "config/sources.yml"),
-        accounts_dir=raw.get("accounts_dir", "config/accounts")
+        accounts_dir=raw.get("accounts_dir", "config/accounts"),
     )
 
 
@@ -228,10 +229,10 @@ _config: Config | None = None
 def get_config(config_path: str | Path = None) -> Config:
     """
     싱글톤 설정 인스턴스 반환
-    
+
     Args:
         config_path: 설정 파일 경로 (최초 호출 시에만 사용)
-    
+
     Returns:
         Config 인스턴스
     """
@@ -244,10 +245,10 @@ def get_config(config_path: str | Path = None) -> Config:
 def reload_config(config_path: str | Path = None) -> Config:
     """
     설정 다시 로드
-    
+
     Args:
         config_path: 설정 파일 경로
-    
+
     Returns:
         새로 로드된 Config 인스턴스
     """

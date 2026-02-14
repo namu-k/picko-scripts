@@ -12,8 +12,8 @@ from pathlib import Path
 import httpx
 
 from picko.config import get_config
-from picko.vault_io import VaultIO
 from picko.logger import setup_logger
+from picko.vault_io import VaultIO
 
 logger = setup_logger("health_check")
 

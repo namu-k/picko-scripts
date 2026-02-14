@@ -1,0 +1,18 @@
+2026-02-15 05:14:17 | INFO     | config | Loaded config from C:\picko-scripts\config\config.yml
+2026-02-15 05:14:17 | INFO     | generate_content | ContentGenerator initialized
+2026-02-15 05:14:17 | INFO     | generate_content | Starting content generation for 2026-02-15, types: ['longform', 'packs', 'images']
+2026-02-15 05:14:17 | WARNING  | generate_content | Digest not found: Inbox/Inputs/_digests/2026-02-15.md
+2026-02-15 05:14:17 | INFO     | generate_content | Found 0 approved items
+2026-02-15 05:14:17 | INFO     | generate_content | No approved items found
+2026-02-15 05:14:46 | INFO     | config | Loaded config from C:\picko-scripts\config\config.yml
+2026-02-15 05:14:46 | INFO     | generate_content | ContentGenerator initialized
+2026-02-15 05:14:46 | INFO     | generate_content | Starting content generation for 2026-02-15, types: ['longform', 'packs', 'images']
+2026-02-15 05:14:46 | WARNING  | generate_content | Digest not found: Inbox/Inputs/_digests/2026-02-15.md
+2026-02-15 05:14:46 | INFO     | generate_content | Found 0 approved items
+2026-02-15 05:14:46 | INFO     | generate_content | No approved items found
+2026-02-15 05:27:21 | INFO     | config | Loaded config from C:\picko-scripts\config\config.yml
+2026-02-15 05:27:21 | INFO     | generate_content | ContentGenerator initialized
+2026-02-15 05:27:21 | INFO     | generate_content | Starting content generation for 2026-02-15, types: ['longform', 'packs', 'images']
+2026-02-15 05:27:21 | WARNING  | generate_content | Digest not found: Inbox/Inputs/_digests/2026-02-15.md
+2026-02-15 05:27:21 | INFO     | generate_content | Found 0 approved items
+2026-02-15 05:27:21 | INFO     | generate_content | No approved items found
