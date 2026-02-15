@@ -16,7 +16,7 @@ Set-Location $ProjectRoot
 
 # Log result
 if ($LASTEXITCODE -eq 0) {
-    Write-Output "[2026-02-15 05:50:28] Daily collector completed successfully" >> (Join-Path $ProjectRoot "logs\scheduler.log")
+    Write-Output "[2026-02-15 14:16:19] Daily collector completed successfully" >> (Join-Path $ProjectRoot "logs\scheduler.log")
 } else {
-    Write-Output "[2026-02-DD 05:50:28] Daily collector failed with code $LASTEXITCODE" >> (Join-Path $ProjectRoot "logs\scheduler.log")
+    Write-Output "[2026-02-DD 14:16:19] Daily collector failed with code $LASTEXITCODE" >> (Join-Path $ProjectRoot "logs\scheduler.log")
 }
