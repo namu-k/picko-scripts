@@ -1,6 +1,7 @@
 # Picko - Content Pipeline
 
 [![Test](https://github.com/your-username/picko-scripts/actions/workflows/test.yml/badge.svg)](https://github.com/your-username/picko-scripts/actions/workflows/test.yml)
+[![Security](https://img.shields.io/badge/Security-Policy-blue)](SECURITY.md)
 
 > RSS 피드와 웹 소스에서 콘텐츠를 자동 수집하고, AI를 활용해 블로그 포스트와 소셜 미디어 콘텐츠를 생성하는 파이프라인 시스템
 
@@ -188,6 +189,7 @@ MIT License
 ## 📞 지원
 
 - 문제 신고: [GitHub Issues](https://github.com/your-username/picko-scripts/issues)
+- 📛 보안 취약점 신고: [SECURITY.md](SECURITY.md)
 - 사용자 가이드: [USER_GUIDE.md](USER_GUIDE.md)
 - 개발자 가이드: [CLAUDE.md](CLAUDE.md)
 - 배포 가이드: [DEPLOYMENT.md](DEPLOYMENT.md)
