@@ -62,6 +62,10 @@ pip install -r requirements.txt
 # Set up API key (OpenAI)
 set OPENAI_API_KEY=your_api_key_here  # Windows
 export OPENAI_API_KEY=your_api_key_here  # macOS/Linux
+
+# (Optional) Set up OpenRouter API key
+set OPENROUTER_API_KEY=your_key_here  # Windows
+export OPENROUTER_API_KEY=your_key_here  # macOS/Linux
 ```
 
 ## Architecture Overview
@@ -70,7 +74,7 @@ export OPENAI_API_KEY=your_api_key_here  # macOS/Linux
 
 - **config.py**: Central configuration loader with task-specific LLM configs (summary_llm, writer_llm)
 - **vault_io.py**: Obsidian Vault interface for reading/writing markdown notes with frontmatter
-- **llm_client.py**: Multi-provider LLM client with Ollama (local), OpenAI, Anthropic support
+- **llm_client.py**: Multi-provider LLM client with Ollama (local), OpenAI, Anthropic, OpenRouter support
 - **embedding.py**: Local-first embedding with sentence-transformers, OpenAI fallback
 - **scoring.py**: Content scoring algorithm (novelty, relevance, quality) with configurable weights
 - **templates.py**: Jinja2-based template rendering for different content formats
@@ -85,6 +89,7 @@ The system uses different LLMs for different tasks:
 | Summary/Tagging | `get_summary_client()` | Ollama (local) | deepseek-r1:7b | Cost-effective NLP |
 | Embedding | `get_embedding_manager()` | sentence-transformers | BAAI/bge-m3 | Local similarity |
 | Writing | `get_writer_client()` | OpenAI (cloud) | gpt-4o-mini | Quality content |
+| Writing (alt) | `get_writer_client()` | OpenRouter | openai/gpt-4o-mini | Flexible routing |
 
 **Design Rationale:**
 - **Local LLMs** for high-volume, low-complexity tasks (summary, tagging, embedding)
