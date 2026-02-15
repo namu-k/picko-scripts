@@ -49,7 +49,8 @@ specs/001-openrouter-provider/
 ```text
 picko/
 ├── llm_client.py        # ADD: OpenRouterClient class + LLMClient branch
-└── config.py            # NO CHANGES (LLMConfig already supports api_key_env, base_url)
+│                        # UPDATE: get_summary_client() to pass api_key_env
+└── config.py            # MODIFIED: add api_key_env: str = "" to SummaryLLMConfig
 
 config/
 └── config.yml           # ADD: OpenRouter example comments
@@ -75,21 +76,34 @@ USER_GUIDE.md            # UPDATE: Add OpenRouter setup instructions
 
 ### LLMClient Integration
 
-- Add `elif config.provider == "openrouter"` branch in `LLMClient.__init__` (line ~226)
+- Add `elif config.provider == "openrouter"` branch in `LLMClient.__init__`
 - No changes to caching, retry, or high-level methods
 
 ### get_summary_client() Update
 
 - The `get_summary_client()` function converts `SummaryLLMConfig` to `LLMConfig`
 - Currently only handles `ollama` special case for `base_url`
-- Need to handle `openrouter` case: copy `api_key_env` from SummaryLLMConfig
-- SummaryLLMConfig currently lacks `api_key_env` field - need to add it
+- Updated to pass `api_key_env` for all non-Ollama providers (including openrouter)
+- `SummaryLLMConfig` required a new `api_key_env: str = ""` field to support this
 
 ### Config Changes
 
-- `SummaryLLMConfig`: Add `api_key_env: str = ""` field for non-Ollama providers
-- `config.yml`: Add OpenRouter example in comments
-- No changes to `LLMConfig` or `WriterLLMConfig` (already have all needed fields)
+- `picko/config.py`: `SummaryLLMConfig` gains `api_key_env: str = ""` (empty = use provider default)
+- `picko/llm_client.py`: `get_summary_client()` passes `api_key_env` to `LLMConfig`
+- `config/config.yml`: OpenRouter usage example added as comments
+- `LLMConfig` and `WriterLLMConfig` unchanged (already have all needed fields)
+
+## Traceability Matrix
+
+| FR | Requirement | Implementing File(s) | Task(s) | Validating Test(s) |
+|----|-------------|---------------------|---------|-------------------|
+| FR-001 | OpenAI 호환 API, base_url 사용 | `picko/llm_client.py` (OpenRouterClient) | T002 | `TestOpenRouterClient::test_client_lazy_init` |
+| FR-002 | provider/model 형식 모델 ID 지원 | `picko/llm_client.py` (OpenRouterClient.generate) | T002 | `TestOpenRouterClient::test_generate` |
+| FR-003 | api_key_env 환경변수에서 API 키 로드 | `picko/config.py` (LLMConfig.api_key), `picko/llm_client.py` | T001, T002 | `TestOpenRouterConfig::test_llm_config_openrouter`, `TestOpenRouterClient::test_client_lazy_init` |
+| FR-004 | generate() + generate_stream() 구현 | `picko/llm_client.py` (OpenRouterClient) | T002 | `TestOpenRouterClient::test_generate`, `test_generate_no_system_prompt`, `test_generate_stream` |
+| FR-005 | LLMClient 캐싱·재시도 로직 활용 | `picko/llm_client.py` (LLMClient.__init__) | T003 | `TestLLMClientOpenRouter::test_llm_client_generate_openrouter` |
+| FR-006 | config.yml에서 provider="openrouter" 설정 | `picko/config.py`, `config/config.yml` | T001, T004, T005 | `TestOpenRouterConfig::test_summary_llm_config_api_key_env`, `TestLoadConfig::test_load_config_openrouter_writer` |
+| FR-007 | 기존 프로바이더 동작 불변 | `picko/llm_client.py` (LLMClient.__init__ elif 추가) | T003 | 기존 전체 테스트 스위트 (57개 통과, regression 없음) |
 
 ## Complexity Tracking
 

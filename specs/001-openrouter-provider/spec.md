@@ -18,7 +18,7 @@
 **Acceptance Scenarios**:
 
 1. **Given** config에 writer_llm.provider: "openrouter", model: "openai/gpt-4o-mini", **When** generate_content 실행, **Then** OpenRouter API가 호출되어 longform 콘텐츠가 생성된다.
-2. **Given** OPENROUTER_API_KEY 미설정, **When** OpenRouter 클라이언트 초기화, **Then** 적절한 에러 메시지("OPENROUTER_API_KEY 환경변수가 설정되지 않았습니다")가 표시된다.
+2. **Given** OPENROUTER_API_KEY 미설정, **When** OpenRouter 클라이언트 초기화, **Then** 누락된 API 키를 식별하는 경고 로그가 기록되고 빠르게 실패(fail-fast)한다.
 
 ---
 
@@ -65,7 +65,7 @@ OpenRouterClient는 generate_stream()을 지원해 스트리밍 응답을 받을
 
 - **FR-001**: OpenRouterClient는 OpenAI 호환 API를 사용하며 base_url="https://openrouter.ai/api/v1"를 사용한다.
 - **FR-002**: 모델 ID는 provider/model 형식(예: openai/gpt-4o-mini, anthropic/claude-3.5-sonnet)을 지원한다.
-- **FR-003**: API 키는 api_key_env로 지정된 환경변수(기본: OPENROUTER_API_KEY)에서 로드한다.
+- **FR-003**: OpenRouter 사용 시, API 키는 `api_key_env`로 지정된 환경변수에서 로드한다. OpenRouter 미지정 시 기본값은 `OPENROUTER_API_KEY`이며, 이는 `LLMConfig` 전역 기본값(`OPENAI_API_KEY`)과 별개이다.
 - **FR-004**: generate()와 generate_stream()을 BaseLLMClient 인터페이스에 맞게 구현한다.
 - **FR-005**: 기존 LLMClient 래퍼의 캐싱·재시도 로직을 그대로 활용한다 (추가 구현 불필요).
 - **FR-006**: config.yml의 llm, summary_llm, writer_llm에 provider: "openrouter"를 설정할 수 있다.
@@ -74,7 +74,8 @@ OpenRouterClient는 generate_stream()을 지원해 스트리밍 응답을 받을
 ### Key Entities
 
 - **OpenRouterClient**: BaseLLMClient를 상속하는 구체 클라이언트 클래스. OpenAI Python SDK를 custom base_url로 초기화하여 OpenRouter API에 연결.
-- **LLMConfig**: 기존 dataclass에 provider="openrouter" 옵션 추가. api_key_env 기본값은 "OPENROUTER_API_KEY".
+- **LLMConfig**: 기존 dataclass는 변경 없음. `provider="openrouter"` 설정 시 `api_key_env`를 `"OPENROUTER_API_KEY"`로 명시해야 한다. `LLMConfig` 전역 기본값(`OPENAI_API_KEY`)은 유지된다.
+- **SummaryLLMConfig**: `api_key_env: str = ""` 필드 추가. OpenRouter 사용 시 `"OPENROUTER_API_KEY"` 로 설정.
 
 ## Success Criteria *(mandatory)*
 
