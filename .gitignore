@@ -7,7 +7,8 @@ wheels/
 *.egg-info
 
 # Virtual environments
-.venv
+.venv/
+venv/
 
 # Logs
 logs/
@@ -25,3 +26,25 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+
+# Project-specific
+cache/               # 임베딩 캐시
+.pytest_cache/
+pytest.ini
+
+# Coverage
+.coverage
+coverage.xml
+coverage.json
+htmlcov/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+
+# Pre-commit
+.pre-commit-state/
+
+# Environment variables
+.env
+.env.local

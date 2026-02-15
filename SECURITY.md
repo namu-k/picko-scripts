@@ -270,6 +270,8 @@ llm:
 
 This project is provided as-is without warranties. See [LICENSE](LICENSE) for details.
 
+**License**: Apache License 2.0
+
 ---
 
 **Last Updated**: 2026-02-15

@@ -184,7 +184,7 @@ OpenAI API 사용에 따른 비용이 발생합니다:
 
 ## 📄 라이선스
 
-MIT License
+Apache License 2.0
 
 ## 📞 지원
 
