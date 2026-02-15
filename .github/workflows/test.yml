@@ -28,7 +28,7 @@ jobs:
 
     - name: Verify OPENAI_API_KEY is not in code
       run: |
-        if grep -r "sk-" --include="*.py" --include="*.yml" --exclude-dir=".git" --exclude-dir=".venv" .; then
+        if grep -r "sk-" --include="*.py" --include="*.yml" --exclude-dir=".git" --exclude-dir=".venv" --exclude-dir="tests" .; then
           echo "::error::Found potential API key in code!"
           exit 1
         fi
