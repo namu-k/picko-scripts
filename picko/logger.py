@@ -3,6 +3,7 @@
 모든 스크립트에서 통일된 로깅 형식 사용
 """
 
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -11,6 +12,10 @@ from loguru import logger
 
 if TYPE_CHECKING:
     from loguru import Logger as LoggerType
+
+# Windows UTF-8 인코딩 설정
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
 
 # 기본 로그 디렉토리
 DEFAULT_LOG_DIR = Path(__file__).parent.parent / "logs"
