@@ -19,6 +19,11 @@ logger = setup_logger("generate_content")
 class ContentGenerator:
     """콘텐츠 생성기"""
 
+    # Digest 파싱을 위한 정규식 패턴
+    _CHECKBOX_PATTERN = r"##\s*\[([xX ])\]\s*(.+?)(?:\n|$)"
+    _ID_PATTERN = r"\*\*ID\*\*:\s*(\S+)"
+    _ACCOUNT_PATTERN = r"\*\*Account\*\*:\s*(\S+)"
+
     def __init__(self, dry_run: bool = False):
         self.config = get_config()
         self.vault = VaultIO()
@@ -72,45 +77,7 @@ class ContentGenerator:
 
             # 2. 각 승인 항목에 대해 콘텐츠 생성
             for item in approved_items:
-                try:
-                    # Input 노트 로드
-                    input_content = self._load_input(item["input_id"])
-                    if not input_content:
-                        continue
-
-                    # writing_status 확인: manual 또는 completed이면 스킵
-                    writing_status = input_content.get("writing_status", "pending")
-                    if writing_status in ["manual", "completed"]:
-                        logger.info(f"Skipping {writing_status} item: {item['input_id']}")
-                        continue
-
-                    # 이미 생성된 경우 스킵 (force가 아니면)
-                    if not force and item.get("status") == "generated":
-                        logger.debug(f"Skipping already generated: {item['input_id']}")
-                        continue
-
-                    # Longform 생성
-                    if "longform" in content_types:
-                        if self._generate_longform(item, input_content):
-                            results["longform_created"] += 1
-
-                    # Packs 생성
-                    if "packs" in content_types:
-                        packs_count = self._generate_packs(item, input_content)
-                        results["packs_created"] += packs_count
-
-                    # Image Prompts 생성
-                    if "images" in content_types:
-                        if self._generate_image_prompt(item, input_content):
-                            results["image_prompts_created"] += 1
-
-                    # Digest 상태 업데이트
-                    if not self.dry_run:
-                        self._update_digest_status(date, item["input_id"])
-
-                except Exception as e:
-                    logger.error(f"Failed to process {item.get('input_id')}: {e}")
-                    results["errors"].append(str(e))
+                self._process_item(item, content_types, force, date, results)
 
         except Exception as e:
             logger.error(f"Content generation failed: {e}")
@@ -118,6 +85,84 @@ class ContentGenerator:
 
         logger.info(f"Content generation complete: {results}")
         return results
+
+    def _process_item(self, item: dict, content_types: list[str], force: bool, date: str, results: dict) -> None:
+        """
+        단일 항목 처리
+
+        Args:
+            item: 승인된 항목 정보
+            content_types: 생성할 콘텐츠 타입 목록
+            force: 강제 재생성 여부
+            date: Digest 날짜
+            results: 결과 집계 딕셔너리
+        """
+        try:
+            if not self._should_process_item(item, force):
+                return
+
+            input_content = self._load_input(item["input_id"])
+            if not input_content:
+                return
+
+            self._generate_content_types(item, input_content, content_types, results)
+
+            # Digest 상태 업데이트
+            if not self.dry_run:
+                self._update_digest_status(date, item["input_id"])
+
+        except Exception as e:
+            logger.error(f"Failed to process {item.get('input_id')}: {e}")
+            results["errors"].append(str(e))
+
+    def _should_process_item(self, item: dict, force: bool) -> bool:
+        """
+        항목 처리 여부 확인
+
+        Args:
+            item: 항목 정보
+            force: 강제 재생성 여부
+
+        Returns:
+            처리해야 하면 True
+        """
+        # 이미 생성된 경우 스킵 (force가 아니면)
+        if not force and item.get("status") == "generated":
+            logger.debug(f"Skipping already generated: {item['input_id']}")
+            return False
+
+        return True
+
+    def _generate_content_types(self, item: dict, input_content: dict, content_types: list[str], results: dict) -> None:
+        """
+        지정된 콘텐츠 타입들 생성
+
+        Args:
+            item: 항목 정보
+            input_content: Input 노트 내용
+            content_types: 생성할 타입 목록
+            results: 결과 집계 딕셔너리
+        """
+        # writing_status 확인: manual 또는 completed이면 스킵
+        writing_status = input_content.get("writing_status", "pending")
+        if writing_status in ["manual", "completed"]:
+            logger.info(f"Skipping {writing_status} item: {item['input_id']}")
+            return
+
+        # Longform 생성
+        if "longform" in content_types:
+            if self._generate_longform(item, input_content):
+                results["longform_created"] += 1
+
+        # Packs 생성
+        if "packs" in content_types:
+            packs_count = self._generate_packs(item, input_content)
+            results["packs_created"] += packs_count
+
+        # Image Prompts 생성
+        if "images" in content_types:
+            if self._generate_image_prompt(item, input_content):
+                results["image_prompts_created"] += 1
 
     # ─────────────────────────────────────────────────────────────
     # Digest 파싱
@@ -143,57 +188,106 @@ class ContentGenerator:
             logger.warning(f"Digest not found: {digest_path}")
             return []
 
-        approved = []
-
-        # [x] 또는 [ ] 패턴 매칭
-        pattern = r"##\s*\[([xX ])\]\s*(.+?)(?:\n|$)"
-
-        # ID 패턴: **ID**: input_xxx
-        id_pattern = r"\*\*ID\*\*:\s*(\S+)"
-
-        # Account 패턴: **Account**: xxx
-        account_pattern = r"\*\*Account\*\*:\s*(\S+)"
-
         lines = content.split("\n")
+        return self._parse_digest_lines(lines, auto_all)
+
+    def _parse_digest_lines(self, lines: list[str], auto_all: bool) -> list[dict]:
+        """
+        Digest 라인들 파싱
+
+        Args:
+            lines: Digest 파일의 라인들
+            auto_all: 미체크 항목도 모두 포함
+
+        Returns:
+            승인된 항목 리스트
+        """
+        approved = []
         current_item = None
 
-        for i, line in enumerate(lines):
-            # 새 항목 시작
-            match = re.match(pattern, line)
-            if match:
-                if current_item:
-                    approved.append(current_item)
+        for line in lines:
+            current_item = self._parse_line(line, current_item, auto_all, approved)
 
-                checkbox = match.group(1).strip()
-                title = match.group(2).strip()
-
-                # [x] 체크된 항목 또는 auto_all=True면 포함
-                if checkbox.lower() == "x" or auto_all:
-                    current_item = {
-                        "title": title,
-                        "input_id": None,
-                        "account_id": None,
-                        "checked": (checkbox.lower() == "x"),
-                    }
-                else:
-                    current_item = None
-                continue
-
-            # 현재 항목의 세부 정보 파싱
-            if current_item:
-                id_match = re.search(id_pattern, line)
-                if id_match:
-                    current_item["input_id"] = id_match.group(1)
-
-                account_match = re.search(account_pattern, line)
-                if account_match:
-                    current_item["account_id"] = account_match.group(1)
-
-        # 마지막 항목
+        # 마지막 항목 추가
         if current_item:
             approved.append(current_item)
 
+        # input_id가 있는 항목만 반환
         return [item for item in approved if item.get("input_id")]
+
+    def _parse_line(self, line: str, current_item: dict | None, auto_all: bool, approved: list) -> dict | None:
+        """
+        단일 라인 파싱
+
+        Args:
+            line: 파싱할 라인
+            current_item: 현재 처리 중인 항목
+            auto_all: 미체크 항목도 모두 포함
+            approved: 승인된 항목 리스트
+
+        Returns:
+            업데이트된 current_item
+        """
+        # 새 항목 시작 체크
+        checkbox_match = re.match(self._CHECKBOX_PATTERN, line)
+        if checkbox_match:
+            if current_item:
+                approved.append(current_item)
+            return self._create_item_from_checkbox(checkbox_match, auto_all)
+
+        # 현재 항목의 세부 정보 파싱
+        if current_item:
+            return self._parse_item_detail(line, current_item)
+
+        return current_item
+
+    def _create_item_from_checkbox(self, match: re.Match, auto_all: bool) -> dict | None:
+        """
+        체크박스 매치에서 항목 생성
+
+        Args:
+            match: 정규식 매치 객체
+            auto_all: 미체크 항목도 포함 여부
+
+        Returns:
+            생성된 항목 딕셔너리 또는 None
+        """
+        checkbox = match.group(1).strip()
+        title = match.group(2).strip()
+
+        # [x] 체크된 항목 또는 auto_all=True면 포함
+        if checkbox.lower() == "x" or auto_all:
+            return {
+                "title": title,
+                "input_id": None,
+                "account_id": None,
+                "checked": (checkbox.lower() == "x"),
+            }
+        return None
+
+    def _parse_item_detail(self, line: str, current_item: dict) -> dict:
+        """
+        항목 세부 정보 파싱
+
+        Args:
+            line: 파싱할 라인
+            current_item: 현재 항목
+
+        Returns:
+            업데이트된 항목
+        """
+        # ID 파싱
+        id_match = re.search(self._ID_PATTERN, line)
+        if id_match:
+            current_item["input_id"] = id_match.group(1)
+            return current_item
+
+        # Account 파싱
+        account_match = re.search(self._ACCOUNT_PATTERN, line)
+        if account_match:
+            current_item["account_id"] = account_match.group(1)
+
+        return current_item
 
     def _load_input(self, input_id: str) -> dict | None:
         """Input 노트 로드"""

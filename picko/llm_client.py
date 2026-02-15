@@ -33,6 +33,8 @@ class BaseLLMClient(ABC):
 class OpenAIClient(BaseLLMClient):
     """OpenAI API 클라이언트"""
 
+    _client: Any  # Type annotation for _client
+
     def __init__(self, config: LLMConfig):
         self.config = config
         self._client = None
@@ -98,6 +100,8 @@ class OpenAIClient(BaseLLMClient):
 
 class AnthropicClient(BaseLLMClient):
     """Anthropic Claude API 클라이언트"""
+
+    _client: Any  # Type annotation for _client
 
     def __init__(self, config: LLMConfig):
         self.config = config
