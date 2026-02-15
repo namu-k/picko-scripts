@@ -5,15 +5,11 @@ Score Calibrator 스크립트
 
 import argparse
 from dataclasses import dataclass
-from datetime import datetime
-from pathlib import Path
-from typing import Any
 
 import numpy as np
 
 from picko.config import get_config
 from picko.logger import setup_logger
-from picko.scoring import calculate_score
 from picko.vault_io import VaultIO
 
 logger = setup_logger("score_calibrator")
@@ -22,6 +18,7 @@ logger = setup_logger("score_calibrator")
 @dataclass
 class PerformanceRecord:
     """성과 기록"""
+
     content_id: str
     content_path: str
     predicted_score: float
@@ -36,6 +33,7 @@ class PerformanceRecord:
 @dataclass
 class CalibrationReport:
     """보정 리포트"""
+
     total_analyzed: int
     correlation: dict[str, float]  # 각 점수 요소와 성과의 상관관계
     suggested_weights: dict[str, float]
@@ -54,11 +52,7 @@ class ScoreCalibrator:
         self.logs_path = "Logs/Publish"
         logger.info("ScoreCalibrator initialized")
 
-    def analyze(
-        self,
-        days: int = 30,
-        min_engagement: int = 10
-    ) -> CalibrationReport:
+    def analyze(self, days: int = 30, min_engagement: int = 10) -> CalibrationReport:
         """
         점수 예측력 분석
 
@@ -99,14 +93,10 @@ class ScoreCalibrator:
             current_weights=self.config.scoring.weights.copy(),
             improvement_estimate=improvement,
             top_performers=top_performers,
-            underperformers=underperformers
+            underperformers=underperformers,
         )
 
-    def _collect_performance_data(
-        self,
-        days: int,
-        min_engagement: int
-    ) -> list[PerformanceRecord]:
+    def _collect_performance_data(self, days: int, min_engagement: int) -> list[PerformanceRecord]:
         """성과 데이터 수집"""
         records = []
         notes = self.vault.list_notes(self.logs_path)
@@ -125,10 +115,10 @@ class ScoreCalibrator:
                     continue
 
                 total_engagement = (
-                    metrics.get("views", 0) * 0.1 +
-                    metrics.get("likes", 0) * 1.0 +
-                    metrics.get("comments", 0) * 2.0 +
-                    metrics.get("shares", 0) * 3.0
+                    metrics.get("views", 0) * 0.1
+                    + metrics.get("likes", 0) * 1.0
+                    + metrics.get("comments", 0) * 2.0
+                    + metrics.get("shares", 0) * 3.0
                 )
 
                 if total_engagement < min_engagement:
@@ -143,17 +133,19 @@ class ScoreCalibrator:
                 input_meta = self.vault.read_frontmatter(input_path)
                 score_data = input_meta.get("score", {})
 
-                records.append(PerformanceRecord(
-                    content_id=content_id,
-                    content_path=input_path,
-                    predicted_score=score_data.get("total", 0),
-                    novelty=score_data.get("novelty", 0),
-                    relevance=score_data.get("relevance", 0),
-                    quality=score_data.get("quality", 0),
-                    actual_performance=total_engagement,
-                    platform=meta.get("platform", "unknown"),
-                    published_at=meta.get("published_at", "")
-                ))
+                records.append(
+                    PerformanceRecord(
+                        content_id=content_id,
+                        content_path=input_path,
+                        predicted_score=score_data.get("total", 0),
+                        novelty=score_data.get("novelty", 0),
+                        relevance=score_data.get("relevance", 0),
+                        quality=score_data.get("quality", 0),
+                        actual_performance=total_engagement,
+                        platform=meta.get("platform", "unknown"),
+                        published_at=meta.get("published_at", ""),
+                    )
+                )
 
             except Exception as e:
                 logger.debug(f"Error processing {note_path}: {e}")
@@ -161,10 +153,7 @@ class ScoreCalibrator:
         logger.info(f"Collected {len(records)} performance records")
         return records
 
-    def _calculate_correlations(
-        self,
-        records: list[PerformanceRecord]
-    ) -> dict[str, float]:
+    def _calculate_correlations(self, records: list[PerformanceRecord]) -> dict[str, float]:
         """점수 요소별 성과 상관관계 계산"""
         if len(records) < 3:
             return {"novelty": 0, "relevance": 0, "quality": 0}
@@ -180,10 +169,7 @@ class ScoreCalibrator:
         logger.debug(f"Correlations: {correlations}")
         return correlations
 
-    def _suggest_weights(
-        self,
-        correlations: dict[str, float]
-    ) -> dict[str, float]:
+    def _suggest_weights(self, correlations: dict[str, float]) -> dict[str, float]:
         """상관관계 기반 가중치 제안"""
         # 음수 상관관계를 0으로 처리
         adjusted = {k: max(0, v) for k, v in correlations.items()}
@@ -198,11 +184,7 @@ class ScoreCalibrator:
 
         return suggested
 
-    def _estimate_improvement(
-        self,
-        records: list[PerformanceRecord],
-        new_weights: dict[str, float]
-    ) -> float:
+    def _estimate_improvement(self, records: list[PerformanceRecord], new_weights: dict[str, float]) -> float:
         """새 가중치 적용 시 개선 추정"""
         # 현재 가중치로 예상 순위와 실제 성과 순위의 상관관계
         current_ranks = [r.predicted_score for r in records]
@@ -213,9 +195,9 @@ class ScoreCalibrator:
         new_scores = []
         for r in records:
             new_score = (
-                r.novelty * new_weights["novelty"] +
-                r.relevance * new_weights["relevance"] +
-                r.quality * new_weights["quality"]
+                r.novelty * new_weights["novelty"]
+                + r.relevance * new_weights["relevance"]
+                + r.quality * new_weights["quality"]
             )
             new_scores.append(new_score)
 
@@ -233,7 +215,7 @@ class ScoreCalibrator:
             current_weights=self.config.scoring.weights.copy(),
             improvement_estimate=0,
             top_performers=[],
-            underperformers=[]
+            underperformers=[],
         )
 
     def apply_weights(self, new_weights: dict[str, bool] = True) -> bool:
@@ -253,9 +235,9 @@ class ScoreCalibrator:
 
 def print_report(report: CalibrationReport):
     """리포트 출력"""
-    print(f"\n{'='*60}")
-    print(f"Score Calibration Report")
-    print(f"{'='*60}\n")
+    print(f"\n{'=' * 60}")
+    print("Score Calibration Report")
+    print(f"{'=' * 60}\n")
 
     print(f"📊 Analyzed: {report.total_analyzed} published items\n")
 
@@ -265,8 +247,8 @@ def print_report(report: CalibrationReport):
         sign = "+" if corr > 0 else ""
         print(f"   {factor:12} {sign}{corr:.3f}  {bar}")
 
-    print(f"\n⚖️  Weight Comparison:")
-    print(f"{'':12} {'Current':>10} {'Suggested':>10}")
+    print("\n⚖️  Weight Comparison:")
+    print(f"{'':>12} {'Current':>10} {'Suggested':>10}")
     for factor in ["novelty", "relevance", "quality"]:
         current = report.current_weights.get(factor, 0)
         suggested = report.suggested_weights.get(factor, 0)
@@ -277,46 +259,32 @@ def print_report(report: CalibrationReport):
     print(f"\n📈 Estimated Improvement: {report.improvement_estimate:+.1f}%")
 
     if report.top_performers:
-        print(f"\n🏆 Top Performers:")
+        print("\n🏆 Top Performers:")
         for i, r in enumerate(report.top_performers[:3], 1):
-            print(f"   {i}. {r.content_id[:20]}... (score: {r.predicted_score:.2f}, engagement: {r.actual_performance:.0f})")
+            print(
+                f"   {i}. {r.content_id[:20]}... "
+                f"(score: {r.predicted_score:.2f}, engagement: {r.actual_performance:.0f})"
+            )
 
     if report.underperformers:
-        print(f"\n📉 Underperformers:")
+        print("\n📉 Underperformers:")
         for i, r in enumerate(reversed(report.underperformers[-3:]), 1):
-            print(f"   {i}. {r.content_id[:20]}... (score: {r.predicted_score:.2f}, engagement: {r.actual_performance:.0f})")
+            print(
+                f"   {i}. {r.content_id[:20]}... "
+                f"(score: {r.predicted_score:.2f}, engagement: {r.actual_performance:.0f})"
+            )
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
 
 
 def main():
     """CLI 엔트리포인트"""
-    parser = argparse.ArgumentParser(
-        description="Score Calibrator - 점수 가중치 분석 및 조정 제안"
-    )
+    parser = argparse.ArgumentParser(description="Score Calibrator - 점수 가중치 분석 및 조정 제안")
 
-    parser.add_argument(
-        "--days", "-d",
-        type=int,
-        default=30,
-        help="분석할 기간 (일, 기본: 30)"
-    )
-    parser.add_argument(
-        "--min-engagement", "-m",
-        type=int,
-        default=10,
-        help="최소 참여 수 (기본: 10)"
-    )
-    parser.add_argument(
-        "--apply", "-a",
-        action="store_true",
-        help="제안된 가중치를 config.yml에 적용"
-    )
-    parser.add_argument(
-        "--json",
-        action="store_true",
-        help="JSON 형식으로 출력"
-    )
+    parser.add_argument("--days", "-d", type=int, default=30, help="분석할 기간 (일, 기본: 30)")
+    parser.add_argument("--min-engagement", "-m", type=int, default=10, help="최소 참여 수 (기본: 10)")
+    parser.add_argument("--apply", "-a", action="store_true", help="제안된 가중치를 config.yml에 적용")
+    parser.add_argument("--json", action="store_true", help="JSON 형식으로 출력")
 
     args = parser.parse_args()
 
@@ -325,6 +293,7 @@ def main():
 
     if args.json:
         import json
+
         output = {
             "total_analyzed": report.total_analyzed,
             "correlation": report.correlation,
@@ -335,10 +304,10 @@ def main():
                 {
                     "content_id": r.content_id,
                     "predicted_score": r.predicted_score,
-                    "actual_performance": r.actual_performance
+                    "actual_performance": r.actual_performance,
                 }
                 for r in report.top_performers
-            ]
+            ],
         }
         print(json.dumps(output, indent=2, ensure_ascii=False))
 

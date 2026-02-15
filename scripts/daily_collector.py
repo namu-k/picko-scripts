@@ -416,9 +416,9 @@ def main():
 
     results = collector.run(date=args.date, sources=args.sources)
 
-    print(f"\n{'='*50}")
+    print(f"\n{'=' * 50}")
     print(f"Collection Results for {results['date']}")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
     print(f"Collected: {results['collected']}")
     print(f"Processed: {results['processed']}")
     print(f"Exported:  {results['exported']}")

@@ -7,7 +7,6 @@ import argparse
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Any
 
 from picko.config import get_config
 from picko.embedding import get_embedding_manager
@@ -20,6 +19,7 @@ logger = setup_logger("duplicate_checker")
 @dataclass
 class DuplicateMatch:
     """중복 매치 결과"""
+
     content_id: str
     content_path: str
     similarity: float
@@ -30,6 +30,7 @@ class DuplicateMatch:
 @dataclass
 class CheckResult:
     """체크 결과"""
+
     content_id: str
     has_duplicates: bool
     duplicates: list[DuplicateMatch]
@@ -50,11 +51,7 @@ class DuplicateChecker:
         self._cache: dict[str, list[float]] = {}
         logger.info(f"DuplicateChecker initialized (threshold: {self.threshold})")
 
-    def check_content(
-        self,
-        content_path: str,
-        compare_paths: list[str] = None
-    ) -> CheckResult:
+    def check_content(self, content_path: str, compare_paths: list[str] = None) -> CheckResult:
         """
         단일 콘텐츠 중복 검사
 
@@ -81,11 +78,7 @@ class DuplicateChecker:
                 compare_paths = self._get_comparison_targets(content_path)
 
             # 유사도 검사
-            duplicates = self._find_duplicates(
-                content_id,
-                embedding,
-                compare_paths
-            )
+            duplicates = self._find_duplicates(content_id, embedding, compare_paths)
 
             max_sim = max([d.similarity for d in duplicates]) if duplicates else 0.0
 
@@ -94,7 +87,7 @@ class DuplicateChecker:
                 has_duplicates=len(duplicates) > 0,
                 duplicates=duplicates,
                 max_similarity=max_sim,
-                checked_at=datetime.now().isoformat()
+                checked_at=datetime.now().isoformat(),
             )
 
         except Exception as e:
@@ -104,14 +97,10 @@ class DuplicateChecker:
                 has_duplicates=False,
                 duplicates=[],
                 max_similarity=0.0,
-                checked_at=datetime.now().isoformat()
+                checked_at=datetime.now().isoformat(),
             )
 
-    def check_directory(
-        self,
-        directory: str,
-        recursive: bool = False
-    ) -> list[CheckResult]:
+    def check_directory(self, directory: str, recursive: bool = False) -> list[CheckResult]:
         """
         디렉토리 내 모든 콘텐츠 중복 검사
 
@@ -140,11 +129,7 @@ class DuplicateChecker:
 
         return results
 
-    def check_pair(
-        self,
-        path1: str,
-        path2: str
-    ) -> float:
+    def check_pair(self, path1: str, path2: str) -> float:
         """
         두 콘텐츠 간 유사도 계산
 
@@ -212,10 +197,7 @@ class DuplicateChecker:
         return targets
 
     def _find_duplicates(
-        self,
-        content_id: str,
-        embedding: list[float],
-        compare_paths: list[str]
+        self, content_id: str, embedding: list[float], compare_paths: list[str]
     ) -> list[DuplicateMatch]:
         """중복 항목 찾기"""
         duplicates = []
@@ -231,13 +213,15 @@ class DuplicateChecker:
                 if similarity >= self.threshold:
                     meta = self.vault.read_frontmatter(compare_path)
 
-                    duplicates.append(DuplicateMatch(
-                        content_id=meta.get("id", Path(compare_path).stem),
-                        content_path=compare_path,
-                        similarity=similarity,
-                        title=meta.get("title", "Untitled"),
-                        source=meta.get("source", "unknown")
-                    ))
+                    duplicates.append(
+                        DuplicateMatch(
+                            content_id=meta.get("id", Path(compare_path).stem),
+                            content_path=compare_path,
+                            similarity=similarity,
+                            title=meta.get("title", "Untitled"),
+                            source=meta.get("source", "unknown"),
+                        )
+                    )
 
             except Exception as e:
                 logger.debug(f"Error comparing {compare_path}: {e}")
@@ -289,40 +273,14 @@ def print_result(result: CheckResult, verbose: bool = False):
 
 def main():
     """CLI 엔트리포인트"""
-    parser = argparse.ArgumentParser(
-        description="Duplicate Checker - 임베딩 기반 중복 콘텐츠 탐지"
-    )
+    parser = argparse.ArgumentParser(description="Duplicate Checker - 임베딩 기반 중복 콘텐츠 탐지")
 
-    parser.add_argument(
-        "--content", "-c",
-        help="검사할 단일 콘텐츠 경로"
-    )
-    parser.add_argument(
-        "--directory", "-d",
-        help="검사할 디렉토리 경로"
-    )
-    parser.add_argument(
-        "--pair",
-        nargs=2,
-        metavar=("PATH1", "PATH2"),
-        help="두 콘텐츠 간 유사도 비교"
-    )
-    parser.add_argument(
-        "--threshold", "-t",
-        type=float,
-        default=0.85,
-        help="유사도 임계값 (0~1, 기본: 0.85)"
-    )
-    parser.add_argument(
-        "--recursive", "-r",
-        action="store_true",
-        help="하위 디렉토리 포함"
-    )
-    parser.add_argument(
-        "--verbose", "-v",
-        action="store_true",
-        help="상세 출력"
-    )
+    parser.add_argument("--content", "-c", help="검사할 단일 콘텐츠 경로")
+    parser.add_argument("--directory", "-d", help="검사할 디렉토리 경로")
+    parser.add_argument("--pair", nargs=2, metavar=("PATH1", "PATH2"), help="두 콘텐츠 간 유사도 비교")
+    parser.add_argument("--threshold", "-t", type=float, default=0.85, help="유사도 임계값 (0~1, 기본: 0.85)")
+    parser.add_argument("--recursive", "-r", action="store_true", help="하위 디렉토리 포함")
+    parser.add_argument("--verbose", "-v", action="store_true", help="상세 출력")
 
     args = parser.parse_args()
 
@@ -333,9 +291,9 @@ def main():
         path1, path2 = args.pair
         similarity = checker.check_pair(path1, path2)
 
-        print(f"\n{'='*60}")
-        print(f"Similarity Comparison")
-        print(f"{'='*60}\n")
+        print(f"\n{'=' * 60}")
+        print("Similarity Comparison")
+        print(f"{'=' * 60}\n")
         print(f"Path 1: {path1}")
         print(f"Path 2: {path2}")
         print(f"\nSimilarity: {similarity:.1%}")
@@ -354,9 +312,9 @@ def main():
         # 디렉토리 검사
         results = checker.check_directory(args.directory, recursive=args.recursive)
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Duplicate Check Results: {args.directory}")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         duplicate_count = sum(1 for r in results if r.has_duplicates)
         print(f"Total checked: {len(results)}")
@@ -371,17 +329,17 @@ def main():
         # 기본: Inbox/Inputs 검사
         results = checker.check_directory("Inbox/Inputs", recursive=False)
 
-        print(f"\n{'='*60}")
-        print(f"Duplicate Check Results: Inbox/Inputs")
-        print(f"{'='*60}\n")
+        print(f"\n{'=' * 60}")
+        print("Duplicate Check Results: Inbox/Inputs")
+        print(f"{'=' * 60}\n")
 
         for result in results:
             print_result(result, verbose=args.verbose)
 
         duplicate_count = sum(1 for r in results if r.has_duplicates)
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Summary: {duplicate_count} potential duplicate(s) found")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
 
 if __name__ == "__main__":

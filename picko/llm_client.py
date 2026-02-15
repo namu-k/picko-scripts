@@ -8,7 +8,7 @@ import json
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Generator
+from typing import Any, Generator
 
 from .config import LLMConfig, get_config
 from .logger import get_logger
@@ -42,11 +42,16 @@ class OpenAIClient(BaseLLMClient):
         if self._client is None:
             from openai import OpenAI
 
-            self._client = OpenAI(api_key=self.config.api_key)  # type: ignore[assignment]
+            self._client = OpenAI(api_key=self.config.api_key)
         return self._client
 
     def generate(
-        self, prompt: str, system_prompt: str | None = None, temperature: float | None = None, max_tokens: int | None = None, **kwargs
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        **kwargs,
     ) -> str:
         """
         텍스트 생성
@@ -103,11 +108,16 @@ class AnthropicClient(BaseLLMClient):
         if self._client is None:
             from anthropic import Anthropic
 
-            self._client = Anthropic(api_key=self.config.api_key)  # type: ignore[assignment]
+            self._client = Anthropic(api_key=self.config.api_key)
         return self._client
 
     def generate(
-        self, prompt: str, system_prompt: str | None = None, temperature: float | None = None, max_tokens: int | None = None, **kwargs
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        **kwargs,
     ) -> str:
         """텍스트 생성"""
         response = self.client.messages.create(
@@ -150,7 +160,12 @@ class OllamaClient(BaseLLMClient):
         return self._client
 
     def generate(
-        self, prompt: str, system_prompt: str | None = None, temperature: float | None = None, max_tokens: int | None = None, **kwargs
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        **kwargs,
     ) -> str:
         """텍스트 생성"""
         options = {}
@@ -186,7 +201,9 @@ class LLMClient:
     - 프로바이더 추상화
     """
 
-    def __init__(self, config: LLMConfig | None = None, cache_enabled: bool = True, cache_dir: str | Path | None = None):
+    def __init__(
+        self, config: LLMConfig | None = None, cache_enabled: bool = True, cache_dir: str | Path | None = None
+    ):
         if config is None:
             config = get_config().llm
 
@@ -269,7 +286,9 @@ class LLMClient:
 
     def generate_stream(self, prompt: str, system_prompt: str | None = None, **kwargs) -> Generator[str, None, None]:
         """스트리밍 텍스트 생성 (캐싱 없음)"""
-        return self._client.generate_stream(prompt, system_prompt=system_prompt, **kwargs)  # type: ignore[no-any-return]
+        return self._client.generate_stream(  # type: ignore[no-any-return]
+            prompt, system_prompt=system_prompt, **kwargs
+        )
 
     # ─────────────────────────────────────────────────────────────
     # 고수준 메서드

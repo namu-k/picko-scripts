@@ -3,7 +3,6 @@ Unit tests for picko.templates module
 """
 
 import pytest
-from datetime import datetime
 
 from picko.templates import TemplateRenderer
 
@@ -30,19 +29,13 @@ class TestTemplateRenderer:
     def test_render_string_date_filter(self, renderer):
         """format_date 필터 테스트"""
         date_str = "2026-02-15T10:30:00"
-        result = renderer.render_string(
-            "{{ date | format_date }}",
-            date=date_str
-        )
+        result = renderer.render_string("{{ date | format_date }}", date=date_str)
         assert "2026-02-15" in result
 
     def test_render_string_truncate_filter(self, renderer):
         """truncate_smart 필터 테스트"""
         long_text = "This is a very long text that should be truncated"
-        result = renderer.render_string(
-            "{{ text | truncate_smart(20) }}",
-            text=long_text
-        )
+        result = renderer.render_string("{{ text | truncate_smart(20) }}", text=long_text)
         assert len(result) < len(long_text)
         assert "..." in result
 
@@ -55,16 +48,11 @@ class TestTemplateRenderer:
             "source_url": "https://techcrunch.com/test",
             "publish_date": "2026-02-15",
             "collected_at": "2026-02-15T10:00:00",
-            "score": {
-                "novelty": 0.8,
-                "relevance": 0.7,
-                "quality": 0.6,
-                "total": 0.69
-            },
+            "score": {"novelty": 0.8, "relevance": 0.7, "quality": 0.6, "total": 0.69},
             "tags": ["AI", "tech"],
             "summary": "This is a test summary",
             "key_points": ["Point 1", "Point 2"],
-            "excerpt": "This is an excerpt"
+            "excerpt": "This is an excerpt",
         }
         result = renderer.render_input_note(content)
         assert "---" in result
@@ -80,15 +68,10 @@ class TestTemplateRenderer:
                 "id": "test_123",
                 "title": "Test Article",
                 "writing_status": "pending",
-                "score": {
-                    "total": 0.85,
-                    "novelty": 0.9,
-                    "relevance": 0.8,
-                    "quality": 0.85
-                },
+                "score": {"total": 0.85, "novelty": 0.9, "relevance": 0.8, "quality": 0.85},
                 "source": "TechCrunch",
                 "source_url": "https://techcrunch.com/test",
-                "summary": "Test summary content"
+                "summary": "Test summary content",
             }
         ]
         result = renderer.render_digest("2026-02-15", items)
@@ -106,7 +89,7 @@ class TestTemplateRenderer:
             "main_content": "Main content here",
             "takeaways": "Key takeaways",
             "cta": "Call to action",
-            "tags": ["AI", "technology"]
+            "tags": ["AI", "technology"],
         }
         result = renderer.render_longform(content)
         assert "# Longform Article Title" in result
@@ -119,13 +102,9 @@ class TestTemplateRenderer:
             "id": "pack_123",
             "source_longform_id": "longform_123",
             "text": "This is a social media post content",
-            "hashtags": ["#AI", "#tech"]
+            "hashtags": ["#AI", "#tech"],
         }
-        channel_config = {
-            "max_length": 280,
-            "tone": "casual",
-            "hashtags": True
-        }
+        channel_config = {"max_length": 280, "tone": "casual", "hashtags": True}
         result = renderer.render_pack(content, "twitter", channel_config)
         assert "# Twitter Pack" in result  # Template capitalizes channel name
         assert "This is a social media post content" in result
@@ -140,7 +119,7 @@ class TestTemplateRenderer:
             "mood": "dramatic",
             "colors": "neon blue and pink",
             "negative_prompt": "text, blurry",
-            "reference_images": ["ref1.jpg", "ref2.jpg"]
+            "reference_images": ["ref1.jpg", "ref2.jpg"],
         }
         result = renderer.render_image_prompt(content)
         assert "# Image Prompt" in result

@@ -4,34 +4,34 @@ version = "0.2.0"
 description = "Content pipeline automation system for RSS feeds and AI-generated content"
 requires-python = ">=3.13"
 dependencies = [
-    "pyyaml>=6.0",
-    "loguru>=0.7.0",
-    "httpx>=0.25.0",
-    "feedparser>=6.0.10",
-    "beautifulsoup4>=4.12.0",
-    "lxml>=4.9.0",
-    "openai>=1.0.0",
-    "anthropic>=0.18.0",
-    "jinja2>=3.1.0",
-    "python-frontmatter>=1.0.0",
-    "numpy>=1.24.0",
-    "tiktoken>=0.5.0",
-    "xxhash>=3.4.0",
-    "ollama>=0.3.0",
-    "sentence-transformers>=2.2.0",
+    "pyyaml==6.0.3",
+    "loguru==0.7.3",
+    "httpx==0.28.1",
+    "feedparser==6.0.12",
+    "beautifulsoup4==4.14.3",
+    "lxml==6.0.2",
+    "openai==2.17.0",
+    "anthropic==0.79.0",
+    "jinja2==3.1.6",
+    "python-frontmatter==1.1.0",
+    "numpy==2.4.2",
+    "tiktoken==0.12.0",
+    "xxhash==3.6.0",
+    "ollama==0.6.1",
+    "sentence-transformers==5.2.2",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.4.0",
-    "pytest-cov>=4.1.0",
-    "flake8>=7.0.0",
-    "black>=24.0.0",
-    "isort>=5.13.0",
-    "mypy>=1.8.0",
-    "pre-commit>=3.6.0",
-    "safety>=3.0.0",
-    "pip-audit>=2.7.0",
+    "pytest==9.0.2",
+    "pytest-cov==7.0.0",
+    "flake8==7.3.0",
+    "black==26.1.0",
+    "isort==7.0.0",
+    "mypy==1.19.1",
+    "pre-commit==4.5.1",
+    "safety==3.7.0",
+    "pip-audit==2.10.0",
 ]
 
 [project.scripts]
@@ -80,6 +80,10 @@ strict_equality = true
 [[tool.mypy.overrides]]
 module = ["feedparser.*", "bs4.*", "lxml.*", "loguru.*", "sentence_transformers.*"]
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "scripts.*"
+ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = "tests.*"

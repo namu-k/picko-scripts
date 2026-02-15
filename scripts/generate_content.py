@@ -6,7 +6,6 @@ Generate Content 스크립트
 import argparse
 import re
 from datetime import datetime
-from pathlib import Path
 
 from picko.config import get_config
 from picko.llm_client import get_writer_client
@@ -27,54 +26,50 @@ class ContentGenerator:
         self.llm = get_writer_client()
         self.renderer = get_renderer()
         self.dry_run = dry_run
-        
+
         logger.info("ContentGenerator initialized")
-    
+
     def run(
-        self,
-        date: str = None,
-        content_types: list[str] = None,
-        force: bool = False,
-        auto_all: bool = False
+        self, date: str = None, content_types: list[str] = None, force: bool = False, auto_all: bool = False
     ) -> dict:
         """
         콘텐츠 생성 파이프라인 실행
-        
+
         Args:
             date: Digest 날짜 (YYYY-MM-DD)
             content_types: 생성할 타입 (longform, packs, images)
             force: 이미 생성된 항목도 재생성
-        
+
         Returns:
             실행 결과 요약
         """
         if date is None:
             date = datetime.now().strftime("%Y-%m-%d")
-        
+
         if content_types is None:
             content_types = ["longform", "packs", "images"]
-        
+
         logger.info(f"Starting content generation for {date}, types: {content_types}")
-        
+
         results = {
             "date": date,
             "approved_items": 0,
             "longform_created": 0,
             "packs_created": 0,
             "image_prompts_created": 0,
-            "errors": []
+            "errors": [],
         }
-        
+
         try:
             # 1. Digest에서 승인된 항목 파싱
             approved_items = self._parse_digest(date, auto_all=auto_all)
             results["approved_items"] = len(approved_items)
             logger.info(f"Found {len(approved_items)} approved items")
-            
+
             if not approved_items:
                 logger.info("No approved items found")
                 return results
-            
+
             # 2. 각 승인 항목에 대해 콘텐츠 생성
             for item in approved_items:
                 try:
@@ -93,41 +88,41 @@ class ContentGenerator:
                     if not force and item.get("status") == "generated":
                         logger.debug(f"Skipping already generated: {item['input_id']}")
                         continue
-                    
+
                     # Longform 생성
                     if "longform" in content_types:
                         if self._generate_longform(item, input_content):
                             results["longform_created"] += 1
-                    
+
                     # Packs 생성
                     if "packs" in content_types:
                         packs_count = self._generate_packs(item, input_content)
                         results["packs_created"] += packs_count
-                    
+
                     # Image Prompts 생성
                     if "images" in content_types:
                         if self._generate_image_prompt(item, input_content):
                             results["image_prompts_created"] += 1
-                    
+
                     # Digest 상태 업데이트
                     if not self.dry_run:
                         self._update_digest_status(date, item["input_id"])
-                    
+
                 except Exception as e:
                     logger.error(f"Failed to process {item.get('input_id')}: {e}")
                     results["errors"].append(str(e))
-        
+
         except Exception as e:
             logger.error(f"Content generation failed: {e}")
             results["errors"].append(str(e))
-        
+
         logger.info(f"Content generation complete: {results}")
         return results
-    
+
     # ─────────────────────────────────────────────────────────────
     # Digest 파싱
     # ─────────────────────────────────────────────────────────────
-    
+
     def _parse_digest(self, date: str, auto_all: bool = False) -> list[dict]:
         """
         Digest에서 승인된 항목 파싱
@@ -151,13 +146,13 @@ class ContentGenerator:
         approved = []
 
         # [x] 또는 [ ] 패턴 매칭
-        pattern = r'##\s*\[([xX ])\]\s*(.+?)(?:\n|$)'
+        pattern = r"##\s*\[([xX ])\]\s*(.+?)(?:\n|$)"
 
         # ID 패턴: **ID**: input_xxx
-        id_pattern = r'\*\*ID\*\*:\s*(\S+)'
+        id_pattern = r"\*\*ID\*\*:\s*(\S+)"
 
         # Account 패턴: **Account**: xxx
-        account_pattern = r'\*\*Account\*\*:\s*(\S+)'
+        account_pattern = r"\*\*Account\*\*:\s*(\S+)"
 
         lines = content.split("\n")
         current_item = None
@@ -173,12 +168,12 @@ class ContentGenerator:
                 title = match.group(2).strip()
 
                 # [x] 체크된 항목 또는 auto_all=True면 포함
-                if checkbox.lower() == 'x' or auto_all:
+                if checkbox.lower() == "x" or auto_all:
                     current_item = {
                         "title": title,
                         "input_id": None,
                         "account_id": None,
-                        "checked": (checkbox.lower() == 'x')
+                        "checked": (checkbox.lower() == "x"),
                     }
                 else:
                     current_item = None
@@ -199,7 +194,7 @@ class ContentGenerator:
             approved.append(current_item)
 
         return [item for item in approved if item.get("input_id")]
-    
+
     def _load_input(self, input_id: str) -> dict | None:
         """Input 노트 로드"""
         input_path = f"{self.config.vault.inbox}/{input_id}.md"
@@ -233,18 +228,18 @@ class ContentGenerator:
                 "key_points": self._extract_list(content, "핵심 포인트"),
                 "excerpt": self._extract_section(content, "원문 발췌"),
                 "tags": meta.get("tags", []),
-                "writing_status": writing_status
+                "writing_status": writing_status,
             }
         except FileNotFoundError:
             logger.warning(f"Input not found: {input_path}")
             return None
-    
+
     def _extract_section(self, content: str, section_name: str) -> str:
         """마크다운에서 섹션 추출"""
-        pattern = rf'##\s*{section_name}\s*\n(.*?)(?=\n##|\Z)'
+        pattern = rf"##\s*{section_name}\s*\n(.*?)(?=\n##|\Z)"
         match = re.search(pattern, content, re.DOTALL)
         return match.group(1).strip() if match else ""
-    
+
     def _extract_list(self, content: str, section_name: str) -> list[str]:
         """마크다운에서 리스트 섹션 추출"""
         section = self._extract_section(content, section_name)
@@ -254,15 +249,15 @@ class ContentGenerator:
             if line.startswith("-") or line.startswith("*"):
                 items.append(line.lstrip("-* ").strip())
         return items
-    
+
     # ─────────────────────────────────────────────────────────────
     # 콘텐츠 생성
     # ─────────────────────────────────────────────────────────────
-    
+
     def _generate_longform(self, item: dict, input_content: dict) -> bool:
         """Longform 콘텐츠 생성"""
         logger.info(f"Generating longform for: {item['input_id']}")
-        
+
         # LLM으로 Longform 콘텐츠 생성
         prompt = f"""다음 콘텐츠를 바탕으로 블로그 포스트 형식의 긴 글을 작성해주세요.
 
@@ -294,12 +289,12 @@ class ContentGenerator:
 [마무리]
 - 행동 촉구 또는 생각거리
 """
-        
+
         response = self.llm.generate(prompt, max_tokens=2000)
-        
+
         # 섹션 파싱
         sections = self._parse_generated_sections(response)
-        
+
         # 템플릿 렌더링을 위한 데이터 구성
         longform_data = {
             "id": f"longform_{item['input_id']}",
@@ -309,11 +304,11 @@ class ContentGenerator:
             "main_content": sections.get("메인 콘텐츠", response),
             "takeaways": sections.get("주요 시사점", ""),
             "cta": sections.get("마무리", ""),
-            "tags": input_content.get("tags", [])
+            "tags": input_content.get("tags", []),
         }
-        
+
         content = self.renderer.render_longform(longform_data)
-        
+
         # 저장
         if not self.dry_run:
             output_path = f"{self.config.vault.longform}/{longform_data['id']}.md"
@@ -321,18 +316,18 @@ class ContentGenerator:
             body = content.split("---", 2)[2].strip() if content.startswith("---") else content
             self.vault.write_note(output_path, body, metadata=meta, overwrite=True)
             logger.info(f"Created longform: {output_path}")
-        
+
         return True
-    
+
     def _parse_generated_sections(self, text: str) -> dict:
         """LLM 생성 텍스트에서 섹션 파싱"""
         sections = {}
         current_section = None
         current_content = []
-        
+
         for line in text.split("\n"):
             # [섹션명] 패턴 확인
-            match = re.match(r'\[(.+?)\]', line.strip())
+            match = re.match(r"\[(.+?)\]", line.strip())
             if match:
                 if current_section:
                     sections[current_section] = "\n".join(current_content).strip()
@@ -340,29 +335,29 @@ class ContentGenerator:
                 current_content = []
             elif current_section:
                 current_content.append(line)
-        
+
         if current_section:
             sections[current_section] = "\n".join(current_content).strip()
-        
+
         return sections
-    
+
     def _generate_packs(self, item: dict, input_content: dict) -> int:
         """채널별 패키징 콘텐츠 생성"""
         logger.info(f"Generating packs for: {item['input_id']}")
-        
+
         # 계정 프로필에서 채널 설정 로드
         account_id = item.get("account_id", "socialbuilders")
         account = self.config.get_account(account_id)
         channels = account.get("channels", {})
-        
+
         created_count = 0
-        
+
         for channel, channel_config in channels.items():
             try:
                 max_length = channel_config.get("max_length", 280)
                 tone = channel_config.get("tone", "casual")
                 use_hashtags = channel_config.get("hashtags", True)
-                
+
                 # LLM으로 채널별 콘텐츠 생성
                 prompt = f"""다음 콘텐츠를 {channel} 채널용으로 변환해주세요.
 
@@ -376,23 +371,23 @@ class ContentGenerator:
 - 해시태그: {'필요' if use_hashtags else '불필요'}
 
 {channel} 포스트:"""
-                
+
                 text = self.llm.generate(prompt, max_tokens=500)
-                
+
                 # 해시태그 추출
                 hashtags = []
                 if use_hashtags:
                     hashtags = [f"#{tag}" for tag in input_content.get("tags", [])[:3]]
-                
+
                 pack_data = {
                     "id": f"pack_{item['input_id']}_{channel}",
                     "source_longform_id": f"longform_{item['input_id']}",
                     "text": text.strip(),
-                    "hashtags": hashtags
+                    "hashtags": hashtags,
                 }
-                
+
                 content = self.renderer.render_pack(pack_data, channel, channel_config)
-                
+
                 # 저장
                 if not self.dry_run:
                     output_path = f"{self.config.vault.packs}/{channel}/{pack_data['id']}.md"
@@ -401,18 +396,18 @@ class ContentGenerator:
                     body = content.split("---", 2)[2].strip() if content.startswith("---") else content
                     self.vault.write_note(output_path, body, metadata=meta, overwrite=True)
                     logger.info(f"Created pack: {output_path}")
-                
+
                 created_count += 1
-                
+
             except Exception as e:
                 logger.warning(f"Failed to create {channel} pack: {e}")
-        
+
         return created_count
-    
+
     def _generate_image_prompt(self, item: dict, input_content: dict) -> bool:
         """이미지 프롬프트 생성"""
         logger.info(f"Generating image prompt for: {item['input_id']}")
-        
+
         # LLM으로 이미지 프롬프트 생성
         prompt = f"""다음 콘텐츠에 어울리는 이미지 프롬프트를 생성해주세요.
 
@@ -433,21 +428,21 @@ class ContentGenerator:
 
 [색상]
 (주요 색상 팔레트)"""
-        
+
         response = self.llm.generate(prompt, max_tokens=500)
         sections = self._parse_generated_sections(response)
-        
+
         prompt_data = {
             "id": f"img_{item['input_id']}",
             "source_content_id": item["input_id"],
             "prompt": sections.get("메인 프롬프트", response),
             "style": sections.get("스타일", "modern, clean"),
             "mood": sections.get("분위기", "professional"),
-            "colors": sections.get("색상", "brand colors")
+            "colors": sections.get("색상", "brand colors"),
         }
-        
+
         content = self.renderer.render_image_prompt(prompt_data)
-        
+
         # 저장
         if not self.dry_run:
             output_path = f"{self.config.vault.images_prompts}/{prompt_data['id']}.md"
@@ -455,9 +450,9 @@ class ContentGenerator:
             body = content.split("---", 2)[2].strip() if content.startswith("---") else content
             self.vault.write_note(output_path, body, metadata=meta, overwrite=True)
             logger.info(f"Created image prompt: {output_path}")
-        
+
         return True
-    
+
     def _update_digest_status(self, date: str, input_id: str) -> None:
         """Input 노트의 writing_status 업데이트"""
         input_path = f"{self.config.vault.inbox}/{input_id}.md"
@@ -474,10 +469,11 @@ class ContentGenerator:
             logger.info(f"Updated writing_status to completed: {input_id}")
         except Exception as e:
             logger.warning(f"Failed to update status for {input_id}: {e}")
-    
+
     def _parse_frontmatter(self, content: str) -> dict:
         """frontmatter 파싱"""
         import yaml
+
         if content.startswith("---"):
             parts = content.split("---", 2)
             if len(parts) >= 3:
@@ -490,31 +486,19 @@ def main():
     parser = argparse.ArgumentParser(
         description="Generate Content - 승인된 콘텐츠로부터 Longform/Packs/Image Prompts 생성"
     )
+    parser.add_argument("--date", "-d", help="Digest 날짜 (YYYY-MM-DD, 기본: 오늘)")
     parser.add_argument(
-        "--date", "-d",
-        help="Digest 날짜 (YYYY-MM-DD, 기본: 오늘)"
-    )
-    parser.add_argument(
-        "--type", "-t",
+        "--type",
+        "-t",
         nargs="+",
         choices=["longform", "packs", "images", "all"],
         default=["all"],
-        help="생성할 콘텐츠 타입"
+        help="생성할 콘텐츠 타입",
     )
+    parser.add_argument("--force", "-f", action="store_true", help="이미 생성된 항목도 재생성")
+    parser.add_argument("--dry-run", action="store_true", help="저장 없이 시뮬레이션")
     parser.add_argument(
-        "--force", "-f",
-        action="store_true",
-        help="이미 생성된 항목도 재생성"
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="저장 없이 시뮬레이션"
-    )
-    parser.add_argument(
-        "--auto-all",
-        action="store_true",
-        help="체크되지 않은 항목도 자동으로 처리 (수동 작업 거부 시)"
+        "--auto-all", action="store_true", help="체크되지 않은 항목도 자동으로 처리 (수동 작업 거부 시)"
     )
 
     args = parser.parse_args()
@@ -526,23 +510,18 @@ def main():
 
     generator = ContentGenerator(dry_run=args.dry_run)
 
-    results = generator.run(
-        date=args.date,
-        content_types=content_types,
-        force=args.force,
-        auto_all=args.auto_all
-    )
-    
-    print(f"\n{'='*50}")
+    results = generator.run(date=args.date, content_types=content_types, force=args.force, auto_all=args.auto_all)
+
+    print(f"\n{'=' * 50}")
     print(f"Content Generation Results for {results['date']}")
-    print(f"{'='*50}")
+    print(f"{'=' * 50}")
     print(f"Approved Items:      {results['approved_items']}")
     print(f"Longform Created:    {results['longform_created']}")
     print(f"Packs Created:       {results['packs_created']}")
     print(f"Image Prompts:       {results['image_prompts_created']}")
-    if results['errors']:
+    if results["errors"]:
         print(f"Errors:              {len(results['errors'])}")
-        for err in results['errors']:
+        for err in results["errors"]:
             print(f"  - {err}")
 
 

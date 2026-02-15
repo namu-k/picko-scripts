@@ -7,7 +7,6 @@ import argparse
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
 
 from picko.config import get_config
 from picko.logger import setup_logger
@@ -19,6 +18,7 @@ logger = setup_logger("engagement_sync")
 @dataclass
 class EngagementMetrics:
     """성과 메트릭"""
+
     views: int = 0
     likes: int = 0
     comments: int = 0
@@ -33,13 +33,14 @@ class EngagementMetrics:
             "comments": self.comments,
             "shares": self.shares,
             "clicks": self.clicks,
-            "impressions": self.impressions
+            "impressions": self.impressions,
         }
 
 
 @dataclass
 class SyncResult:
     """동기화 결과"""
+
     log_path: str
     platform: str
     success: bool
@@ -59,12 +60,7 @@ class EngagementSyncer:
         self.logs_path = "Logs/Publish"
         logger.info("EngagementSyncer initialized")
 
-    def sync_all(
-        self,
-        days: int = 7,
-        platforms: list[str] = None,
-        dry_run: bool = False
-    ) -> list[SyncResult]:
+    def sync_all(self, days: int = 7, platforms: list[str] = None, dry_run: bool = False) -> list[SyncResult]:
         """
         모든 발행 로그의 성과 메트릭 동기화
 
@@ -104,7 +100,7 @@ class EngagementSyncer:
                     platform=platform,
                     success=metrics is not None,
                     metrics=metrics,
-                    synced_at=datetime.now().isoformat()
+                    synced_at=datetime.now().isoformat(),
                 )
 
                 if metrics and not dry_run:
@@ -115,21 +111,19 @@ class EngagementSyncer:
 
             except Exception as e:
                 logger.error(f"Failed to sync {log_path}: {e}")
-                results.append(SyncResult(
-                    log_path=str(log_path),
-                    platform=platform,
-                    success=False,
-                    error=str(e),
-                    synced_at=datetime.now().isoformat()
-                ))
+                results.append(
+                    SyncResult(
+                        log_path=str(log_path),
+                        platform=platform,
+                        success=False,
+                        error=str(e),
+                        synced_at=datetime.now().isoformat(),
+                    )
+                )
 
         return results
 
-    def sync_single(
-        self,
-        log_path: str,
-        dry_run: bool = False
-    ) -> SyncResult:
+    def sync_single(self, log_path: str, dry_run: bool = False) -> SyncResult:
         """
         단일 발행 로그 동기화
 
@@ -148,10 +142,7 @@ class EngagementSyncer:
 
             if platform not in self.SUPPORTED_PLATFORMS:
                 return SyncResult(
-                    log_path=log_path,
-                    platform=platform,
-                    success=False,
-                    error=f"Unsupported platform: {platform}"
+                    log_path=log_path, platform=platform, success=False, error=f"Unsupported platform: {platform}"
                 )
 
             metrics = self._fetch_metrics(meta, platform)
@@ -164,17 +155,12 @@ class EngagementSyncer:
                 platform=platform,
                 success=metrics is not None,
                 metrics=metrics,
-                synced_at=datetime.now().isoformat()
+                synced_at=datetime.now().isoformat(),
             )
 
         except Exception as e:
             logger.error(f"Failed to sync {log_path}: {e}")
-            return SyncResult(
-                log_path=log_path,
-                platform="unknown",
-                success=False,
-                error=str(e)
-            )
+            return SyncResult(log_path=log_path, platform="unknown", success=False, error=str(e))
 
     def _get_published_logs(self, since: datetime) -> list[dict]:
         """발행 완료된 로그 조회"""
@@ -192,10 +178,7 @@ class EngagementSyncer:
                 if published_at:
                     pub_date = datetime.fromisoformat(published_at)
                     if pub_date >= since:
-                        logs.append({
-                            "path": str(note_path),
-                            **meta
-                        })
+                        logs.append({"path": str(note_path), **meta})
 
             except Exception as e:
                 logger.warning(f"Error reading {note_path}: {e}")
@@ -215,7 +198,6 @@ class EngagementSyncer:
         # 현재는 더미 데이터 반환
 
         content_id = log_entry.get("content_id", "")
-        published_url = log_entry.get("published_url", "")
 
         logger.debug(f"Fetching metrics for {platform}: {content_id}")
 
@@ -242,40 +224,20 @@ class EngagementSyncer:
 
     def _update_log_metrics(self, log_path: str, metrics: EngagementMetrics):
         """발행 로그의 메트릭 업데이트"""
-        updates = {
-            "metrics": metrics.to_dict(),
-            "metrics_synced_at": datetime.now().isoformat()
-        }
+        updates = {"metrics": metrics.to_dict(), "metrics_synced_at": datetime.now().isoformat()}
         self.vault.update_frontmatter(log_path, updates)
 
 
 def main():
     """CLI 엔트리포인트"""
-    parser = argparse.ArgumentParser(
-        description="Engagement Sync - 플랫폼 성과 메트릭 동기화"
-    )
+    parser = argparse.ArgumentParser(description="Engagement Sync - 플랫폼 성과 메트릭 동기화")
 
+    parser.add_argument("--log", "-l", help="단일 로그 파일 동기화")
+    parser.add_argument("--days", "-d", type=int, default=7, help="최근 N일의 로그 동기화 (기본: 7)")
     parser.add_argument(
-        "--log", "-l",
-        help="단일 로그 파일 동기화"
+        "--platforms", "-p", nargs="+", choices=EngagementSyncer.SUPPORTED_PLATFORMS, help="대상 플랫폼"
     )
-    parser.add_argument(
-        "--days", "-d",
-        type=int,
-        default=7,
-        help="최근 N일의 로그 동기화 (기본: 7)"
-    )
-    parser.add_argument(
-        "--platforms", "-p",
-        nargs="+",
-        choices=EngagementSyncer.SUPPORTED_PLATFORMS,
-        help="대상 플랫폼"
-    )
-    parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="실제 업데이트 없이 시뮬레이션"
-    )
+    parser.add_argument("--dry-run", action="store_true", help="실제 업데이트 없이 시뮬레이션")
 
     args = parser.parse_args()
 
@@ -296,15 +258,11 @@ def main():
 
     else:
         # 전체 동기화
-        results = syncer.sync_all(
-            days=args.days,
-            platforms=args.platforms,
-            dry_run=args.dry_run
-        )
+        results = syncer.sync_all(days=args.days, platforms=args.platforms, dry_run=args.dry_run)
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Engagement Sync Results (Last {args.days} days)")
-        print(f"{'='*60}\n")
+        print(f"{'=' * 60}\n")
 
         successful = sum(1 for r in results if r.success)
         failed = len(results) - successful
@@ -317,11 +275,11 @@ def main():
             elif not result.success:
                 print(f"   Error: {result.error}")
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Summary: {successful} succeeded, {failed} failed")
         if args.dry_run:
             print("(DRY RUN - No actual updates made)")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
 
 if __name__ == "__main__":

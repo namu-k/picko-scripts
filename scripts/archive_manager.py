@@ -199,18 +199,18 @@ def main():
 
     if args.list:
         items = manager.list_archivable(days=args.days)
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print(f"Archivable Items ({args.days}+ days old)")
-        print(f"{'='*50}")
+        print(f"{'=' * 50}")
         for item in items:
             print(f"  - {item['title'][:40]}... ({item['collected_at'][:10]})")
         print(f"\nTotal: {len(items)} items")
     else:
         results = manager.run(days=args.days, clean_cache=args.clean_cache, dry_run=args.dry_run)
 
-        print(f"\n{'='*50}")
-        print(f"Archive Results")
-        print(f"{'='*50}")
+        print(f"\n{'=' * 50}")
+        print("Archive Results")
+        print(f"{'=' * 50}")
         print(f"Scanned:       {results['scanned']}")
         print(f"Archived:      {results['archived']}")
         print(f"Cache Cleaned: {results['cache_cleaned']}")

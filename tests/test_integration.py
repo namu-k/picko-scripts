@@ -3,10 +3,9 @@ Integration tests for Picko modules
 """
 
 import pytest
-from pathlib import Path
 
-from picko.vault_io import VaultIO
 from picko.templates import get_renderer
+from picko.vault_io import VaultIO
 
 
 @pytest.mark.integration
@@ -17,11 +16,7 @@ class TestVaultIOIntegration:
         """노트 작성 후 읽기"""
         vault = VaultIO(str(temp_vault_dir))
 
-        metadata = {
-            "id": "test_123",
-            "title": "Test Content",
-            "type": "input"
-        }
+        metadata = {"id": "test_123", "title": "Test Content", "type": "input"}
         content = "# Test Content\n\nThis is test content."
         path = "Inbox/Inputs/test_123.md"
 
@@ -41,11 +36,7 @@ class TestVaultIOIntegration:
 
         # 여러 노트 작성
         for i in range(3):
-            vault.write_note(
-                f"Inbox/Inputs/test_{i}.md",
-                f"Content {i}",
-                metadata={"id": f"test_{i}"}
-            )
+            vault.write_note(f"Inbox/Inputs/test_{i}.md", f"Content {i}", metadata={"id": f"test_{i}"})
 
         # 목록 조회
         notes = vault.list_notes("Inbox/Inputs")
@@ -57,11 +48,7 @@ class TestVaultIOIntegration:
 
         # 노트 작성
         path = "Inbox/Inputs/test.md"
-        vault.write_note(
-            path,
-            "Content",
-            metadata={"id": "test", "status": "pending"}
-        )
+        vault.write_note(path, "Content", metadata={"id": "test", "status": "pending"})
 
         # 업데이트
         vault.update_frontmatter(path, {"status": "completed"})

@@ -1,0 +1,7 @@
+# Development dependencies - install with: pip install -r requirements-dev.txt
+# This installs both production and dev dependencies
+
+-r requirements.txt
+
+# Additional dev tools (if any)
+# Most dev tools are already in requirements.txt above

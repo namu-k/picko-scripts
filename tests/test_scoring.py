@@ -2,9 +2,7 @@
 Unit tests for picko.scoring module
 """
 
-import pytest
-
-from picko.scoring import ContentScorer, ContentScore, score_content
+from picko.scoring import ContentScore, ContentScorer, score_content
 
 
 class TestContentScorer:
@@ -17,7 +15,7 @@ class TestContentScorer:
             "title": "Test Article",
             "text": "This is a test article about AI and machine learning.",
             "keywords": ["AI", "machine learning"],
-            "source": "test.com"
+            "source": "test.com",
         }
         score = scorer.score(content)
         assert isinstance(score, ContentScore)
@@ -31,7 +29,7 @@ class TestContentScorer:
             "text": "Article about AI",
             "keywords": ["AI"],
             "source": "test.com",
-            "embedding": [0.1, 0.2, 0.3]
+            "embedding": [0.1, 0.2, 0.3],
         }
         score = scorer.score(content, existing_embeddings=[[0.5, 0.6, 0.7]])
         assert isinstance(score, ContentScore)
@@ -39,53 +37,39 @@ class TestContentScorer:
     def test_novelty_no_existing_embeddings(self):
         """기존 임베딩 없으면 참신도 1.0"""
         scorer = ContentScorer()
-        content = {
-            "title": "Test",
-            "text": "Test content",
-            "embedding": [0.1, 0.2, 0.3]
-        }
+        content = {"title": "Test", "text": "Test content", "embedding": [0.1, 0.2, 0.3]}
         score = scorer.score(content, existing_embeddings=None)
         assert score.novelty == 1.0
 
     def test_novelty_no_embedding_in_content(self):
         """임베딩 없는 콘텐츠는 기본값 0.5"""
         scorer = ContentScorer()
-        content = {
-            "title": "Test",
-            "text": "Test content"
-        }
+        content = {"title": "Test", "text": "Test content"}
         score = scorer.score(content, existing_embeddings=[[0.1, 0.2]])
         assert score.novelty == 0.5
 
     def test_relevance_no_account_profile(self):
         """계정 프로필 없으면 관련도 기본값 0.5"""
         scorer = ContentScorer(account_profile=None)
-        content = {
-            "title": "AI and machine learning",
-            "text": "Article about AI",
-            "keywords": ["AI"]
-        }
+        content = {"title": "AI and machine learning", "text": "Article about AI", "keywords": ["AI"]}
         score = scorer.score(content)
         assert score.relevance == 0.5
 
     def test_relevance_with_profile(self):
         """계정 프로필 기반 관련도 계산"""
         account = {
-            "interests": {
-                "primary": ["AI", "machine learning"],
-                "secondary": ["design"]
-            },
+            "interests": {"primary": ["AI", "machine learning"], "secondary": ["design"]},
             "keywords": {
                 "high_relevance": ["ChatGPT", "Claude"],
                 "medium_relevance": ["productivity"],
-                "low_relevance": ["tech"]
-            }
+                "low_relevance": ["tech"],
+            },
         }
         scorer = ContentScorer(account_profile=account)
         content = {
             "title": "ChatGPT and AI Technology",
             "text": "Discussion about AI developments",
-            "keywords": ["AI", "ChatGPT"]
+            "keywords": ["AI", "ChatGPT"],
         }
         score = scorer.score(content)
         # AI (1.0) + ChatGPT in title (1.0) = 2.0, normalized by 5 = 0.4
@@ -97,7 +81,7 @@ class TestContentScorer:
         content = {
             "title": "A Perfect Title for Quality Content",
             "text": "A" * 1000,  # Long enough text
-            "source": "techcrunch.com"
+            "source": "techcrunch.com",
         }
         score = scorer.score(content)
         assert 0 <= score.quality <= 1
@@ -107,25 +91,15 @@ class TestContentScorer:
     def test_quality_poor_content(self):
         """낮은 품질 콘텐츠 점수"""
         scorer = ContentScorer()
-        content = {
-            "title": "short",
-            "text": "A" * 30,  # Too short
-            "source": "unknown.com"
-        }
+        content = {"title": "short", "text": "A" * 30, "source": "unknown.com"}  # Too short
         score = scorer.score(content)
         assert score.quality < 0.5
 
     def test_quality_with_trusted_source(self):
         """신뢰할 수 있는 소스 높은 점수"""
-        account = {
-            "trusted_sources": ["techcrunch.com", "arxiv.org"]
-        }
+        account = {"trusted_sources": ["techcrunch.com", "arxiv.org"]}
         scorer = ContentScorer(account_profile=account)
-        content = {
-            "title": "Good Title with Proper Length",
-            "text": "A" * 800,
-            "source": "techcrunch.com"
-        }
+        content = {"title": "Good Title with Proper Length", "text": "A" * 800, "source": "techcrunch.com"}
         score = scorer.score(content)
         assert score.quality > 0.5
 
@@ -171,22 +145,13 @@ class TestScoreContentConvenience:
 
     def test_score_content_basic(self):
         """기본 점수 계산"""
-        content = {
-            "title": "Test",
-            "text": "Test content",
-            "source": "test.com"
-        }
+        content = {"title": "Test", "text": "Test content", "source": "test.com"}
         score = score_content(content)
         assert isinstance(score, ContentScore)
 
     def test_score_content_with_account(self):
         """계정 프로필과 함께 점수 계산"""
-        content = {
-            "title": "AI Technology",
-            "text": "About AI",
-            "keywords": ["AI"],
-            "source": "test.com"
-        }
+        content = {"title": "AI Technology", "text": "About AI", "keywords": ["AI"], "source": "test.com"}
         score = score_content(content, account_id="socialbuilders")
         assert isinstance(score, ContentScore)
 
@@ -197,16 +162,12 @@ class TestScoringWeights:
     def test_default_weights(self):
         """기본 가중치 적용"""
         from picko.config import get_config
+
         config = get_config()
         scorer = ContentScorer(config=config.scoring)
 
         # Create content that would give 1.0 for each component
-        content = {
-            "title": "A Good Title",
-            "text": "A" * 600,
-            "embedding": [0.1, 0.2],
-            "source": "test.com"
-        }
+        content = {"title": "A Good Title", "text": "A" * 600, "embedding": [0.1, 0.2], "source": "test.com"}
 
         score = scorer.score(content, existing_embeddings=None)
         # With default weights (0.3, 0.4, 0.3), should be close to expected

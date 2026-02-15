@@ -209,7 +209,9 @@ class ContentScorer:
 
 
 # 편의 함수
-def score_content(content: dict, account_id: str | None = None, existing_embeddings: list[list[float]] | None = None) -> ContentScore:
+def score_content(
+    content: dict, account_id: str | None = None, existing_embeddings: list[list[float]] | None = None
+) -> ContentScore:
     """
     콘텐츠 점수 계산 (편의 함수)
 

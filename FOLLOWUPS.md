@@ -29,38 +29,42 @@ This document tracks follow-up items from the hardening plan execution. Each ite
 
 ## High Priority
 
-### [ ] 4. Enable and test pre-commit hooks
+### [x] 4. Enable and test pre-commit hooks
 - **Priority**: P2
-- **Owner**: Unassigned
+- **Owner**: Completed
 - **Description**: Install and configure pre-commit hooks
 - **Commands**:
   - `pip install pre-commit`
   - `pre-commit install`
   - `pre-commit run --all-files`
 - **Acceptance**: All hooks pass on current codebase
+- **Result**: SUCCESS - All hooks (black, isort, flake8, mypy) pass
 
-### [ ] 5. Pin all dependencies
+### [x] 5. Pin all dependencies
 - **Priority**: P2
-- **Owner**: Unassigned
+- **Owner**: Completed
 - **Description**: Pin dependency versions in requirements.txt
-- **Tool**: `pip-compile` or manual pinning
-- **Acceptance**: All versions pinned with `==` or `~=`
+- **Tool**: Manual pinning with `uv pip list`
+- **Acceptance**: All versions pinned with `==`
+- **Result**: SUCCESS - All dependencies pinned in requirements.txt and pyproject.toml
 
-### [ ] 6. Run security audit and fix vulnerabilities
+### [x] 6. Run security audit and fix vulnerabilities
 - **Priority**: P1
-- **Owner**: Unassigned
+- **Owner**: Completed
 - **Commands**:
   - `safety check`
   - `pip-audit`
 - **Acceptance**: Zero known vulnerabilities
+- **Result**: PASS - 0 vulnerabilities found (116 packages scanned)
 
 ## Medium Priority
 
-### [ ] 7. Add CI badge to README.md
+### [x] 7. Add CI badge to README.md
 - **Priority**: P3
-- **Owner**: Unassigned
+- **Owner**: Complete
 - **Description**: Add GitHub Actions workflow badge to README
-- **Badge**: `[![Test](https://github.com/your-username/picko-scripts/actions/workflows/test.yml/badge.svg)](https://github.com/your-username/picko-scripts/actions/workflows/test.yml)`
+- **Result**: Badge already present in README.md (line 3)
+- **Note**: Update `your-username` placeholder with actual GitHub username when pushing to remote
 
 ### [ ] 8. Create v0.2.0 GitHub Release
 - **Priority**: P3

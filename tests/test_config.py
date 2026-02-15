@@ -3,19 +3,19 @@ Unit tests for picko.config module
 """
 
 import os
-import pytest
 from pathlib import Path
-from unittest.mock import patch, MagicMock
+
+import pytest
 
 from picko.config import (
-    load_config,
-    get_config,
-    VaultConfig,
-    LLMConfig,
-    SummaryLLMConfig,
-    WriterLLMConfig,
     EmbeddingConfig,
+    LLMConfig,
     ScoringConfig,
+    SummaryLLMConfig,
+    VaultConfig,
+    WriterLLMConfig,
+    get_config,
+    load_config,
 )
 
 
@@ -182,6 +182,7 @@ class TestGetConfig:
         """get_config 싱글톤 패턴"""
         # 모듈의 _config를 None으로 리셋
         import picko.config
+
         original_config = picko.config._config
         picko.config._config = None
 

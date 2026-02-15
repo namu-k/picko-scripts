@@ -5,10 +5,12 @@ This test verifies the generate_content script works correctly with --dry-run
 against a mocked vault path.
 """
 
-import pytest
-import subprocess
 import json
+import subprocess
+import sys
 from pathlib import Path
+
+import pytest
 
 
 @pytest.mark.e2e
@@ -70,10 +72,10 @@ This is a test article.
 
         # Run generate_content with --dry-run
         result = subprocess.run(
-            ["python", "-m", "scripts.generate_content", "--date", "2026-02-15", "--dry-run"],
+            [sys.executable, "-m", "scripts.generate_content", "--date", "2026-02-15", "--dry-run"],
             capture_output=True,
             text=True,
-            cwd=str(Path(__file__).parent.parent)
+            cwd=str(Path(__file__).parent.parent),
         )
 
         # Should complete without error
@@ -82,10 +84,10 @@ This is a test article.
     def test_health_check_json_output(self):
         """Test health_check produces valid JSON output"""
         result = subprocess.run(
-            ["python", "-m", "scripts.health_check", "--json"],
+            [sys.executable, "-m", "scripts.health_check", "--json"],
             capture_output=True,
             text=True,
-            cwd=str(Path(__file__).parent.parent)
+            cwd=str(Path(__file__).parent.parent),
         )
 
         # Should complete

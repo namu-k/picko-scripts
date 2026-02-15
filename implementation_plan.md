@@ -319,20 +319,20 @@ graph LR
         D --> E[generate_content.py]
         E --> F[validate_output.py]
     end
-    
+
     subgraph "Phase 2 (Week 1)"
         G[health_check.py]
         H[retry_failed.py]
         I[archive_manager.py]
         J[publish_log.py]
     end
-    
+
     subgraph "Phase 3 (성숙)"
         K[engagement_sync.py]
         L[score_calibrator.py]
         M[duplicate_checker.py]
     end
-    
+
     C --> G
     E --> J
     J --> K
