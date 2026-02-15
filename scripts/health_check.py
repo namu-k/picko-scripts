@@ -5,6 +5,7 @@ Health Check 스크립트
 
 import argparse
 import os
+import sys
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +15,10 @@ import httpx
 from picko.config import get_config
 from picko.logger import setup_logger
 from picko.vault_io import VaultIO
+
+# Windows UTF-8 인코딩 설정
+if sys.platform == "win32":
+    sys.stdout.reconfigure(encoding="utf-8")
 
 logger = setup_logger("health_check")
 
