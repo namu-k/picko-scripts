@@ -6,6 +6,7 @@ against a mocked vault path.
 """
 
 import json
+import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -18,6 +19,7 @@ import pytest
 class TestGenerateContentDryRun:
     """E2E dry-run tests for generate_content"""
 
+    @pytest.mark.skipif(platform.system() != "Windows", reason="E2E test requires Windows-style vault path")
     def test_generate_content_dry_run(self, temp_vault_dir):
         """Test generate_content with --dry-run flag"""
         # Create a test digest file
