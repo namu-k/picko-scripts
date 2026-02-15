@@ -9,8 +9,33 @@ on:
 jobs:
   health-check:
     runs-on: ubuntu-latest
-    if: github.repository == 'your-username/picko-scripts'  # Prevent fork runs
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up repository labels
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Ensure health-check and automated labels exist
+            const labels = [
+              { name: 'health-check', color: 'd73a4a', description: 'Issues from automated health checks' },
+              { name: 'automated', color: '0066cc', description: 'Automatically created issues' }
+            ]
+
+            for (const label of labels) {
+              try {
+                await github.rest.issues.createLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.name,
+                  ...label
+                })
+              } catch (error) {
+                // Label already exists, ignore
+                if (error.status !== 422) throw error
+              }
+            }
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -109,4 +134,41 @@ jobs:
                 body: body,
                 labels: ['health-check', 'automated']
               })
+            }
+
+      - name: Report success
+        if: success()
+        run: |
+          echo "✅ All health checks passed!"
+          echo "Summary: $(cat health_summary.txt)"
+
+      - name: Close old health check issues on success
+        if: success()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            // Close any open health-check issues since we're now healthy
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.name,
+              state: 'open',
+              labels: ['health-check']
+            })
+
+            for (const issue of issues.data) {
+              if (issue.title.includes('Daily Health Check')) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.name,
+                  issue_number: issue.number,
+                  body: '✅ **Health checks now passing** - closing this issue.\n\n*Automated resolution from daily health check workflow*'
+                })
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.name,
+                  issue_number: issue.number,
+                  state: 'closed'
+                })
+              }
             }
