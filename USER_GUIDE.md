@@ -114,7 +114,7 @@ ollama list
 ### 1. 리포지토리 클론
 
 ```bash
-git clone https://github.com/your-username/picko-scripts.git
+git clone https://github.com/namu-k/picko-scripts.git
 cd picko-scripts
 ```
 

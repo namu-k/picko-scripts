@@ -64,7 +64,7 @@ This document tracks follow-up items from the hardening plan execution. Each ite
 - **Owner**: Complete
 - **Description**: Add GitHub Actions workflow badge to README
 - **Result**: Badge already present in README.md (line 3)
-- **Note**: Update `your-username` placeholder with actual GitHub username when pushing to remote
+- **Note**: Update `namu-k` placeholder with actual GitHub username when pushing to remote
 
 ### [x] 8. Create v0.2.0 GitHub Release
 - **Priority**: P3

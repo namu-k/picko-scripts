@@ -70,5 +70,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLAUDE.md for developer guidance
 - implementation_plan.md with technical design
 
-[0.2.0]: https://github.com/your-username/picko-scripts/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/your-username/picko-scripts/releases/tag/v0.1.0
+[0.2.0]: https://github.com/namu-k/picko-scripts/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/namu-k/picko-scripts/releases/tag/v0.1.0

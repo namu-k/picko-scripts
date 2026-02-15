@@ -1,6 +1,6 @@
 # Picko - Content Pipeline
 
-[![Test](https://github.com/your-username/picko-scripts/actions/workflows/test.yml/badge.svg)](https://github.com/your-username/picko-scripts/actions/workflows/test.yml)
+[![Test](https://github.com/namu-k/picko-scripts/actions/workflows/test.yml/badge.svg)](https://github.com/namu-k/picko-scripts/actions/workflows/test.yml)
 [![Security](https://img.shields.io/badge/Security-Policy-blue)](SECURITY.md)
 
 > RSS 피드와 웹 소스에서 콘텐츠를 자동 수집하고, AI를 활용해 블로그 포스트와 소셜 미디어 콘텐츠를 생성하는 파이프라인 시스템
@@ -25,7 +25,7 @@ Picko는 다음 작업을 자동화합니다:
 
 ```bash
 # 리포지토리 클론
-git clone https://github.com/your-username/picko-scripts.git
+git clone https://github.com/namu-k/picko-scripts.git
 cd picko-scripts
 
 # 가상환경 생성 및 활성화
@@ -188,7 +188,7 @@ MIT License
 
 ## 📞 지원
 
-- 문제 신고: [GitHub Issues](https://github.com/your-username/picko-scripts/issues)
+- 문제 신고: [GitHub Issues](https://github.com/namu-k/picko-scripts/issues)
 - 📛 보안 취약점 신고: [SECURITY.md](SECURITY.md)
 - 사용자 가이드: [USER_GUIDE.md](USER_GUIDE.md)
 - 개발자 가이드: [CLAUDE.md](CLAUDE.md)

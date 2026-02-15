@@ -262,7 +262,7 @@ llm:
 
 - [DEPLOYMENT.md](DEPLOYMENT.md) - Deployment and secret setup guide
 - [CHANGELOG.md](CHANGELOG.md) - Security updates in release notes
-- [GitHub Security Advisories](https://github.com/your-username/picko-scripts/security/advisories)
+- [GitHub Security Advisories](https://github.com/namu-k/picko-scripts/security/advisories)
 
 ---
 
