@@ -40,6 +40,8 @@ set OPENAI_API_KEY=sk-your-key-here  # Windows
 export OPENAI_API_KEY=sk-your-key-here  # macOS/Linux
 ```
 
+> 💡 **Need help with API key setup?** See [**DEPLOYMENT.md**](DEPLOYMENT.md) for detailed instructions including GitHub Actions Secrets setup.
+
 ### 3. 설정
 
 `config/config.yml`에서 본인의 Obsidian Vault 경로와 OpenAI 설정을 수정하세요.
@@ -188,6 +190,7 @@ MIT License
 - 문제 신고: [GitHub Issues](https://github.com/your-username/picko-scripts/issues)
 - 사용자 가이드: [USER_GUIDE.md](USER_GUIDE.md)
 - 개발자 가이드: [CLAUDE.md](CLAUDE.md)
+- 배포 가이드: [DEPLOYMENT.md](DEPLOYMENT.md)
 - 변경 로그: [CHANGELOG.md](CHANGELOG.md)
 - 코드 리뷰 체크리스트: [REVIEW_CHECKLIST.md](REVIEW_CHECKLIST.md)
 - 모니터링: [MONITORING.md](MONITORING.md)
