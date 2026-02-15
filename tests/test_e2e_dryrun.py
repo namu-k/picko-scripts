@@ -71,11 +71,17 @@ This is a test article.
         input_path.write_text(input_content)
 
         # Run generate_content with --dry-run
+        import os
+
+        env = os.environ.copy()
+        env["PICKO_VAULT_ROOT"] = str(temp_vault_dir)
+
         result = subprocess.run(
             [sys.executable, "-m", "scripts.generate_content", "--date", "2026-02-15", "--dry-run"],
             capture_output=True,
             text=True,
             cwd=str(Path(__file__).parent.parent),
+            env=env,
         )
 
         # Should complete without error
