@@ -564,29 +564,50 @@ class ContentGenerator:
         return self._generate_image_prompt(item, input_content)
 
     def _check_derivative_approval(self, input_id: str) -> dict:
-        """롱폼 노트에서 파생 승인 상태 확인"""
+        """롱폼 노트에서 파생 승인 상태 및 채널 선택 확인"""
         longform_path = f"{self.config.vault.longform}/longform_{input_id}.md"
 
         try:
             meta, content = self.vault.read_note(longform_path)
 
-            # 체크박스 상태 확인
-            packs_approved = "[x] **팩 생성**" in content or "[x] 팩 생성" in content
-            images_approved = "[x] **이미지 생성**" in content or "[x] 이미지 생성" in content
+            # 채널별 체크박스 상태 확인
+            selected_channels = []
 
-            # frontmatter에서 채널 목록 확인
+            # 각 채널별 체크박스 확인
+            channel_patterns = {
+                "twitter": ["[x] **Twitter**", "[x] Twitter"],
+                "linkedin": ["[x] **LinkedIn**", "[x] LinkedIn"],
+                "newsletter": ["[x] **Newsletter**", "[x] Newsletter"],
+                "instagram": ["[x] **Instagram**", "[x] Instagram"],
+                "threads": ["[x] **Threads**", "[x] Threads"],
+            }
+
+            for channel, patterns in channel_patterns.items():
+                if any(pattern in content for pattern in patterns):
+                    selected_channels.append(channel)
+
+            # 이미지 체크박스 확인
+            images_approved = any(
+                pattern in content
+                for pattern in [
+                    "[x] **이미지 프롬프트**",
+                    "[x] 이미지 프롬프트",
+                    "[x] **이미지 생성**",
+                    "[x] 이미지 생성",
+                ]
+            )
+
+            # frontmatter에서 채널 목록 확인 (체크박스보다 우선)
             packs_channels = meta.get("packs_channels", [])
+            if not packs_channels:
+                packs_channels = selected_channels
 
-            # 체크박스가 체크되면 승인된 것으로 간주
-            status = "approved" if (packs_approved or images_approved) else meta.get("derivative_status", "pending")
+            # 승인 상태 결정
+            status = "approved" if (packs_channels or images_approved) else meta.get("derivative_status", "pending")
 
             return {
                 "status": status,
-                "packs_channels": (
-                    packs_channels
-                    if packs_channels
-                    else (["twitter", "linkedin", "newsletter"] if packs_approved else [])
-                ),
+                "packs_channels": packs_channels,
                 "images_approved": images_approved,
             }
         except FileNotFoundError:

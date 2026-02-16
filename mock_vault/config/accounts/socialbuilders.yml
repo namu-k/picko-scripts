@@ -22,6 +22,14 @@ channels:
     hashtags: true
     emoji: true
     call_to_action: "링크 확인 👇"
+    image_specs:
+      aspect_ratio: "16:9"
+      style: "minimal-card"
+      layout_hints:
+        - text-overlay
+        - brand-colors
+        - clean-typography
+      recommended_size: "1200x675"
 
   linkedin:
     name: LinkedIn
@@ -30,6 +38,14 @@ channels:
     hashtags: true
     emoji: false
     call_to_action: "자세히 보기"
+    image_specs:
+      aspect_ratio: "1:1"
+      style: "professional"
+      layout_hints:
+        - clean
+        - data-visualization
+        - corporate
+      recommended_size: "1200x1200"
 
   instagram:
     name: Instagram
@@ -38,6 +54,14 @@ channels:
     hashtags: true
     emoji: true
     call_to_action: "프로필 링크 확인"
+    image_specs:
+      aspect_ratio: "1:1"
+      style: "vibrant"
+      layout_hints:
+        - eye-catching
+        - gradient-background
+        - bold-text
+      recommended_size: "1080x1080"
 
   threads:
     name: Threads
@@ -46,3 +70,27 @@ channels:
     hashtags: true
     emoji: true
     call_to_action: "댓글로 의견 남겨주세요"
+    image_specs:
+      aspect_ratio: "4:5"
+      style: "casual"
+      layout_hints:
+        - authentic
+        - minimal-text
+        - lifestyle
+      recommended_size: "1080x1350"
+
+  newsletter:
+    name: Newsletter
+    max_length: 1000
+    tone: professional
+    hashtags: false
+    emoji: false
+    call_to_action: "전체 글 보기"
+    image_specs:
+      aspect_ratio: "16:9"
+      style: "editorial"
+      layout_hints:
+        - hero-image
+        - headline-overlay
+        - consistent-branding
+      recommended_size: "1200x675"
