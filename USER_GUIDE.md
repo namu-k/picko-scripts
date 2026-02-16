@@ -174,6 +174,8 @@ OPENAI_API_KEY=sk-your-api-key-here
 ```
 
 > **참고**: `.env` 파일은 `.gitignore`에 등록되어 있어 Git에 커밋되지 않습니다. API 키가 노출될 걱정 없이 안전하게 사용할 수 있습니다.
+>
+> **연결**: `picko.config` 모듈이 로드될 때 프로젝트 루트의 `.env`를 읽어 환경변수로 주입합니다. 따라서 `config.yml`의 `api_key_env`(예: `OPENAI_API_KEY`, `OPENROUTER_API_KEY`)에 해당하는 값이 `.env`에 있으면, `daily_collector`, `generate_content`, `health_check` 등 모든 스크립트에서 자동으로 사용됩니다.
 
 **방법 B: 환경변수 직접 설정**
 
