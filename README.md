@@ -104,6 +104,16 @@ python -m scripts.generate_content --type longform packs
 python -m scripts.generate_content --force
 ```
 
+### 주제 탐색
+
+```bash
+# 특정 입력에 대한 주제 탐색
+python -m scripts.explore_topic --input-id 7ce483b7a9e4
+
+# 특정 계정 프로필로 탐색
+python -m scripts.explore_topic --input-id 7ce483b7a9e4 --account socialbuilders
+```
+
 ### 검증 및 관리
 
 ```bash
@@ -140,6 +150,7 @@ picko-scripts/
 ├── config/              # 설정 파일
 │   ├── config.yml      # 메인 설정
 │   ├── sources.yml     # RSS 소스
+│   ├── prompts/        # LLM 프롬프트 템플릿
 │   └── accounts/       # 계정 프로필
 ├── picko/              # 핵심 모듈
 ├── scripts/            # 실행 스크립트

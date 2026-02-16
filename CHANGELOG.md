@@ -5,6 +5,37 @@ All notable changes to Picko will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-02-16
+
+### Added
+- **Content Pipeline UX Improvements (BCP-001~006)**:
+  - `explore_topic.py`: Topic exploration script for thought expansion before longform writing
+  - `prompt_loader.py`: External prompt loader with Jinja2 template support
+  - Channel selection UI and parsing in generate_content.py
+  - Derivative approval stage for packs/images generation
+  - Reference-based style system for writing
+  - Channel-specific image layout recommendations
+- **External Prompts**:
+  - `config/prompts/longform/`: Longform article prompts (default, with_exploration, with_reference)
+  - `config/prompts/packs/`: Social media pack prompts (twitter, linkedin, newsletter)
+  - `config/prompts/image/`: Image prompt templates with channel-specific layouts
+  - `config/prompts/exploration/`: Topic exploration prompts
+  - `config/prompts/reference/`: Reference analysis prompts
+- **Enhanced Testing**:
+  - `test_explore_topic.py`: Comprehensive tests for topic exploration
+  - `test_prompt_loader.py`: Unit tests for prompt loader module
+  - `test_llm_client.py`: Extended tests including `get_writer_client()` FR-003 compliance
+
+### Changed
+- `generate_content.py` now uses external prompts from `config/prompts/`
+- `llm_client.py` added `get_writer_client()` for task-specific LLM client retrieval
+- Account profile configuration enhanced with channel-specific settings
+- Documentation updated to reflect new pipeline features
+
+### Fixed
+- `explore_topic.py`: Use proper path for explorations directory
+- Removed cache and test output files from version control
+
 ## [0.2.0] - 2026-02-15
 
 ### Added
@@ -70,5 +101,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLAUDE.md for developer guidance
 - implementation_plan.md with technical design
 
+[0.3.0]: https://github.com/namu-k/picko-scripts/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/namu-k/picko-scripts/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/namu-k/picko-scripts/releases/tag/v0.1.0
