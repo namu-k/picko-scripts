@@ -460,12 +460,19 @@ def get_summary_client() -> LLMClient:
         config = get_config().summary_llm
 
         # SummaryLLMConfig를 LLMConfig 형태로 변환
+        if config.api_key_env:
+            api_key_env = config.api_key_env
+        elif config.provider == "openrouter":
+            api_key_env = "OPENROUTER_API_KEY"
+        else:
+            api_key_env = "OPENAI_API_KEY"
+
         llm_config = LLMConfig(
             provider=config.provider,
             model=config.model,
             temperature=config.temperature,
             max_tokens=config.max_tokens,
-            api_key_env=config.api_key_env if config.api_key_env else "OPENAI_API_KEY",
+            api_key_env=api_key_env,
         )
 
         # Ollama의 경우 base_url 속성 추가

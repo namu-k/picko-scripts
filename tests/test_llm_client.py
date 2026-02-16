@@ -7,7 +7,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from picko.config import LLMConfig
-from picko.llm_client import LLMClient, OpenRouterClient
+from picko.llm_client import (
+    AnthropicClient,
+    LLMClient,
+    OllamaClient,
+    OpenAIClient,
+    OpenRouterClient,
+)
 
 
 class TestOpenRouterClient:
@@ -190,3 +196,118 @@ class TestGetSummaryClientOpenRouter:
                 assert client.config.api_key_env == "OPENROUTER_API_KEY"
         finally:
             picko.llm_client._summary_client = original
+
+    def test_get_summary_client_openrouter_default_api_key_env(self, monkeypatch):
+        """FR-003: provider=openrouter + api_key_env 미지정 시 기본값 OPENROUTER_API_KEY"""
+        import picko.llm_client
+
+        original = picko.llm_client._summary_client
+        picko.llm_client._summary_client = None
+
+        try:
+            monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+
+            mock_summary_config = MagicMock()
+            mock_summary_config.provider = "openrouter"
+            mock_summary_config.model = "openai/gpt-4o-mini"
+            mock_summary_config.temperature = 0.3
+            mock_summary_config.max_tokens = 1000
+            mock_summary_config.api_key_env = ""  # 미지정
+            mock_summary_config.base_url = ""
+            mock_summary_config.fallback_provider = ""
+            mock_summary_config.fallback_model = ""
+            mock_summary_config.fallback_api_key_env = ""
+
+            mock_config = MagicMock()
+            mock_config.summary_llm = mock_summary_config
+
+            with (
+                patch("picko.config.get_config", return_value=mock_config),
+                patch("picko.llm_client.get_config", return_value=mock_config),
+            ):
+                client = picko.llm_client.get_summary_client()
+                assert client.config.api_key_env == "OPENROUTER_API_KEY"
+        finally:
+            picko.llm_client._summary_client = original
+
+
+class TestGetSummaryClientNonOpenRouterFallback:
+    """get_summary_client() non-OpenRouter provider api_key_env fallback tests"""
+
+    def test_non_openrouter_empty_api_key_env_defaults_to_openai(self, monkeypatch):
+        """provider != openrouter + api_key_env="" 시 기본값 OPENAI_API_KEY (FR-003 역방향 검증)"""
+        import picko.llm_client
+
+        original = picko.llm_client._summary_client
+        picko.llm_client._summary_client = None
+
+        try:
+            monkeypatch.setenv("OPENAI_API_KEY", "test-openai-key")
+
+            mock_summary_config = MagicMock()
+            mock_summary_config.provider = "openai"
+            mock_summary_config.model = "gpt-4o-mini"
+            mock_summary_config.temperature = 0.3
+            mock_summary_config.max_tokens = 1000
+            mock_summary_config.api_key_env = ""  # 미지정
+            mock_summary_config.base_url = ""
+            mock_summary_config.fallback_provider = ""
+            mock_summary_config.fallback_model = ""
+            mock_summary_config.fallback_api_key_env = ""
+
+            mock_config = MagicMock()
+            mock_config.summary_llm = mock_summary_config
+
+            with (
+                patch("picko.config.get_config", return_value=mock_config),
+                patch("picko.llm_client.get_config", return_value=mock_config),
+            ):
+                client = picko.llm_client.get_summary_client()
+                assert client.config.api_key_env == "OPENAI_API_KEY"
+        finally:
+            picko.llm_client._summary_client = original
+
+
+class TestLLMClientProviderRouting:
+    """LLMClient constructor routes to correct client class per provider"""
+
+    def test_openai_provider_routes_to_openai_client(self, monkeypatch):
+        """provider=openai → OpenAIClient"""
+        monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+        config = LLMConfig(provider="openai", model="gpt-4o-mini", api_key_env="OPENAI_API_KEY")
+        client = LLMClient(config=config, cache_enabled=False)
+        assert isinstance(client._client, OpenAIClient)
+
+    def test_anthropic_provider_routes_to_anthropic_client(self, monkeypatch):
+        """provider=anthropic → AnthropicClient"""
+        monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
+        config = LLMConfig(
+            provider="anthropic",
+            model="claude-3-5-sonnet-20241022",
+            api_key_env="ANTHROPIC_API_KEY",
+        )
+        client = LLMClient(config=config, cache_enabled=False)
+        assert isinstance(client._client, AnthropicClient)
+
+    def test_ollama_provider_routes_to_ollama_client(self):
+        """provider=ollama → OllamaClient"""
+        config = LLMConfig(provider="ollama", model="deepseek-r1:7b", api_key_env="")
+        client = LLMClient(config=config, cache_enabled=False)
+        assert isinstance(client._client, OllamaClient)
+
+    def test_openrouter_provider_routes_to_openrouter_client(self, monkeypatch):
+        """provider=openrouter → OpenRouterClient (회귀 검증)"""
+        monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+        config = LLMConfig(
+            provider="openrouter",
+            model="openai/gpt-4o-mini",
+            api_key_env="OPENROUTER_API_KEY",
+        )
+        client = LLMClient(config=config, cache_enabled=False)
+        assert isinstance(client._client, OpenRouterClient)
+
+    def test_unknown_provider_raises(self):
+        """알 수 없는 provider → ValueError"""
+        config = LLMConfig(provider="unknown_llm", model="some-model")
+        with pytest.raises(ValueError, match="Unknown LLM provider"):
+            LLMClient(config=config, cache_enabled=False)
