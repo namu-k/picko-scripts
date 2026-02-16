@@ -233,6 +233,9 @@ title: "{{ title }}"
 type: longform
 status: draft
 source_input: {{ source_input_id | wikilink }}
+derivative_status: pending
+packs_channels: []
+images_approved: false
 created_at: {{ created_at }}
 {% if tags %}tags:
 {% for tag in tags %}  - {{ tag }}
@@ -240,6 +243,21 @@ created_at: {{ created_at }}
 ---
 
 # {{ title }}
+
+> [!tip] 파생 콘텐츠 승인
+> 이 롱폼을 바탕으로 소셜 미디어 팩/이미지를 생성하려면 아래 체크박스를 선택하세요:
+>
+> **팩 생성 채널 선택**:
+> - [ ] **Twitter**: 캐주얼한 톤, 280자 제한
+> - [ ] **LinkedIn**: 프로페셔널 톤, 700자
+> - [ ] **Newsletter**: 에디토리얼 톤, 1000자
+> - [ ] **Instagram**: 비주얼 중심, 500자
+> - [ ] **Threads**: 캐주얼 톤, 500자
+>
+> **이미지 생성**:
+> - [ ] **이미지 프롬프트**: 썸네일용 이미지 프롬프트 자동 생성
+>
+> 체크 후 저장하면 `generate_content --type packs,images` 실행 시 선택된 채널만 자동 생성됩니다.
 
 {{ intro }}
 
@@ -347,6 +365,50 @@ created_at: {{ created_at }}
 {% else %}
 없음
 {% endif %}
+"""
+        return self.render_string(template, created_at=datetime.now().isoformat(), **content)
+
+    def render_exploration(self, content: dict) -> str:
+        """
+        주제 탐색 노트 렌더링
+
+        Args:
+            content: 탐색 결과 정보
+
+        Returns:
+            마크다운 문자열
+        """
+        template = """---
+id: {{ id }}
+type: exploration
+source_input: {{ source_input_id | wikilink }}
+status: completed
+created_at: {{ created_at }}
+{% if tags %}tags:
+{% for tag in tags %}  - {{ tag }}
+{% endfor %}{% endif %}
+---
+
+# 주제 탐색: {{ title }}
+
+## 🎯 주제 확장
+
+{{ topic_expansion | default("분석 중...") }}
+
+## 💭 관련 논의와 반론
+
+{{ related_discussions | default("분석 중...") }}
+
+## 💡 독자 인사이트
+
+{{ reader_insights | default("분석 중...") }}
+
+## 📝 롱폼 작성 가이드
+
+{{ writing_guide | default("분석 중...") }}
+
+---
+> 이 탐색 결과는 롱폼 작성 시 컨텍스트로 사용됩니다.
 """
         return self.render_string(template, created_at=datetime.now().isoformat(), **content)
 

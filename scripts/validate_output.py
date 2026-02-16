@@ -51,9 +51,14 @@ class OutputValidator:
     REQUIRED_FIELDS = {
         "input": ["id", "title", "source", "source_url", "status"],
         "digest": ["type", "date"],
-        "longform": ["id", "title", "type", "status", "source_input"],
+        "longform": ["id", "title", "type", "status", "source_input", "derivative_status"],
         "pack": ["id", "type", "channel", "status"],
         "image_prompt": ["id", "type", "source_content", "status"],
+    }
+
+    # 콘텐츠 타입별 권장 frontmatter 필드 (없어도 경고만)
+    RECOMMENDED_FIELDS = {
+        "longform": ["packs_channels", "images_approved"],
     }
 
     # 콘텐츠 타입별 필수 섹션
@@ -104,13 +109,16 @@ class OutputValidator:
             # 1. Frontmatter 필수 필드 검증
             self._validate_required_fields(meta, content_type, result)
 
-            # 2. 필수 섹션 검증
+            # 2. 권장 필드 검증 (경고만)
+            self._validate_recommended_fields(meta, content_type, result)
+
+            # 3. 필수 섹션 검증
             self._validate_required_sections(content, content_type, result)
 
-            # 3. 내부 링크 유효성 검증
+            # 4. 내부 링크 유효성 검증
             self._validate_wikilinks(content, result)
 
-            # 4. 추가 검증
+            # 5. 추가 검증
             self._validate_content_quality(meta, content, content_type, result)
 
         except Exception as e:
@@ -153,6 +161,14 @@ class OutputValidator:
                 result.errors.append(f"Missing required field: {field}")
             elif not meta[field]:
                 result.warnings.append(f"Empty required field: {field}")
+
+    def _validate_recommended_fields(self, meta: dict, content_type: str, result: ValidationResult):
+        """권장 필드 검증 (경고만)"""
+        recommended = self.RECOMMENDED_FIELDS.get(content_type, [])
+
+        for field in recommended:
+            if field not in meta:
+                result.warnings.append(f"Missing recommended field: {field}")
 
     def _validate_required_sections(self, content: str, content_type: str, result: ValidationResult):
         """필수 섹션 검증"""

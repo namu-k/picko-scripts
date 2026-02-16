@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
 
 from .logger import get_logger
 
@@ -17,6 +18,11 @@ logger = get_logger("config")
 PROJECT_ROOT = Path(__file__).parent.parent
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "config.yml"
 
+# .env 파일 로드 (프로젝트 루트의 .env)
+# 로드된 환경변수는 LLMConfig/WriterLLMConfig/SummaryLLMConfig의 api_key_env
+# (OPENAI_API_KEY, OPENROUTER_API_KEY 등)에서 API 키로 사용됩니다.
+load_dotenv(PROJECT_ROOT / ".env")
+
 
 @dataclass
 class VaultConfig:
@@ -25,11 +31,13 @@ class VaultConfig:
     root: str
     inbox: str = "Inbox/Inputs"
     digests: str = "Inbox/Inputs/_digests"
+    explorations: str = "Inbox/Explorations"
     content: str = "Content"
     longform: str = "Content/Longform"
     packs: str = "Content/Packs"
     assets: str = "Assets"
     images_prompts: str = "Assets/Images/_prompts"
+    references: str = "Assets/References"
     archive: str = "Archive"
     logs_publish: str = "Logs/Publish"
 
@@ -111,11 +119,13 @@ class EmbeddingConfig:
     device: str = "cpu"  # cpu | cuda
     cache_enabled: bool = True
     cache_dir: str = "cache/embeddings"
+    base_url: str = "http://localhost:11434"  # Ollama base URL
 
     # OpenAI 폴백 (로컬 실패 시)
     fallback_provider: str = "openai"
     fallback_model: str = "text-embedding-3-small"
     fallback_api_key_env: str = "OPENAI_API_KEY"
+    fallback_device: str = "cpu"  # Fallback device for local processing
 
 
 @dataclass

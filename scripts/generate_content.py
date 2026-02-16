@@ -10,6 +10,7 @@ from datetime import datetime
 from picko.config import get_config
 from picko.llm_client import get_writer_client
 from picko.logger import setup_logger
+from picko.prompt_loader import get_prompt_loader
 from picko.templates import get_renderer
 from picko.vault_io import VaultIO
 
@@ -30,6 +31,7 @@ class ContentGenerator:
         # 글쓰기용 클라우드 LLM 사용
         self.llm = get_writer_client()
         self.renderer = get_renderer()
+        self.prompt_loader = get_prompt_loader()
         self.dry_run = dry_run
 
         logger.info("ContentGenerator initialized")
@@ -154,14 +156,14 @@ class ContentGenerator:
             if self._generate_longform(item, input_content):
                 results["longform_created"] += 1
 
-        # Packs 생성
+        # Packs 생성 (파생 승인 확인)
         if "packs" in content_types:
-            packs_count = self._generate_packs(item, input_content)
+            packs_count = self._generate_packs_with_approval(item, input_content)
             results["packs_created"] += packs_count
 
-        # Image Prompts 생성
+        # Image Prompts 생성 (파생 승인 확인)
         if "images" in content_types:
-            if self._generate_image_prompt(item, input_content):
+            if self._generate_image_with_approval(item, input_content):
                 results["image_prompts_created"] += 1
 
     # ─────────────────────────────────────────────────────────────
@@ -328,6 +330,24 @@ class ContentGenerator:
             logger.warning(f"Input not found: {input_path}")
             return None
 
+    def _load_exploration(self, input_id: str) -> dict | None:
+        """탐색 노트 로드 (있으면)"""
+        exploration_path = f"{self.config.vault.explorations}/explore_{input_id}.md"
+
+        try:
+            meta, content = self.vault.read_note(exploration_path)
+            logger.debug(f"Found exploration for: {input_id}")
+
+            return {
+                "topic_expansion": self._extract_section(content, "주제 확장"),
+                "related_discussions": self._extract_section(content, "관련 논의와 반론"),
+                "reader_insights": self._extract_section(content, "독자 인사이트"),
+                "writing_guide": self._extract_section(content, "롱폼 작성 가이드"),
+            }
+        except FileNotFoundError:
+            logger.debug(f"No exploration found for: {input_id}")
+            return None
+
     def _extract_section(self, content: str, section_name: str) -> str:
         """마크다운에서 섹션 추출"""
         pattern = rf"##\s*{section_name}\s*\n(.*?)(?=\n##|\Z)"
@@ -352,37 +372,15 @@ class ContentGenerator:
         """Longform 콘텐츠 생성"""
         logger.info(f"Generating longform for: {item['input_id']}")
 
-        # LLM으로 Longform 콘텐츠 생성
-        prompt = f"""다음 콘텐츠를 바탕으로 블로그 포스트 형식의 긴 글을 작성해주세요.
+        # 탐색 결과 로드 (있으면)
+        exploration = self._load_exploration(item["input_id"])
 
-제목: {input_content['title']}
-
-원본 요약:
-{input_content['summary']}
-
-핵심 포인트:
-{chr(10).join('- ' + p for p in input_content['key_points'])}
-
-원문 발췌:
-{input_content['excerpt']}
-
----
-
-다음 형식으로 작성해주세요:
-
-[인트로]
-- 독자의 관심을 끄는 도입부 (2-3문장)
-
-[메인 콘텐츠]
-- 핵심 내용을 자세히 설명 (3-5 단락)
-- 구체적인 예시나 통계 포함
-
-[주요 시사점]
-- 독자가 얻을 수 있는 인사이트 (3-4개)
-
-[마무리]
-- 행동 촉구 또는 생각거리
-"""
+        # 프롬프트 로더를 통해 프롬프트 생성
+        prompt = self.prompt_loader.get_longform_prompt(
+            input_content=input_content,
+            account_id=item.get("account_id"),
+            exploration=exploration,
+        )
 
         response = self.llm.generate(prompt, max_tokens=2000)
 
@@ -448,27 +446,18 @@ class ContentGenerator:
 
         for channel, channel_config in channels.items():
             try:
-                max_length = channel_config.get("max_length", 280)
-                tone = channel_config.get("tone", "casual")
-                use_hashtags = channel_config.get("hashtags", True)
-
-                # LLM으로 채널별 콘텐츠 생성
-                prompt = f"""다음 콘텐츠를 {channel} 채널용으로 변환해주세요.
-
-원본:
-제목: {input_content['title']}
-요약: {input_content['summary']}
-
-요구사항:
-- 최대 {max_length}자
-- 톤: {tone}
-- 해시태그: {'필요' if use_hashtags else '불필요'}
-
-{channel} 포스트:"""
+                # 프롬프트 로더를 통해 채널별 프롬프트 생성
+                prompt = self.prompt_loader.get_pack_prompt(
+                    channel=channel,
+                    input_content=input_content,
+                    channel_config=channel_config,
+                    account_id=account_id,
+                )
 
                 text = self.llm.generate(prompt, max_tokens=500)
 
                 # 해시태그 추출
+                use_hashtags = channel_config.get("hashtags", True)
                 hashtags = []
                 if use_hashtags:
                     hashtags = [f"#{tag}" for tag in input_content.get("tags", [])[:3]]
@@ -502,26 +491,11 @@ class ContentGenerator:
         """이미지 프롬프트 생성"""
         logger.info(f"Generating image prompt for: {item['input_id']}")
 
-        # LLM으로 이미지 프롬프트 생성
-        prompt = f"""다음 콘텐츠에 어울리는 이미지 프롬프트를 생성해주세요.
-
-제목: {input_content['title']}
-요약: {input_content['summary']}
-태그: {', '.join(input_content.get('tags', []))}
-
-다음 형식으로 작성해주세요:
-
-[메인 프롬프트]
-(DALL-E나 Midjourney에서 사용할 수 있는 상세한 이미지 설명)
-
-[스타일]
-(아트 스타일, 예: minimalist, isometric, photorealistic)
-
-[분위기]
-(이미지의 전반적인 느낌)
-
-[색상]
-(주요 색상 팔레트)"""
+        # 프롬프트 로더를 통해 이미지 프롬프트 생성
+        prompt = self.prompt_loader.get_image_prompt(
+            input_content=input_content,
+            account_id=item.get("account_id"),
+        )
 
         response = self.llm.generate(prompt, max_tokens=500)
         sections = self._parse_generated_sections(response)
@@ -546,6 +520,172 @@ class ContentGenerator:
             logger.info(f"Created image prompt: {output_path}")
 
         return True
+
+    def _generate_packs_with_approval(self, item: dict, input_content: dict) -> int:
+        """파생 승인 확인 후 팩 생성"""
+        # 롱폼 노트에서 파생 승인 상태 확인
+        derivative_status = self._check_derivative_approval(item["input_id"])
+
+        if derivative_status.get("status") != "approved":
+            logger.debug(f"Skipping packs - derivative not approved: {item['input_id']}")
+            return 0
+
+        # 롱폼 본문을 소스로 사용
+        longform_content = self._load_longform_content(item["input_id"])
+        if longform_content:
+            input_content = {**input_content, **longform_content}
+
+        # 승인된 채널만 생성
+        approved_channels = derivative_status.get("packs_channels", [])
+        if not approved_channels:
+            logger.debug(f"No packs channels approved: {item['input_id']}")
+            return 0
+
+        return self._generate_packs_for_channels(item, input_content, approved_channels)
+
+    def _generate_image_with_approval(self, item: dict, input_content: dict) -> bool:
+        """파생 승인 확인 후 이미지 프롬프트 생성"""
+        # 롱폼 노트에서 파생 승인 상태 확인
+        derivative_status = self._check_derivative_approval(item["input_id"])
+
+        if derivative_status.get("status") != "approved":
+            logger.debug(f"Skipping images - derivative not approved: {item['input_id']}")
+            return False
+
+        if not derivative_status.get("images_approved", False):
+            logger.debug(f"Images not approved: {item['input_id']}")
+            return False
+
+        # 롱폼 본문을 소스로 사용
+        longform_content = self._load_longform_content(item["input_id"])
+        if longform_content:
+            input_content = {**input_content, **longform_content}
+
+        return self._generate_image_prompt(item, input_content)
+
+    def _check_derivative_approval(self, input_id: str) -> dict:
+        """롱폼 노트에서 파생 승인 상태 및 채널 선택 확인"""
+        longform_path = f"{self.config.vault.longform}/longform_{input_id}.md"
+
+        try:
+            meta, content = self.vault.read_note(longform_path)
+
+            # 채널별 체크박스 상태 확인
+            selected_channels = []
+
+            # 각 채널별 체크박스 확인
+            channel_patterns = {
+                "twitter": ["[x] **Twitter**", "[x] Twitter"],
+                "linkedin": ["[x] **LinkedIn**", "[x] LinkedIn"],
+                "newsletter": ["[x] **Newsletter**", "[x] Newsletter"],
+                "instagram": ["[x] **Instagram**", "[x] Instagram"],
+                "threads": ["[x] **Threads**", "[x] Threads"],
+            }
+
+            for channel, patterns in channel_patterns.items():
+                if any(pattern in content for pattern in patterns):
+                    selected_channels.append(channel)
+
+            # 이미지 체크박스 확인
+            images_approved = any(
+                pattern in content
+                for pattern in [
+                    "[x] **이미지 프롬프트**",
+                    "[x] 이미지 프롬프트",
+                    "[x] **이미지 생성**",
+                    "[x] 이미지 생성",
+                ]
+            )
+
+            # frontmatter에서 채널 목록 확인 (체크박스보다 우선)
+            packs_channels = meta.get("packs_channels", [])
+            if not packs_channels:
+                packs_channels = selected_channels
+
+            # 승인 상태 결정
+            status = "approved" if (packs_channels or images_approved) else meta.get("derivative_status", "pending")
+
+            return {
+                "status": status,
+                "packs_channels": packs_channels,
+                "images_approved": images_approved,
+            }
+        except FileNotFoundError:
+            logger.debug(f"Longform not found for derivative check: {input_id}")
+            return {"status": "pending", "packs_channels": [], "images_approved": False}
+
+    def _load_longform_content(self, input_id: str) -> dict | None:
+        """롱폼 노트 내용 로드"""
+        longform_path = f"{self.config.vault.longform}/longform_{input_id}.md"
+
+        try:
+            meta, content = self.vault.read_note(longform_path)
+            return {
+                "longform_title": meta.get("title", ""),
+                "longform_body": content,
+                "intro": self._extract_section(content, "인트로") or self._extract_section(content, ""),
+                "main_content": self._extract_section(content, "핵심 내용"),
+                "takeaways": self._extract_section(content, "주요 시사점"),
+            }
+        except FileNotFoundError:
+            return None
+
+    def _generate_packs_for_channels(self, item: dict, input_content: dict, channels: list[str]) -> int:
+        """지정된 채널에 대해서만 팩 생성"""
+        account_id = item.get("account_id", "socialbuilders")
+        account = self.config.get_account(account_id)
+        all_channels = account.get("channels", {})
+
+        created_count = 0
+
+        for channel in channels:
+            if channel not in all_channels:
+                logger.warning(f"Channel not configured: {channel}")
+                continue
+
+            try:
+                channel_config = all_channels[channel]
+
+                # 프롬프트 로더를 통해 채널별 프롬프트 생성
+                prompt = self.prompt_loader.get_pack_prompt(
+                    channel=channel,
+                    input_content=input_content,
+                    channel_config=channel_config,
+                    account_id=account_id,
+                )
+
+                text = self.llm.generate(prompt, max_tokens=500)
+
+                # 해시태그 추출
+                use_hashtags = channel_config.get("hashtags", True)
+                hashtags = []
+                if use_hashtags:
+                    hashtags = [f"#{tag}" for tag in input_content.get("tags", [])[:3]]
+
+                pack_data = {
+                    "id": f"pack_{item['input_id']}_{channel}",
+                    "source_longform_id": f"longform_{item['input_id']}",
+                    "text": text.strip(),
+                    "hashtags": hashtags,
+                }
+
+                content = self.renderer.render_pack(pack_data, channel, channel_config)
+
+                # 저장
+                if not self.dry_run:
+                    output_path = f"{self.config.vault.packs}/{channel}/{pack_data['id']}.md"
+                    self.vault.ensure_dir(f"{self.config.vault.packs}/{channel}")
+                    meta = self._parse_frontmatter(content)
+                    body = content.split("---", 2)[2].strip() if content.startswith("---") else content
+                    self.vault.write_note(output_path, body, metadata=meta, overwrite=True)
+                    logger.info(f"Created pack: {output_path}")
+
+                created_count += 1
+
+            except Exception as e:
+                logger.warning(f"Failed to create {channel} pack: {e}")
+
+        return created_count
 
     def _update_digest_status(self, date: str, input_id: str) -> None:
         """Input 노트의 writing_status 업데이트"""

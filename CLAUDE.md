@@ -6,6 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Picko is a content pipeline automation system that curates, generates, and publishes content from RSS feeds and other sources. It transforms raw content into multiple formats (longform articles, social media posts, image prompts) using LLMs and manages content through an Obsidian Vault interface.
 
+**Key Design Decision**: The system uses different LLMs for different tasks - local LLMs (Ollama) for high-volume NLP tasks (summary, tagging, embedding) and cloud LLMs (OpenAI, Anthropic, OpenRouter, Relay) for creative writing requiring higher quality.
+
 ## Development Commands
 
 ### Daily Content Collection
@@ -59,14 +61,17 @@ source .venv/bin/activate  # macOS/Linux
 # Install dependencies
 pip install -r requirements.txt
 
-# Set up API key (OpenAI)
+# Set up API keys using .env file (recommended)
+copy .env.example .env  # Windows
+cp .env.example .env    # macOS/Linux
+# Then edit .env with your actual keys
+
+# Alternative: Set environment variables directly
 set OPENAI_API_KEY=your_api_key_here  # Windows
 export OPENAI_API_KEY=your_api_key_here  # macOS/Linux
-
-# (Optional) Set up OpenRouter API key
-set OPENROUTER_API_KEY=your_key_here  # Windows
-export OPENROUTER_API_KEY=your_key_here  # macOS/Linux
 ```
+
+**Note**: The `.env` file is automatically loaded when `picko.config` is imported. The `api_key_env` values in `config.yml` (e.g., `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `RELAY_API_KEY`) reference environment variables set in `.env`.
 
 ## Architecture Overview
 
@@ -82,19 +87,30 @@ export OPENROUTER_API_KEY=your_key_here  # macOS/Linux
 
 ### LLM Architecture (Task-Specific)
 
-The system uses different LLMs for different tasks:
+The system uses different LLMs for different tasks via `picko/llm_client.py`:
 
-| Task | LLM Client | Provider | Model | Purpose |
-|------|-----------|----------|-------|---------|
-| Summary/Tagging | `get_summary_client()` | Ollama (local) | deepseek-r1:7b | Cost-effective NLP |
-| Embedding | `get_embedding_manager()` | sentence-transformers | BAAI/bge-m3 | Local similarity |
-| Writing | `get_writer_client()` | OpenAI (cloud) | gpt-4o-mini | Quality content |
-| Writing (alt) | `get_writer_client()` | OpenRouter | openai/gpt-4o-mini | Flexible routing |
+| Task | Config Key | Providers | Default Models | Purpose |
+|------|-----------|----------|----------------|---------|
+| Summary/Tagging | `summary_llm` | ollama, openai, anthropic, openrouter, relay | deepseek-r1:7b (ollama) | Cost-effective NLP |
+| Embedding | `embedding` | local, ollama, openai | BAAI/bge-m3 (local) | Similarity scoring |
+| Writing | `writer_llm` | openai, anthropic, openrouter, relay | gpt-4o-mini (openai) | Quality content |
+
+**Supported Providers:**
+- **ollama**: Local LLMs (deepseek-r1:7b, qwen2.5:7b, llama3.3:70b, mxbai-embed-large:1024, qwen3-embedding:0.6b)
+- **openai**: GPT-4o, GPT-4o-mini, text-embedding-3-small
+- **anthropic**: Claude 3.5 Sonnet
+- **openrouter**: OpenAI models via OpenRouter (uses `OPENROUTER_API_KEY`)
+- **relay**: Relay provider (uses `RELAY_API_KEY`)
 
 **Design Rationale:**
-- **Local LLMs** for high-volume, low-complexity tasks (summary, tagging, embedding)
+- **Local LLMs** (ollama/local) for high-volume, low-complexity tasks (summary, tagging, embedding)
 - **Cloud LLMs** for creative writing requiring higher quality
-- **Automatic fallback** to cloud if local models fail
+- **Automatic fallback** configured via `fallback_provider`, `fallback_model`, `fallback_api_key_env`
+
+**API Key Configuration:**
+- API keys are read from environment variables specified in `api_key_env` config
+- OpenRouter provider defaults to `OPENROUTER_API_KEY` if `api_key_env` is omitted
+- `.env` file is automatically loaded when `picko.config` module is imported
 
 ### Scripts (`scripts/`)
 
@@ -120,6 +136,15 @@ The system uses different LLMs for different tasks:
 config/
 ├── config.yml          # Main configuration
 ├── sources.yml         # RSS feed sources and categories
+├── prompts/            # Externalized LLM prompts (BCP-001)
+│   ├── longform/
+│   │   └── default.md
+│   ├── packs/
+│   │   ├── twitter.md
+│   │   ├── linkedin.md
+│   │   └── newsletter.md
+│   └── image/
+│       └── default.md
 └── accounts/           # Account-specific profiles
     └── socialbuilders.yml  # Target audience, interests, channel settings
 ```
@@ -127,8 +152,30 @@ config/
 **Configuration Architecture:**
 - Uses `dataclass` types for type-safe configuration (`picko/config.py`)
 - Lazy loading: sources and account profiles loaded on-demand
-- Environment variable override: prefix any config key with `PICKO_` (e.g., `PICKO_VAULT_ROOT`)
+- `.env` file auto-loaded on module import for API keys
 - Singleton pattern via `get_config()` for consistent access across modules
+- **External Prompts**: LLM prompts stored in `config/prompts/` and loaded via `picko/prompt_loader.py`
+
+### Code Style & Linting
+
+```bash
+# Format code (black, line length: 120)
+black picko/ scripts/ tests/
+
+# Sort imports (isort)
+isort picko/ scripts/ tests/
+
+# Lint (flake8)
+flake8 picko/ scripts/ tests/
+
+# Type checking (mypy)
+mypy picko/
+
+# Run all linting (via pre-commit)
+pre-commit run --all-files
+```
+
+**Configuration**: See `pyproject.toml` for tool settings (black, isort, pytest, mypy, coverage).
 
 ## Content Flow
 
@@ -153,9 +200,11 @@ config/
 ## Important File Locations
 
 - **Vault Root**: Configured in `config.yml` under `vault.root` (default: `mock_vault/`)
+- **API Keys**: `.env` file at project root (auto-loaded, use `.env.example` as template)
 - **Logs**: `logs/YYYY-MM-DD/` (rotated daily, retention configurable)
-- **Cache**: `cache/embeddings/` (cached OpenAI embeddings for cost savings)
+- **Cache**: `cache/embeddings/` (cached embeddings for cost savings)
 - **Templates**: Embedded in `picko/templates.py` as Jinja2 strings (no physical template files)
+- **Prompts**: External prompts in `config/prompts/` (longform, packs, image)
 - **Project Root**: Auto-detected via `PROJECT_ROOT` in `picko/config.py`
 
 ## Project Structure
@@ -164,7 +213,7 @@ config/
 picko-scripts/
 ├── picko/                   # Core modules (importable package)
 │   ├── __init__.py
-│   ├── config.py            # Configuration loading with dataclasses
+│   ├── config.py            # Configuration loading with dataclasses, .env support
 │   ├── vault_io.py          # Obsidian markdown I/O with frontmatter
 │   ├── llm_client.py        # Multi-provider LLM client
 │   ├── embedding.py         # Local-first embedding manager
@@ -187,50 +236,93 @@ picko-scripts/
 ├── tests/                   # Pytest tests
 │   ├── conftest.py          # Shared fixtures
 │   ├── test_config.py       # Config loader tests
+│   ├── test_llm_client.py   # LLM client tests
 │   ├── test_scoring.py      # Scoring algorithm tests
 │   ├── test_templates.py    # Template rendering tests
+│   ├── test_e2e_dryrun.py   # End-to-end dry-run tests
 │   └── test_integration.py  # Integration tests
 ├── .github/workflows/       # CI/CD workflows
 │   └── test.yml             # Automated testing
+├── .cursor/commands/        # Cursor AI commands
 ├── config/                  # Configuration files
 ├── logs/                    # Daily rotated logs
 ├── cache/                   # Embedding cache
+├── .env.example             # Environment variables template
 ├── requirements.txt         # Python dependencies
 └── pyproject.toml          # Project metadata (requires Python >=3.13)
 ```
 
 ## Testing
 
-Use `--dry-run` flag with daily_collector to test without writing:
 ```bash
+# Run all tests
+pytest
+
+# Run specific test file
+pytest tests/test_config.py
+
+# Run by marker (unit/integration/slow)
+pytest -m unit
+pytest -m integration
+pytest -m slow
+
+# Run with coverage
+pytest --cov=picko --cov-report=html
+
+# Run specific test function
+pytest tests/test_config.py::test_load_config
+
+# Dry-run mode (no actual writing)
 python -m scripts.daily_collector --date 2026-02-09 --dry-run
 ```
 
-Use health_check to verify system status:
-```bash
-python -m scripts.health_check          # Human-readable output
-python -m scripts.health_check --json   # Machine-readable output
-```
+**Pytest Markers**:
+- `unit`: Fast, isolated unit tests
+- `integration`: Tests that interact with external services (APIs, vault I/O)
+- `slow`: Long-running tests (embedding, full pipeline)
+
+**Test Fixtures** (see `tests/conftest.py`):
+- `temp_vault_dir`: Creates temporary vault directory structure
+- `mock_config`: Provides mocked Config object
+- `sample_input_data`: Sample input content for testing
 
 ## Environment Variables
 
-Required:
-- `OPENAI_API_KEY`: OpenAI API key for writer LLM (and fallback for summary/embedding)
+**Required (at least one):**
+- `OPENAI_API_KEY`: OpenAI API key (used by openai provider, default fallback)
+- `OPENROUTER_API_KEY`: OpenRouter API key (for openrouter provider)
+- `RELAY_API_KEY`: Relay API key (for relay provider)
+- `ANTHROPIC_API_KEY`: Anthropic API key (for anthropic provider)
 
-Optional:
-- Override any config value by setting environment variables with `PICKO_` prefix
+**Setup via .env file (recommended):**
+```bash
+# Copy example .env
+cp .env.example .env
+
+# Edit with your keys
+OPENAI_API_KEY=sk-your-key-here
+OPENROUTER_API_KEY=sk-or-your-key-here
+RELAY_API_KEY=your-relay-key-here
+```
+
+The `.env` file is automatically loaded when the `picko.config` module is imported. Each LLM config section (`summary_llm`, `writer_llm`, `embedding`) has an `api_key_env` field that specifies which environment variable to use.
 
 ## Local LLM Setup
 
 For local LLM usage (summary/tagging/embedding):
 
 1. **Install Ollama**: [https://ollama.ai/download](https://ollama.ai/download)
-2. **Pull models**: `ollama pull deepseek-r1:7b`
-3. **Configure**: Set `summary_llm.provider: ollama` in config.yml
+2. **Pull models**:
+   ```bash
+   ollama pull deepseek-r1:7b      # Summary/tagging
+   ollama pull qwen2.5:7b          # Alternative for summary/tagging
+   ollama pull mxbai-embed-large:1024   # Embedding (Ollama)
+   ollama pull qwen3-embedding:0.6b     # Alternative embedding
+   ```
+3. **Configure**: Set `provider: ollama` in `config.yml` for `summary_llm` or `embedding`
 4. **Install dependencies**: `pip install ollama sentence-transformers`
 
 **Supported local models:**
-- deepseek-r1:7b (summary/tagging)
-- qwen2.5:7b (alternative)
-- BAAI/bge-m3 (embedding)
-- sentence-transformers/all-MiniLM-L6-v2 (lightweight embedding)
+- **Summary/Tagging (Ollama)**: deepseek-r1:7b, qwen2.5:7b, qwen2.5:3b
+- **Embedding (Ollama)**: mxbai-embed-large:1024, qwen3-embedding:0.6b
+- **Embedding (sentence-transformers)**: BAAI/bge-m3, BAAI/bge-base-en-v1.5, all-MiniLM-L6-v2
