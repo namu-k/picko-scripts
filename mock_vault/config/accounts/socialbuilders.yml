@@ -1,49 +1,48 @@
-# 소셜빌더스 계정 프로필
+# Social Builders Account Profile
+# 소셜 미디어 채널별 콘텐츠 설정
 
-account:
-  id: "socialbuilders"
-  name: "소셜빌더스"
-  description: "AI/테크 트렌드 큐레이션 채널"
-
-# 관심 주제 (relevance 점수 계산에 사용)
+name: Social Builders
+description: AI/테크 콘텐츠 큐레이션 계정
+target_audience:
+  - 개발자
+  - AI 연구자
+  - 테크 리더
 interests:
-  primary:
-    - "AI/머신러닝"
-    - "스타트업"
-    - "생산성 도구"
-    - "노코드/로우코드"
-  secondary:
-    - "디자인"
-    - "마케팅 자동화"
-    - "SaaS"
+  - artificial intelligence
+  - machine learning
+  - software development
+  - tech trends
+  - startup
 
-# 키워드 가중치
-keywords:
-  high_relevance:
-    - "ChatGPT"
-    - "Claude"
-    - "Notion"
-    - "자동화"
-    - "AI 에이전트"
-  medium_relevance:
-    - "생산성"
-    - "스타트업"
-    - "펀딩"
-  low_relevance:
-    - "테크"
-    - "앱"
-
-# 채널별 톤앤매너
 channels:
   twitter:
+    name: Twitter/X
     max_length: 280
-    tone: "casual"
+    tone: casual
     hashtags: true
+    emoji: true
+    call_to_action: "링크 확인 👇"
+
   linkedin:
-    max_length: 1500
-    tone: "professional"
-    hashtags: false
-  newsletter:
-    max_length: 5000
-    tone: "informative"
-    sections: ["intro", "main", "takeaway"]
+    name: LinkedIn
+    max_length: 700
+    tone: professional
+    hashtags: true
+    emoji: false
+    call_to_action: "자세히 보기"
+
+  instagram:
+    name: Instagram
+    max_length: 500
+    tone: casual
+    hashtags: true
+    emoji: true
+    call_to_action: "프로필 링크 확인"
+
+  threads:
+    name: Threads
+    max_length: 500
+    tone: casual
+    hashtags: true
+    emoji: true
+    call_to_action: "댓글로 의견 남겨주세요"

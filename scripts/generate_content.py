@@ -330,6 +330,24 @@ class ContentGenerator:
             logger.warning(f"Input not found: {input_path}")
             return None
 
+    def _load_exploration(self, input_id: str) -> dict | None:
+        """탐색 노트 로드 (있으면)"""
+        exploration_path = f"{self.config.vault.explorations}/explore_{input_id}.md"
+
+        try:
+            meta, content = self.vault.read_note(exploration_path)
+            logger.debug(f"Found exploration for: {input_id}")
+
+            return {
+                "topic_expansion": self._extract_section(content, "주제 확장"),
+                "related_discussions": self._extract_section(content, "관련 논의와 반론"),
+                "reader_insights": self._extract_section(content, "독자 인사이트"),
+                "writing_guide": self._extract_section(content, "롱폼 작성 가이드"),
+            }
+        except FileNotFoundError:
+            logger.debug(f"No exploration found for: {input_id}")
+            return None
+
     def _extract_section(self, content: str, section_name: str) -> str:
         """마크다운에서 섹션 추출"""
         pattern = rf"##\s*{section_name}\s*\n(.*?)(?=\n##|\Z)"
@@ -354,10 +372,14 @@ class ContentGenerator:
         """Longform 콘텐츠 생성"""
         logger.info(f"Generating longform for: {item['input_id']}")
 
+        # 탐색 결과 로드 (있으면)
+        exploration = self._load_exploration(item["input_id"])
+
         # 프롬프트 로더를 통해 프롬프트 생성
         prompt = self.prompt_loader.get_longform_prompt(
             input_content=input_content,
             account_id=item.get("account_id"),
+            exploration=exploration,
         )
 
         response = self.llm.generate(prompt, max_tokens=2000)

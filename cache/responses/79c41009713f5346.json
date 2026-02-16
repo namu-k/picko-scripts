@@ -1,0 +1,6 @@
+{
+  "key": "79c41009713f5346",
+  "response": "VOOG은 Python과 Tkinter를 사용한 모ogg 스타일의 다중 오디오 주파수 흡입기입니다. VOOG에는 3개의 오scillator, 모ogg 램프 필터, 두 가지 ADSR 압력 환경 및 LFO와 같은 기능이 포함되어 있습니다. 추가적으로 MIDI 입력 및 프 patch 관리 시스템이 있어 복잡한 악기 설정을 지원합니다.",
+  "model": "qwen2.5:3b",
+  "cached_at": "2026-02-16 11:16:23"
+}

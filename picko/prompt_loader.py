@@ -106,7 +106,13 @@ class PromptLoader:
         template = self.env.from_string(template_string)
         return template.render(**variables)
 
-    def get_longform_prompt(self, input_content: dict, name: str = "default", account_id: str | None = None) -> str:
+    def get_longform_prompt(
+        self,
+        input_content: dict,
+        name: str = "default",
+        account_id: str | None = None,
+        exploration: dict | None = None,
+    ) -> str:
         """
         롱폼용 프롬프트 생성
 
@@ -114,10 +120,15 @@ class PromptLoader:
             input_content: 입력 콘텐츠 (title, summary, key_points, excerpt 등)
             name: 프롬프트 이름
             account_id: 계정 ID
+            exploration: 탐색 결과 (선택적, 있으면 with_exploration 템플릿 사용)
 
         Returns:
             렌더링된 프롬프트
         """
+        # 탐색 결과가 있으면 with_exploration 템플릿 사용
+        if exploration:
+            name = "with_exploration"
+
         return self.render(
             "longform",
             name=name,
@@ -127,6 +138,7 @@ class PromptLoader:
             key_points=input_content.get("key_points", []),
             excerpt=input_content.get("excerpt", ""),
             tags=input_content.get("tags", []),
+            exploration=exploration or {},
         )
 
     def get_pack_prompt(
@@ -177,6 +189,28 @@ class PromptLoader:
             account_id=account_id,
             title=input_content.get("title", ""),
             summary=input_content.get("summary", ""),
+            tags=input_content.get("tags", []),
+        )
+
+    def get_exploration_prompt(self, input_content: dict, name: str = "default", account_id: str | None = None) -> str:
+        """
+        주제 탐색용 프롬프트 생성
+
+        Args:
+            input_content: 입력 콘텐츠
+            name: 프롬프트 이름
+            account_id: 계정 ID
+
+        Returns:
+            렌더링된 프롬프트
+        """
+        return self.render(
+            "exploration",
+            name=name,
+            account_id=account_id,
+            title=input_content.get("title", ""),
+            summary=input_content.get("summary", ""),
+            key_points=input_content.get("key_points", []),
             tags=input_content.get("tags", []),
         )
 

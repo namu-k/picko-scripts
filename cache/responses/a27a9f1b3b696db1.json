@@ -1,0 +1,6 @@
+{
+  "key": "a27a9f1b3b696db1",
+  "response": "1. Error payloads in Zig are defined using a union-based `Diagnostics` type.\n2. The `withContext` method allows for efficient propagation of error payload data.\n3. Value copying between diagnostics is minimized, reducing boilerplate code.",
+  "model": "qwen2.5:3b",
+  "cached_at": "2026-02-16 11:16:13"
+}

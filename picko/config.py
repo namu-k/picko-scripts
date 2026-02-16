@@ -31,6 +31,7 @@ class VaultConfig:
     root: str
     inbox: str = "Inbox/Inputs"
     digests: str = "Inbox/Inputs/_digests"
+    explorations: str = "Inbox/Explorations"
     content: str = "Content"
     longform: str = "Content/Longform"
     packs: str = "Content/Packs"

@@ -350,6 +350,50 @@ created_at: {{ created_at }}
 """
         return self.render_string(template, created_at=datetime.now().isoformat(), **content)
 
+    def render_exploration(self, content: dict) -> str:
+        """
+        주제 탐색 노트 렌더링
+
+        Args:
+            content: 탐색 결과 정보
+
+        Returns:
+            마크다운 문자열
+        """
+        template = """---
+id: {{ id }}
+type: exploration
+source_input: {{ source_input_id | wikilink }}
+status: completed
+created_at: {{ created_at }}
+{% if tags %}tags:
+{% for tag in tags %}  - {{ tag }}
+{% endfor %}{% endif %}
+---
+
+# 주제 탐색: {{ title }}
+
+## 🎯 주제 확장
+
+{{ topic_expansion | default("분석 중...") }}
+
+## 💭 관련 논의와 반론
+
+{{ related_discussions | default("분석 중...") }}
+
+## 💡 독자 인사이트
+
+{{ reader_insights | default("분석 중...") }}
+
+## 📝 롱폼 작성 가이드
+
+{{ writing_guide | default("분석 중...") }}
+
+---
+> 이 탐색 결과는 롱폼 작성 시 컨텍스트로 사용됩니다.
+"""
+        return self.render_string(template, created_at=datetime.now().isoformat(), **content)
+
 
 # 편의 함수
 _default_renderer: TemplateRenderer | None = None

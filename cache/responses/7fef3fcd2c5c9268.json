@@ -1,0 +1,6 @@
+{
+  "key": "7fef3fcd2c5c9268",
+  "response": "1. JS-heavy approaches are generally not compatible with long-term performance goals.\n2. These approaches often rely on delivering significant amounts of JavaScript to browsers for execution and can be found in both Single-Page Applications (SPAs) and Multi-Page Applications (MPAs).\n3. The author suggests favoring more server-centric approaches when possible, based on their experience working on web performance at Automattic.",
+  "model": "qwen2.5:3b",
+  "cached_at": "2026-02-16 11:16:10"
+}
