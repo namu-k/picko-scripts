@@ -192,6 +192,44 @@ class PromptLoader:
             tags=input_content.get("tags", []),
         )
 
+    def get_channel_image_prompt(
+        self,
+        channel: str,
+        input_content: dict,
+        image_specs: dict | None = None,
+        account_id: str | None = None,
+    ) -> str:
+        """
+        채널별 이미지 프롬프트 생성
+
+        Args:
+            channel: 채널명 (twitter, linkedin, newsletter)
+            input_content: 입력 콘텐츠
+            image_specs: 이미지 스펙 (aspect_ratio, style, layout_hints 등)
+            account_id: 계정 ID
+
+        Returns:
+            렌더링된 프롬프트
+        """
+        # 기본 이미지 스펙
+        default_specs = {
+            "aspect_ratio": "16:9",
+            "style": "modern",
+            "layout_hints": ["clean", "minimal"],
+            "recommended_size": "1200x675",
+        }
+        image_specs = image_specs or default_specs
+
+        return self.render(
+            "image",
+            name=channel,
+            account_id=account_id,
+            title=input_content.get("title", ""),
+            summary=input_content.get("summary", ""),
+            tags=input_content.get("tags", []),
+            image_specs=image_specs,
+        )
+
     def get_exploration_prompt(self, input_content: dict, name: str = "default", account_id: str | None = None) -> str:
         """
         주제 탐색용 프롬프트 생성
