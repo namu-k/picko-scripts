@@ -526,3 +526,123 @@ class TestLLMClientProviderRouting:
         config = LLMConfig(provider="unknown_llm", model="some-model")
         with pytest.raises(ValueError, match="Unknown LLM provider"):
             LLMClient(config=config, cache_enabled=False)
+
+
+class TestGetWriterClient:
+    """get_writer_client() 함수 테스트 (FR-003)"""
+
+    def test_get_writer_client_openrouter_default_api_key_env(self, monkeypatch):
+        """FR-003: writer_llm provider=openrouter + api_key_env 미지정 시 기본값 OPENROUTER_API_KEY"""
+        import picko.llm_client
+
+        original = picko.llm_client._writer_client
+        picko.llm_client._writer_client = None
+
+        try:
+            monkeypatch.setenv("OPENROUTER_API_KEY", "test-key")
+
+            mock_writer_config = MagicMock()
+            mock_writer_config.provider = "openrouter"
+            mock_writer_config.model = "openai/gpt-4o-mini"
+            mock_writer_config.temperature = 0.8
+            mock_writer_config.max_tokens = 2000
+            mock_writer_config.api_key_env = ""  # 미지정
+
+            mock_config = MagicMock()
+            mock_config.writer_llm = mock_writer_config
+
+            with (
+                patch("picko.config.get_config", return_value=mock_config),
+                patch("picko.llm_client.get_config", return_value=mock_config),
+            ):
+                client = picko.llm_client.get_writer_client()
+                assert client.config.api_key_env == "OPENROUTER_API_KEY"
+        finally:
+            picko.llm_client._writer_client = original
+
+    def test_get_writer_client_relay_default_api_key_env(self, monkeypatch):
+        """FR-003: writer_llm provider=relay + api_key_env 미지정 시 기본값 RELAY_API_KEY"""
+        import picko.llm_client
+
+        original = picko.llm_client._writer_client
+        picko.llm_client._writer_client = None
+
+        try:
+            monkeypatch.setenv("RELAY_API_KEY", "test-key")
+
+            mock_writer_config = MagicMock()
+            mock_writer_config.provider = "relay"
+            mock_writer_config.model = "openai/gpt-4o-mini"
+            mock_writer_config.temperature = 0.8
+            mock_writer_config.max_tokens = 2000
+            mock_writer_config.api_key_env = ""  # 미지정
+
+            mock_config = MagicMock()
+            mock_config.writer_llm = mock_writer_config
+
+            with (
+                patch("picko.config.get_config", return_value=mock_config),
+                patch("picko.llm_client.get_config", return_value=mock_config),
+            ):
+                client = picko.llm_client.get_writer_client()
+                assert client.config.api_key_env == "RELAY_API_KEY"
+        finally:
+            picko.llm_client._writer_client = original
+
+    def test_get_writer_client_openai_default_api_key_env(self, monkeypatch):
+        """FR-003: writer_llm provider=openai + api_key_env 미지정 시 기본값 OPENAI_API_KEY"""
+        import picko.llm_client
+
+        original = picko.llm_client._writer_client
+        picko.llm_client._writer_client = None
+
+        try:
+            monkeypatch.setenv("OPENAI_API_KEY", "test-key")
+
+            mock_writer_config = MagicMock()
+            mock_writer_config.provider = "openai"
+            mock_writer_config.model = "gpt-4o-mini"
+            mock_writer_config.temperature = 0.8
+            mock_writer_config.max_tokens = 2000
+            mock_writer_config.api_key_env = ""  # 미지정
+
+            mock_config = MagicMock()
+            mock_config.writer_llm = mock_writer_config
+
+            with (
+                patch("picko.config.get_config", return_value=mock_config),
+                patch("picko.llm_client.get_config", return_value=mock_config),
+            ):
+                client = picko.llm_client.get_writer_client()
+                assert client.config.api_key_env == "OPENAI_API_KEY"
+        finally:
+            picko.llm_client._writer_client = original
+
+    def test_get_writer_client_explicit_api_key_env(self, monkeypatch):
+        """FR-003: writer_llm api_key_env 명시 시 명시된 값 사용"""
+        import picko.llm_client
+
+        original = picko.llm_client._writer_client
+        picko.llm_client._writer_client = None
+
+        try:
+            monkeypatch.setenv("CUSTOM_API_KEY", "test-key")
+
+            mock_writer_config = MagicMock()
+            mock_writer_config.provider = "openrouter"
+            mock_writer_config.model = "openai/gpt-4o-mini"
+            mock_writer_config.temperature = 0.8
+            mock_writer_config.max_tokens = 2000
+            mock_writer_config.api_key_env = "CUSTOM_API_KEY"  # 명시적 지정
+
+            mock_config = MagicMock()
+            mock_config.writer_llm = mock_writer_config
+
+            with (
+                patch("picko.config.get_config", return_value=mock_config),
+                patch("picko.llm_client.get_config", return_value=mock_config),
+            ):
+                client = picko.llm_client.get_writer_client()
+                assert client.config.api_key_env == "CUSTOM_API_KEY"
+        finally:
+            picko.llm_client._writer_client = original
