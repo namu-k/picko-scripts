@@ -150,22 +150,44 @@ pip install -r requirements.txt
 
 ### 4. API 키 설정 (글쓰기용)
 
+**방법 A: `.env` 파일 사용 (권장)**
+
+프로젝트 루트에 `.env` 파일을 만들어 API 키를 관리합니다. `.env.example`을 복사해서 시작하세요:
+
 ```bash
-# Windows
+# .env.example을 .env로 복사
+copy .env.example .env    # Windows
+cp .env.example .env      # macOS/Linux
+```
+
+`.env` 파일을 열어 실제 키를 입력합니다:
+
+```env
+# OpenAI API 키 (글쓰기용, 필수)
+OPENAI_API_KEY=sk-your-api-key-here
+
+# OpenRouter API 키 (OpenRouter 사용 시)
+# OPENROUTER_API_KEY=sk-or-your-api-key-here
+
+# Anthropic API 키 (Anthropic 사용 시)
+# ANTHROPIC_API_KEY=sk-ant-your-api-key-here
+```
+
+> **참고**: `.env` 파일은 `.gitignore`에 등록되어 있어 Git에 커밋되지 않습니다. API 키가 노출될 걱정 없이 안전하게 사용할 수 있습니다.
+
+**방법 B: 환경변수 직접 설정**
+
+`.env` 파일 대신 터미널에서 직접 설정할 수도 있습니다:
+
+```bash
+# Windows (PowerShell)
+$env:OPENAI_API_KEY = "sk-your-api-key-here"
+
+# Windows (CMD)
 set OPENAI_API_KEY=sk-your-api-key-here
 
 # macOS/Linux
 export OPENAI_API_KEY=sk-your-api-key-here
-```
-
-OpenRouter를 사용하는 경우:
-
-```bash
-# Windows
-set OPENROUTER_API_KEY=sk-or-your-api-key-here
-
-# macOS/Linux
-export OPENROUTER_API_KEY=sk-or-your-api-key-here
 ```
 
 > **참고 — OpenRouter 기본 API 키 환경변수 (FR-003)**
