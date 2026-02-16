@@ -158,6 +158,29 @@ set OPENAI_API_KEY=sk-your-api-key-here
 export OPENAI_API_KEY=sk-your-api-key-here
 ```
 
+OpenRouter를 사용하는 경우:
+
+```bash
+# Windows
+set OPENROUTER_API_KEY=sk-or-your-api-key-here
+
+# macOS/Linux
+export OPENROUTER_API_KEY=sk-or-your-api-key-here
+```
+
+> **참고 — OpenRouter 기본 API 키 환경변수 (FR-003)**
+>
+> `summary_llm` 또는 `writer_llm`에서 `provider: "openrouter"`를 지정하고 `api_key_env`를 생략하면,
+> 기본값으로 `OPENROUTER_API_KEY` 환경변수를 사용합니다.
+> 이는 전역 `LLMConfig` 기본값(`OPENAI_API_KEY`)과 별개입니다.
+>
+> ```yaml
+> summary_llm:
+>   provider: "openrouter"
+>   model: "openai/gpt-4o-mini"
+>   # api_key_env 생략 시 → OPENROUTER_API_KEY 자동 사용
+> ```
+
 ### 5. 구성 파일 설정
 
 #### 5.1 메인 설정 (`config/config.yml`)
@@ -186,11 +209,14 @@ llm:
 
 # 요약/태깅용 LLM 설정 (로컬 우선)
 summary_llm:
-  provider: "ollama"  # ollama | openai | anthropic
+  provider: "ollama"  # ollama | openai | anthropic | openrouter
   model: "deepseek-r1:7b"  # qwen2.5:7b | deepseek-r1:7b | llama3.3:70b
   temperature: 0.3
   max_tokens: 1000
   base_url: "http://localhost:11434"
+  # api_key_env: 생략 시 provider 기본값 사용
+  #   - openrouter → OPENROUTER_API_KEY
+  #   - openai/anthropic 등 → OPENAI_API_KEY
   # 로컬 실패 시 폴백
   fallback_provider: "openai"
   fallback_model: "gpt-4o-mini"
@@ -198,11 +224,15 @@ summary_llm:
 
 # 글쓰기용 LLM 설정 (클라우드)
 writer_llm:
-  provider: "openai"  # openai | anthropic
-  model: "gpt-4o-mini"  # gpt-4o-mini | claude-3.5-sonnet
+  provider: "openai"  # openai | anthropic | openrouter
+  model: "gpt-4o-mini"  # gpt-4o-mini | claude-3.5-sonnet | openai/gpt-4o-mini (openrouter)
   temperature: 0.8
   max_tokens: 2000
   api_key_env: "OPENAI_API_KEY"
+  # OpenRouter 사용 시:
+  # provider: "openrouter"
+  # model: "openai/gpt-4o-mini"
+  # api_key_env: "OPENROUTER_API_KEY"
 
 # 임베딩 설정 (로컬 우선)
 embedding:

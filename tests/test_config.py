@@ -111,6 +111,46 @@ class TestScoringConfig:
         assert config.thresholds["auto_approve"] == 0.85
 
 
+class TestOpenRouterConfig:
+    """OpenRouter config tests"""
+
+    def test_llm_config_openrouter(self):
+        """LLMConfig with openrouter provider"""
+        config = LLMConfig(
+            provider="openrouter",
+            model="openai/gpt-4o-mini",
+            api_key_env="OPENROUTER_API_KEY",
+        )
+        assert config.provider == "openrouter"
+        assert config.model == "openai/gpt-4o-mini"
+        assert config.api_key_env == "OPENROUTER_API_KEY"
+
+    def test_writer_llm_config_openrouter(self):
+        """WriterLLMConfig with openrouter provider"""
+        config = WriterLLMConfig(
+            provider="openrouter",
+            model="openai/gpt-4o-mini",
+            api_key_env="OPENROUTER_API_KEY",
+        )
+        assert config.provider == "openrouter"
+        assert config.model == "openai/gpt-4o-mini"
+
+    def test_summary_llm_config_api_key_env(self):
+        """SummaryLLMConfig api_key_env 필드"""
+        config = SummaryLLMConfig(
+            provider="openrouter",
+            model="openai/gpt-4o-mini",
+            api_key_env="OPENROUTER_API_KEY",
+        )
+        assert config.provider == "openrouter"
+        assert config.api_key_env == "OPENROUTER_API_KEY"
+
+    def test_summary_llm_config_api_key_env_default(self):
+        """SummaryLLMConfig api_key_env 기본값 빈 문자열"""
+        config = SummaryLLMConfig()
+        assert config.api_key_env == ""
+
+
 class TestLoadConfig:
     """load_config function tests"""
 
@@ -173,6 +213,45 @@ processing:
         """존재하지 않는 config.yml"""
         with pytest.raises(FileNotFoundError):
             load_config("nonexistent.yml")
+
+    def test_load_config_openrouter_writer(self, tmp_path):
+        """OpenRouter writer_llm config 로드"""
+        config_content = """
+vault:
+  root: "C:/test/vault"
+llm:
+  provider: "openai"
+  model: "gpt-4o-mini"
+summary_llm:
+  provider: "openrouter"
+  model: "openai/gpt-4o-mini"
+  api_key_env: "OPENROUTER_API_KEY"
+writer_llm:
+  provider: "openrouter"
+  model: "openai/gpt-4o-mini"
+  api_key_env: "OPENROUTER_API_KEY"
+embedding:
+  provider: "local"
+  model: "BAAI/bge-m3"
+scoring:
+  weights:
+    novelty: 0.3
+    relevance: 0.4
+    quality: 0.3
+logging:
+  level: "INFO"
+processing:
+  batch_size: 10
+"""
+        config_file = tmp_path / "config.yml"
+        config_file.write_text(config_content)
+
+        config = load_config(config_file)
+        assert config.writer_llm.provider == "openrouter"
+        assert config.writer_llm.model == "openai/gpt-4o-mini"
+        assert config.writer_llm.api_key_env == "OPENROUTER_API_KEY"
+        assert config.summary_llm.provider == "openrouter"
+        assert config.summary_llm.api_key_env == "OPENROUTER_API_KEY"
 
 
 class TestGetConfig:

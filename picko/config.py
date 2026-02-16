@@ -74,6 +74,7 @@ class SummaryLLMConfig:
     temperature: float = 0.3
     max_tokens: int = 1000
     base_url: str = "http://localhost:11434"
+    api_key_env: str = ""
 
     # 폴백옵션 (로컬 실패 시 클라우드 사용)
     fallback_provider: str = "openai"
