@@ -15,12 +15,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `StyleProfile`: Dataclass for writing style characteristics from reference analysis
   - `AccountContextLoader`: Loader class with caching for account context files
   - `get_identity()`, `get_weekly_slot()`, `get_style_for_account()`: Convenience functions
+- **Prompt Composer**:
+  - `prompt_composer.py`: Multi-layer prompt composition system
+  - `PromptComposer`: Class for composing prompts from multiple sources
+  - Layers: base_prompt + style + identity + context
+  - `get_effective_prompt()`: Convenience function for composed prompts
+  - Integration with `generate_content.py` for automatic prompt composition
 - **Scoring Integration**:
   - `ContentScorer` now accepts `account_identity` parameter for persona-based relevance scoring
   - Target audience and pillar matching in relevance calculation
   - `score_content()` function supports `account_identity` parameter
 - **Tests**:
   - `test_account_context.py`: Comprehensive tests for account context module
+  - `test_prompt_composer.py`: Tests for prompt composition system
   - Parser tests for identity and weekly slot markdown files
   - Loader tests with caching verification
   - Real file integration tests (marked as slow)

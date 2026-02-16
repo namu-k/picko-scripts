@@ -11,6 +11,7 @@ from picko.account_context import WeeklySlot, get_weekly_slot
 from picko.config import get_config
 from picko.llm_client import get_writer_client
 from picko.logger import setup_logger
+from picko.prompt_composer import get_effective_prompt
 from picko.prompt_loader import get_prompt_loader
 from picko.templates import get_renderer
 from picko.vault_io import VaultIO
@@ -380,12 +381,23 @@ class ContentGenerator:
         # WeeklySlot 컨텍스트 준비
         weekly_context = self._prepare_weekly_context()
 
-        # 프롬프트 로더를 통해 프롬프트 생성
-        prompt = self.prompt_loader.get_longform_prompt(
-            input_content=input_content,
-            account_id=item.get("account_id"),
-            exploration=exploration,
-            weekly_context=weekly_context,
+        # 계정 ID
+        account_id = item.get("account_id", "default")
+
+        # 프롬프트 합성 (prompt_composer 사용)
+        content_type = "longform_with_exploration" if exploration else "longform"
+        prompt = get_effective_prompt(
+            account_id=account_id,
+            content_type=content_type,
+            weekly_slot=self.weekly_slot,
+            variables={
+                "title": input_content.get("title", ""),
+                "summary": input_content.get("summary", ""),
+                "key_points": input_content.get("key_points", []),
+                "excerpt": input_content.get("excerpt", ""),
+                "exploration": exploration,
+                **weekly_context,
+            },
         )
 
         response = self.llm.generate(prompt, max_tokens=2000)
