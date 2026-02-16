@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
 
 from .logger import get_logger
 
@@ -16,6 +17,9 @@ logger = get_logger("config")
 # 프로젝트 루트 디렉토리
 PROJECT_ROOT = Path(__file__).parent.parent
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config" / "config.yml"
+
+# .env 파일 로드 (프로젝트 루트의 .env)
+load_dotenv(PROJECT_ROOT / ".env")
 
 
 @dataclass
