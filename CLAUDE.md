@@ -136,6 +136,15 @@ The system uses different LLMs for different tasks via `picko/llm_client.py`:
 config/
 ├── config.yml          # Main configuration
 ├── sources.yml         # RSS feed sources and categories
+├── prompts/            # Externalized LLM prompts (BCP-001)
+│   ├── longform/
+│   │   └── default.md
+│   ├── packs/
+│   │   ├── twitter.md
+│   │   ├── linkedin.md
+│   │   └── newsletter.md
+│   └── image/
+│       └── default.md
 └── accounts/           # Account-specific profiles
     └── socialbuilders.yml  # Target audience, interests, channel settings
 ```
@@ -145,6 +154,7 @@ config/
 - Lazy loading: sources and account profiles loaded on-demand
 - `.env` file auto-loaded on module import for API keys
 - Singleton pattern via `get_config()` for consistent access across modules
+- **External Prompts**: LLM prompts stored in `config/prompts/` and loaded via `picko/prompt_loader.py`
 
 ### Code Style & Linting
 
@@ -194,6 +204,7 @@ pre-commit run --all-files
 - **Logs**: `logs/YYYY-MM-DD/` (rotated daily, retention configurable)
 - **Cache**: `cache/embeddings/` (cached embeddings for cost savings)
 - **Templates**: Embedded in `picko/templates.py` as Jinja2 strings (no physical template files)
+- **Prompts**: External prompts in `config/prompts/` (longform, packs, image)
 - **Project Root**: Auto-detected via `PROJECT_ROOT` in `picko/config.py`
 
 ## Project Structure

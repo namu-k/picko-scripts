@@ -10,6 +10,7 @@ from datetime import datetime
 from picko.config import get_config
 from picko.llm_client import get_writer_client
 from picko.logger import setup_logger
+from picko.prompt_loader import get_prompt_loader
 from picko.templates import get_renderer
 from picko.vault_io import VaultIO
 
@@ -30,6 +31,7 @@ class ContentGenerator:
         # 글쓰기용 클라우드 LLM 사용
         self.llm = get_writer_client()
         self.renderer = get_renderer()
+        self.prompt_loader = get_prompt_loader()
         self.dry_run = dry_run
 
         logger.info("ContentGenerator initialized")
@@ -352,37 +354,11 @@ class ContentGenerator:
         """Longform 콘텐츠 생성"""
         logger.info(f"Generating longform for: {item['input_id']}")
 
-        # LLM으로 Longform 콘텐츠 생성
-        prompt = f"""다음 콘텐츠를 바탕으로 블로그 포스트 형식의 긴 글을 작성해주세요.
-
-제목: {input_content['title']}
-
-원본 요약:
-{input_content['summary']}
-
-핵심 포인트:
-{chr(10).join('- ' + p for p in input_content['key_points'])}
-
-원문 발췌:
-{input_content['excerpt']}
-
----
-
-다음 형식으로 작성해주세요:
-
-[인트로]
-- 독자의 관심을 끄는 도입부 (2-3문장)
-
-[메인 콘텐츠]
-- 핵심 내용을 자세히 설명 (3-5 단락)
-- 구체적인 예시나 통계 포함
-
-[주요 시사점]
-- 독자가 얻을 수 있는 인사이트 (3-4개)
-
-[마무리]
-- 행동 촉구 또는 생각거리
-"""
+        # 프롬프트 로더를 통해 프롬프트 생성
+        prompt = self.prompt_loader.get_longform_prompt(
+            input_content=input_content,
+            account_id=item.get("account_id"),
+        )
 
         response = self.llm.generate(prompt, max_tokens=2000)
 
@@ -448,27 +424,18 @@ class ContentGenerator:
 
         for channel, channel_config in channels.items():
             try:
-                max_length = channel_config.get("max_length", 280)
-                tone = channel_config.get("tone", "casual")
-                use_hashtags = channel_config.get("hashtags", True)
-
-                # LLM으로 채널별 콘텐츠 생성
-                prompt = f"""다음 콘텐츠를 {channel} 채널용으로 변환해주세요.
-
-원본:
-제목: {input_content['title']}
-요약: {input_content['summary']}
-
-요구사항:
-- 최대 {max_length}자
-- 톤: {tone}
-- 해시태그: {'필요' if use_hashtags else '불필요'}
-
-{channel} 포스트:"""
+                # 프롬프트 로더를 통해 채널별 프롬프트 생성
+                prompt = self.prompt_loader.get_pack_prompt(
+                    channel=channel,
+                    input_content=input_content,
+                    channel_config=channel_config,
+                    account_id=account_id,
+                )
 
                 text = self.llm.generate(prompt, max_tokens=500)
 
                 # 해시태그 추출
+                use_hashtags = channel_config.get("hashtags", True)
                 hashtags = []
                 if use_hashtags:
                     hashtags = [f"#{tag}" for tag in input_content.get("tags", [])[:3]]
@@ -502,26 +469,11 @@ class ContentGenerator:
         """이미지 프롬프트 생성"""
         logger.info(f"Generating image prompt for: {item['input_id']}")
 
-        # LLM으로 이미지 프롬프트 생성
-        prompt = f"""다음 콘텐츠에 어울리는 이미지 프롬프트를 생성해주세요.
-
-제목: {input_content['title']}
-요약: {input_content['summary']}
-태그: {', '.join(input_content.get('tags', []))}
-
-다음 형식으로 작성해주세요:
-
-[메인 프롬프트]
-(DALL-E나 Midjourney에서 사용할 수 있는 상세한 이미지 설명)
-
-[스타일]
-(아트 스타일, 예: minimalist, isometric, photorealistic)
-
-[분위기]
-(이미지의 전반적인 느낌)
-
-[색상]
-(주요 색상 팔레트)"""
+        # 프롬프트 로더를 통해 이미지 프롬프트 생성
+        prompt = self.prompt_loader.get_image_prompt(
+            input_content=input_content,
+            account_id=item.get("account_id"),
+        )
 
         response = self.llm.generate(prompt, max_tokens=500)
         sections = self._parse_generated_sections(response)
