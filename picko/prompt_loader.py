@@ -230,6 +230,80 @@ class PromptLoader:
 
         return [f.stem for f in type_dir.glob("*.md")]
 
+    def load_reference(self, references_dir: Path, category: str, name: str | None = None) -> str | None:
+        """
+        레퍼런스 글 로드
+
+        Args:
+            references_dir: 레퍼런스 루트 디렉토리
+            category: 카테고리 (longform, packs/twitter, packs/linkedin)
+            name: 레퍼런스 이름 (None이면 첫 번째 파일 사용)
+
+        Returns:
+            레퍼런스 내용 또는 None
+        """
+        category_dir = references_dir / category
+        if not category_dir.exists():
+            return None
+
+        if name:
+            ref_path = category_dir / f"{name}.md"
+            if ref_path.exists():
+                return ref_path.read_text(encoding="utf-8")
+            return None
+
+        # 첫 번째 sample 파일 사용
+        for ref_file in sorted(category_dir.glob("sample-*.md")):
+            return ref_file.read_text(encoding="utf-8")
+
+        return None
+
+    def get_reference_style_analysis(self, reference_content: str) -> str:
+        """
+        레퍼런스 문체 분석 프롬프트 렌더링
+
+        Args:
+            reference_content: 레퍼런스 글 내용
+
+        Returns:
+            렌더링된 분석 프롬프트
+        """
+        return self.render(
+            "reference",
+            name="analyze",
+            reference_content=reference_content,
+        )
+
+    def get_longform_with_reference_prompt(
+        self,
+        input_content: dict,
+        style_analysis: str,
+        name: str = "with_reference",
+        account_id: str | None = None,
+    ) -> str:
+        """
+        레퍼런스 기반 롱폼 프롬프트 생성
+
+        Args:
+            input_content: 입력 콘텐츠
+            style_analysis: 레퍼런스 문체 분석 결과
+            name: 프롬프트 이름
+            account_id: 계정 ID
+
+        Returns:
+            렌더링된 프롬프트
+        """
+        return self.render(
+            "longform",
+            name=name,
+            account_id=account_id,
+            title=input_content.get("title", ""),
+            summary=input_content.get("summary", ""),
+            key_points=input_content.get("key_points", []),
+            excerpt=input_content.get("excerpt", ""),
+            style_analysis=style_analysis,
+        )
+
 
 # 편의 함수 - 싱글톤 패턴
 _default_loader: PromptLoader | None = None

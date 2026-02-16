@@ -37,6 +37,7 @@ class VaultConfig:
     packs: str = "Content/Packs"
     assets: str = "Assets"
     images_prompts: str = "Assets/Images/_prompts"
+    references: str = "Assets/References"
     archive: str = "Archive"
     logs_publish: str = "Logs/Publish"
 
