@@ -245,11 +245,11 @@ class TopicExplorer:
 
     def _save_exploration(self, data: dict, input_id: str) -> None:
         """탐색 노트 저장"""
-        # 탐색 디렉토리 확인
+        # 탐색 디렉토리 확인 (config에서 설정하지 않으면 기본값 사용)
         explorations_dir = self.config.vault.explorations
-        if explorations_dir is None:
-            # 기본 경로 사용
-            explorations_dir = f"{self.config.vault.inbox}/../Explorations"
+        if not explorations_dir:
+            # 기본 경로: Inbox/Explorations
+            explorations_dir = "Inbox/Explorations"
 
         self.vault.ensure_dir(explorations_dir)
 
