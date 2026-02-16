@@ -1,5 +1,6 @@
 # Picko - Content Pipeline
 
+[![Release](https://img.shields.io/github/v/release/namu-k/picko-scripts?label=version)](https://github.com/namu-k/picko-scripts/releases)
 [![Test](https://github.com/namu-k/picko-scripts/actions/workflows/test.yml/badge.svg)](https://github.com/namu-k/picko-scripts/actions/workflows/test.yml)
 [![Security](https://img.shields.io/badge/Security-Policy-blue)](SECURITY.md)
 
