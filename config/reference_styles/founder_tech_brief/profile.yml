@@ -1,0 +1,39 @@
+name: founder_tech_brief
+source_urls:
+- https://techcrunch.com/category/artificial-intelligence/
+- https://www.theverge.com/ai-artificial-intelligence
+- https://www.wired.com/tag/artificial-intelligence/
+analyzed_at: '2026-02-16T21:14:16.350023'
+sample_count: 3
+characteristics:
+  tone:
+  - authoritative
+  - informative
+  - casual
+  sentence_style: medium_balanced
+  structure_patterns:
+  - headline -> summary -> details -> quotes
+  vocabulary:
+  - tech_terms
+  - industry_jargon
+  - data_driven
+  signatures:
+  - latest news
+  - in brief
+  - follow up
+  hooks:
+  - latest developments
+  - breaking news
+  - insightful analysis
+  closings:
+  - summary
+  - call to action
+  - thought-provoking question
+  formatting:
+  - headlines
+  - bulleted lists
+  - quotes
+  content_themes:
+  - artificial intelligence
+  - technology trends
+  - industry impact

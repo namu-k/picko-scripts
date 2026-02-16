@@ -5,6 +5,7 @@ novelty, relevance, quality, total 점수 계산
 
 from dataclasses import dataclass
 
+from .account_context import AccountIdentity, get_identity
 from .config import ScoringConfig, get_config
 from .embedding import get_embedding_manager
 from .logger import get_logger
@@ -33,7 +34,12 @@ class ContentScore:
 class ContentScorer:
     """콘텐츠 점수 계산기"""
 
-    def __init__(self, config: ScoringConfig | None = None, account_profile: dict | None = None):
+    def __init__(
+        self,
+        config: ScoringConfig | None = None,
+        account_profile: dict | None = None,
+        account_identity: AccountIdentity | None = None,
+    ):
         if config is None:
             config = get_config().scoring
 
@@ -41,6 +47,7 @@ class ContentScorer:
         self.weights = config.weights
         self.thresholds = config.thresholds
         self.account_profile = account_profile or {}
+        self.account_identity = account_identity
         self.embedding_manager = get_embedding_manager()
 
         logger.debug(f"ContentScorer initialized with weights: {self.weights}")
@@ -94,7 +101,7 @@ class ContentScorer:
 
     def _calculate_relevance(self, content: dict) -> float:
         """
-        관련도 계산 (계정 프로필 기반)
+        관련도 계산 (계정 프로필 및 AccountIdentity 기반)
 
         Args:
             content: 콘텐츠 (title, text, keywords 등)
@@ -102,9 +109,6 @@ class ContentScorer:
         Returns:
             관련도 점수 (0~1)
         """
-        if not self.account_profile:
-            return 0.5  # 프로필 없으면 중립
-
         # 텍스트 결합
         text = (
             content.get("title", "") + " " + content.get("text", "") + " " + " ".join(content.get("keywords", []))
@@ -113,45 +117,124 @@ class ContentScorer:
         score = 0.0
         matches = 0
 
-        # 관심 주제 매칭
-        interests = self.account_profile.get("interests", {})
-
-        # 주 관심사 (가중치 1.0)
-        for interest in interests.get("primary", []):
-            if interest.lower() in text:
-                score += 1.0
+        # 1) AccountIdentity의 타겟 오디언스 매칭 (우선순위 높음)
+        if self.account_identity:
+            # 타겟 오디언스와 관련된 키워드 추출
+            target_score = self._match_target_audience(text, self.account_identity)
+            if target_score > 0:
+                score += target_score
                 matches += 1
+                logger.debug(f"Target audience match: {target_score:.2f}")
 
-        # 부 관심사 (가중치 0.5)
-        for interest in interests.get("secondary", []):
-            if interest.lower() in text:
-                score += 0.5
-                matches += 1
+        # 2) 기존 account_profile 기반 매칭 (호환성 유지)
+        if self.account_profile:
+            score += self._match_account_profile(text, self.account_profile)
+            matches += 1  # 프로필 매칭 시도 횟수 증가
 
-        # 키워드 매칭
-        keywords = self.account_profile.get("keywords", {})
-
-        for kw in keywords.get("high_relevance", []):
-            if kw.lower() in text:
-                score += 1.0
-                matches += 1
-
-        for kw in keywords.get("medium_relevance", []):
-            if kw.lower() in text:
-                score += 0.5
-                matches += 1
-
-        for kw in keywords.get("low_relevance", []):
-            if kw.lower() in text:
-                score += 0.2
+        # 3) 필러(Pillar) 기반 매칭 (AccountIdentity에서)
+        if self.account_identity and self.account_identity.pillars:
+            pillar_score = self._match_pillars(text, self.account_identity.pillars)
+            if pillar_score > 0:
+                score += pillar_score * 0.5  # 필러는 가중치 낮게
                 matches += 1
 
         # 정규화 (최대 5개 매칭 기준)
         if matches == 0:
-            return 0.3  # 매칭 없으면 낮은 점수
+            return 0.5  # 매칭 없으면 중립 점수
 
         normalized = min(score / 5.0, 1.0)
-        return normalized
+        return max(0.0, min(1.0, normalized))
+
+    def _match_target_audience(self, text: str, identity: AccountIdentity) -> float:
+        """
+        타겟 오디언스와 콘텐츠 텍스트 매칭
+
+        Args:
+            text: 콘텐츠 텍스트 (소문자)
+            identity: AccountIdentity 인스턴스
+
+        Returns:
+            매칭 점수 (0~2)
+        """
+        score = 0.0
+
+        # 타겟 오디언스 목록에서 키워드 추출하여 매칭
+        for target in identity.target_audience:
+            target_lower = target.lower()
+            # 정확히 일치하면 높은 가중치
+            if target_lower in text:
+                score += 1.0
+
+        # one_liner에서 키워드 추출 (간단 분할)
+        one_liner_words = identity.one_liner.lower().split()
+        for word in one_liner_words:
+            if len(word) > 3 and word in text:  # 3글자 이상 단어만
+                score += 0.3
+
+        return min(score, 2.0)  # 최대 2점
+
+    def _match_pillars(self, text: str, pillars: list[str]) -> float:
+        """
+        필러와 콘텐츠 텍스트 매칭
+
+        Args:
+            text: 콘텐츠 텍스트 (소문자)
+            pillars: 필러 목록 (예: ["P1: 리더십", "P2: 마케팅"])
+
+        Returns:
+            매칭 점수 (0~1)
+        """
+        score = 0.0
+        for pillar in pillars:
+            # P1, P2 등 접두사 제거 후 설명 부분 추출
+            pillar_desc = pillar.split(":", 1)[1].strip() if ":" in pillar else pillar
+            pillar_lower = pillar_desc.lower()
+            # 키워드 단위로 분해
+            pillar_words = pillar_lower.split()
+            for word in pillar_words:
+                if len(word) > 2 and word in text:
+                    score += 0.2
+
+        return min(score, 1.0)
+
+    def _match_account_profile(self, text: str, profile: dict) -> float:
+        """
+        기존 account_profile 기반 매칭 (호환성 유지)
+
+        Args:
+            text: 콘텐츠 텍스트
+            profile: 계정 프로필 딕셔너리
+
+        Returns:
+            매칭 점수
+        """
+        score = 0.0
+
+        # 관심 주제 매칭
+        interests = profile.get("interests", {})
+        for interest in interests.get("primary", []):
+            if interest.lower() in text:
+                score += 1.0
+
+        for interest in interests.get("secondary", []):
+            if interest.lower() in text:
+                score += 0.5
+
+        # 키워드 매칭
+        keywords = profile.get("keywords", {})
+        for kw in keywords.get("high_relevance", []):
+            if kw.lower() in text:
+                score += 1.0
+
+        for kw in keywords.get("medium_relevance", []):
+            if kw.lower() in text:
+                score += 0.5
+
+        for kw in keywords.get("low_relevance", []):
+            if kw.lower() in text:
+                score += 0.2
+
+        return score
 
     def _calculate_quality(self, content: dict) -> float:
         """
@@ -210,7 +293,10 @@ class ContentScorer:
 
 # 편의 함수
 def score_content(
-    content: dict, account_id: str | None = None, existing_embeddings: list[list[float]] | None = None
+    content: dict,
+    account_id: str | None = None,
+    existing_embeddings: list[list[float]] | None = None,
+    account_identity: AccountIdentity | None = None,
 ) -> ContentScore:
     """
     콘텐츠 점수 계산 (편의 함수)
@@ -219,6 +305,7 @@ def score_content(
         content: 콘텐츠 정보
         account_id: 계정 프로필 ID
         existing_embeddings: 기존 콘텐츠 임베딩들
+        account_identity: AccountIdentity 인스턴스 (선택)
 
     Returns:
         ContentScore
@@ -226,5 +313,14 @@ def score_content(
     config = get_config()
     account_profile = config.get_account(account_id) if account_id else {}
 
-    scorer = ContentScorer(account_profile=account_profile)
+    # account_identity가 없으면 account_id로부터 로드 시도
+    if account_identity is None and account_id:
+        try:
+            account_identity = get_identity(account_id)
+            if account_identity:
+                logger.debug(f"Loaded AccountIdentity for {account_id}")
+        except Exception as e:
+            logger.debug(f"Could not load AccountIdentity for {account_id}: {e}")
+
+    scorer = ContentScorer(account_profile=account_profile, account_identity=account_identity)
     return scorer.score(content, existing_embeddings)

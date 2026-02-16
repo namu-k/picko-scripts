@@ -7,6 +7,7 @@ import argparse
 import re
 from datetime import datetime
 
+from picko.account_context import WeeklySlot, get_weekly_slot
 from picko.config import get_config
 from picko.llm_client import get_writer_client
 from picko.logger import setup_logger
@@ -25,7 +26,7 @@ class ContentGenerator:
     _ID_PATTERN = r"\*\*ID\*\*:\s*(\S+)"
     _ACCOUNT_PATTERN = r"\*\*Account\*\*:\s*(\S+)"
 
-    def __init__(self, dry_run: bool = False):
+    def __init__(self, dry_run: bool = False, weekly_slot: WeeklySlot | None = None):
         self.config = get_config()
         self.vault = VaultIO()
         # 글쓰기용 클라우드 LLM 사용
@@ -33,6 +34,7 @@ class ContentGenerator:
         self.renderer = get_renderer()
         self.prompt_loader = get_prompt_loader()
         self.dry_run = dry_run
+        self.weekly_slot = weekly_slot
 
         logger.info("ContentGenerator initialized")
 
@@ -375,11 +377,15 @@ class ContentGenerator:
         # 탐색 결과 로드 (있으면)
         exploration = self._load_exploration(item["input_id"])
 
+        # WeeklySlot 컨텍스트 준비
+        weekly_context = self._prepare_weekly_context()
+
         # 프롬프트 로더를 통해 프롬프트 생성
         prompt = self.prompt_loader.get_longform_prompt(
             input_content=input_content,
             account_id=item.get("account_id"),
             exploration=exploration,
+            weekly_context=weekly_context,
         )
 
         response = self.llm.generate(prompt, max_tokens=2000)
@@ -442,6 +448,9 @@ class ContentGenerator:
         account = self.config.get_account(account_id)
         channels = account.get("channels", {})
 
+        # WeeklySlot 컨텍스트 준비
+        weekly_context = self._prepare_weekly_context()
+
         created_count = 0
 
         for channel, channel_config in channels.items():
@@ -452,6 +461,7 @@ class ContentGenerator:
                     input_content=input_content,
                     channel_config=channel_config,
                     account_id=account_id,
+                    weekly_context=weekly_context,
                 )
 
                 text = self.llm.generate(prompt, max_tokens=500)
@@ -636,6 +646,9 @@ class ContentGenerator:
         account = self.config.get_account(account_id)
         all_channels = account.get("channels", {})
 
+        # WeeklySlot 컨텍스트 준비
+        weekly_context = self._prepare_weekly_context()
+
         created_count = 0
 
         for channel in channels:
@@ -652,6 +665,7 @@ class ContentGenerator:
                     input_content=input_content,
                     channel_config=channel_config,
                     account_id=account_id,
+                    weekly_context=weekly_context,
                 )
 
                 text = self.llm.generate(prompt, max_tokens=500)
@@ -704,6 +718,23 @@ class ContentGenerator:
         except Exception as e:
             logger.warning(f"Failed to update status for {input_id}: {e}")
 
+    def _prepare_weekly_context(self) -> dict | None:
+        """
+        WeeklySlot에서 CTA, customer_outcome 등 추출하여 프롬프트 컨텍스트 생성
+
+        Returns:
+            weekly_context 딕셔너리 또는 None
+        """
+        if not self.weekly_slot:
+            return None
+
+        return {
+            "cta": self.weekly_slot.cta,
+            "customer_outcome": self.weekly_slot.customer_outcome,
+            "operator_kpi": self.weekly_slot.operator_kpi,
+            "pillar_distribution": self.weekly_slot.pillar_distribution,
+        }
+
     def _parse_frontmatter(self, content: str) -> dict:
         """frontmatter 파싱"""
         import yaml
@@ -734,6 +765,7 @@ def main():
     parser.add_argument(
         "--auto-all", action="store_true", help="체크되지 않은 항목도 자동으로 처리 (수동 작업 거부 시)"
     )
+    parser.add_argument("--week-of", "-w", help="주간 슬롯 시작일 (YYYY-MM-DD, WeeklySlot 로드용)")
 
     args = parser.parse_args()
 
@@ -742,7 +774,21 @@ def main():
     if "all" in content_types:
         content_types = ["longform", "packs", "images"]
 
-    generator = ContentGenerator(dry_run=args.dry_run)
+    # WeeklySlot 로드
+    weekly_slot = None
+    if args.week_of:
+        try:
+            weekly_slot = get_weekly_slot(args.week_of)
+            if weekly_slot:
+                logger.info(f"Loaded WeeklySlot for week: {args.week_of}")
+                logger.info(f"  CTA: {weekly_slot.cta}")
+                logger.info(f"  Customer Outcome: {weekly_slot.customer_outcome}")
+            else:
+                logger.warning(f"WeeklySlot not found for: {args.week_of}")
+        except Exception as e:
+            logger.warning(f"Failed to load WeeklySlot: {e}")
+
+    generator = ContentGenerator(dry_run=args.dry_run, weekly_slot=weekly_slot)
 
     results = generator.run(date=args.date, content_types=content_types, force=args.force, auto_all=args.auto_all)
 

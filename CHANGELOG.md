@@ -5,6 +5,30 @@ All notable changes to Picko will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Account Context System**:
+  - `account_context.py`: Account identity, weekly slot, and style profile loader
+  - `AccountIdentity`: Dataclass for account persona (one_liner, target_audience, pillars, tone_voice, boundaries)
+  - `WeeklySlot`: Dataclass for weekly content preset (pillar_distribution, customer_outcome, CTA)
+  - `StyleProfile`: Dataclass for writing style characteristics from reference analysis
+  - `AccountContextLoader`: Loader class with caching for account context files
+  - `get_identity()`, `get_weekly_slot()`, `get_style_for_account()`: Convenience functions
+- **Scoring Integration**:
+  - `ContentScorer` now accepts `account_identity` parameter for persona-based relevance scoring
+  - Target audience and pillar matching in relevance calculation
+  - `score_content()` function supports `account_identity` parameter
+- **Tests**:
+  - `test_account_context.py`: Comprehensive tests for account context module
+  - Parser tests for identity and weekly slot markdown files
+  - Loader tests with caching verification
+  - Real file integration tests (marked as slow)
+
+### Changed
+- `scoring.py`: Enhanced relevance calculation with `AccountIdentity` integration
+- `generate_content.py`: Weekly slot context injection for content generation
+
 ## [0.3.0] - 2026-02-16
 
 ### Added

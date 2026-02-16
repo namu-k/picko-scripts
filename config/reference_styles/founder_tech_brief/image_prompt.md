@@ -1,0 +1,3 @@
+```
+/imagine prompt: A modern and minimalistic design showcasing the latest developments in { topic }. The color palette should consist of cool blues and grays, with accents of vibrant orange to highlight key elements. The layout should be structured with a clear headline at the top, followed by a summary section, detailed insights in bulleted lists, and relevant quotes styled prominently. Use a clean sans-serif typography for readability, emphasizing data-driven content. The overall mood should be authoritative yet approachable, inviting viewers to engage with the information presented. --v 5 --ar 16:9
+```
