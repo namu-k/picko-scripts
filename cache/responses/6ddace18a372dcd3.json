@@ -1,6 +1,0 @@
-{
-  "key": "6ddace18a372dcd3",
-  "response": "1. Qwen 가 OpenAI로 이직하여 대중에게 AI 애드머니(Agent)를 도입할 계획입니다.\n2. Qwen은 현재의 OpenClaw를 유지하면서 비정제화(foundation model)로 변경하고 싶어합니다.\n3. Qwen은 가장 중요하게 생각하는 것이 세상을 바꾸는 것이라며, OpenAI와 협업을 통해 이를 실현하려 합니다.",
-  "model": "qwen2.5:3b",
-  "cached_at": "2026-02-16 11:16:19"
-}

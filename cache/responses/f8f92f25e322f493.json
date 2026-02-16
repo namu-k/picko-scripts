@@ -1,6 +1,0 @@
-{
-  "key": "f8f92f25e322f493",
-  "response": "1. Continuous batching maximizes performance by processing multiple conversations simultaneously and swapping them out when they are done.\n2. Attention mechanisms are central to how LLMs process text, where tokens represent conceptual \"words\".\n3. Continuous batching is effective in high-load scenarios by optimizing for throughput through parallel processing of multiple conversations.",
-  "model": "qwen2.5:3b",
-  "cached_at": "2026-02-16 11:16:15"
-}

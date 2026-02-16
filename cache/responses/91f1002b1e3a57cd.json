@@ -1,6 +1,0 @@
-{
-  "key": "91f1002b1e3a57cd",
-  "response": "1. Pocketblue 提供 Fedora Atomic 檔案用於移動裝置。\n2. Pocketblue 是一個仍在開發中的項目，使用時需自行負責所有數據清空風險。\n3. 目前支援的移動裝置包括 Xiaomi Pad 5、Xiaomi Pad 6 和 OnePlus 6/6T。",
-  "model": "qwen2.5:3b",
-  "cached_at": "2026-02-16 11:16:43"
-}

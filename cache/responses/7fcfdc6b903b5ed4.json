@@ -1,6 +1,0 @@
-{
-  "key": "7fcfdc6b903b5ed4",
-  "response": "1. Microgpt é uma versão visualizável da GPT disponível em navegador.\n2. É um modelo de linguagem menor, com apenas 4000 parâmetros, ideal para aprendizado.\n3. Permite a visualização e explicação das ativações do modelo ao longo do processamento.",
-  "model": "qwen2.5:3b",
-  "cached_at": "2026-02-16 11:16:25"
-}

@@ -28,10 +28,13 @@ logs/
 Thumbs.db
 
 # Project-specific
-cache/               # 임베딩 캐시
-cache/responses/     # LLM 응답 캐시
+cache/               # Embedding and LLM response cache
 .pytest_cache/
 pytest.ini
+
+# Test output files
+*_output.txt
+!requirements*.txt
 
 # Coverage
 .coverage
