@@ -29,6 +29,7 @@ Thumbs.db
 
 # Project-specific
 cache/               # 임베딩 캐시
+cache/responses/     # LLM 응답 캐시
 .pytest_cache/
 pytest.ini
 
@@ -48,3 +49,12 @@ htmlcov/
 # Environment variables
 .env
 .env.local
+
+# Test content in mock_vault
+mock_vault/Content/
+mock_vault/Inbox/
+mock_vault/Assets/
+mock_vault/config/
+.cache/
+.cursor/
+docs/
