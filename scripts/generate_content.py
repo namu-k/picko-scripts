@@ -156,14 +156,14 @@ class ContentGenerator:
             if self._generate_longform(item, input_content):
                 results["longform_created"] += 1
 
-        # Packs 생성
+        # Packs 생성 (파생 승인 확인)
         if "packs" in content_types:
-            packs_count = self._generate_packs(item, input_content)
+            packs_count = self._generate_packs_with_approval(item, input_content)
             results["packs_created"] += packs_count
 
-        # Image Prompts 생성
+        # Image Prompts 생성 (파생 승인 확인)
         if "images" in content_types:
-            if self._generate_image_prompt(item, input_content):
+            if self._generate_image_with_approval(item, input_content):
                 results["image_prompts_created"] += 1
 
     # ─────────────────────────────────────────────────────────────
@@ -520,6 +520,151 @@ class ContentGenerator:
             logger.info(f"Created image prompt: {output_path}")
 
         return True
+
+    def _generate_packs_with_approval(self, item: dict, input_content: dict) -> int:
+        """파생 승인 확인 후 팩 생성"""
+        # 롱폼 노트에서 파생 승인 상태 확인
+        derivative_status = self._check_derivative_approval(item["input_id"])
+
+        if derivative_status.get("status") != "approved":
+            logger.debug(f"Skipping packs - derivative not approved: {item['input_id']}")
+            return 0
+
+        # 롱폼 본문을 소스로 사용
+        longform_content = self._load_longform_content(item["input_id"])
+        if longform_content:
+            input_content = {**input_content, **longform_content}
+
+        # 승인된 채널만 생성
+        approved_channels = derivative_status.get("packs_channels", [])
+        if not approved_channels:
+            logger.debug(f"No packs channels approved: {item['input_id']}")
+            return 0
+
+        return self._generate_packs_for_channels(item, input_content, approved_channels)
+
+    def _generate_image_with_approval(self, item: dict, input_content: dict) -> bool:
+        """파생 승인 확인 후 이미지 프롬프트 생성"""
+        # 롱폼 노트에서 파생 승인 상태 확인
+        derivative_status = self._check_derivative_approval(item["input_id"])
+
+        if derivative_status.get("status") != "approved":
+            logger.debug(f"Skipping images - derivative not approved: {item['input_id']}")
+            return False
+
+        if not derivative_status.get("images_approved", False):
+            logger.debug(f"Images not approved: {item['input_id']}")
+            return False
+
+        # 롱폼 본문을 소스로 사용
+        longform_content = self._load_longform_content(item["input_id"])
+        if longform_content:
+            input_content = {**input_content, **longform_content}
+
+        return self._generate_image_prompt(item, input_content)
+
+    def _check_derivative_approval(self, input_id: str) -> dict:
+        """롱폼 노트에서 파생 승인 상태 확인"""
+        longform_path = f"{self.config.vault.longform}/longform_{input_id}.md"
+
+        try:
+            meta, content = self.vault.read_note(longform_path)
+
+            # 체크박스 상태 확인
+            packs_approved = "[x] **팩 생성**" in content or "[x] 팩 생성" in content
+            images_approved = "[x] **이미지 생성**" in content or "[x] 이미지 생성" in content
+
+            # frontmatter에서 채널 목록 확인
+            packs_channels = meta.get("packs_channels", [])
+
+            # 체크박스가 체크되면 승인된 것으로 간주
+            status = "approved" if (packs_approved or images_approved) else meta.get("derivative_status", "pending")
+
+            return {
+                "status": status,
+                "packs_channels": (
+                    packs_channels
+                    if packs_channels
+                    else (["twitter", "linkedin", "newsletter"] if packs_approved else [])
+                ),
+                "images_approved": images_approved,
+            }
+        except FileNotFoundError:
+            logger.debug(f"Longform not found for derivative check: {input_id}")
+            return {"status": "pending", "packs_channels": [], "images_approved": False}
+
+    def _load_longform_content(self, input_id: str) -> dict | None:
+        """롱폼 노트 내용 로드"""
+        longform_path = f"{self.config.vault.longform}/longform_{input_id}.md"
+
+        try:
+            meta, content = self.vault.read_note(longform_path)
+            return {
+                "longform_title": meta.get("title", ""),
+                "longform_body": content,
+                "intro": self._extract_section(content, "인트로") or self._extract_section(content, ""),
+                "main_content": self._extract_section(content, "핵심 내용"),
+                "takeaways": self._extract_section(content, "주요 시사점"),
+            }
+        except FileNotFoundError:
+            return None
+
+    def _generate_packs_for_channels(self, item: dict, input_content: dict, channels: list[str]) -> int:
+        """지정된 채널에 대해서만 팩 생성"""
+        account_id = item.get("account_id", "socialbuilders")
+        account = self.config.get_account(account_id)
+        all_channels = account.get("channels", {})
+
+        created_count = 0
+
+        for channel in channels:
+            if channel not in all_channels:
+                logger.warning(f"Channel not configured: {channel}")
+                continue
+
+            try:
+                channel_config = all_channels[channel]
+
+                # 프롬프트 로더를 통해 채널별 프롬프트 생성
+                prompt = self.prompt_loader.get_pack_prompt(
+                    channel=channel,
+                    input_content=input_content,
+                    channel_config=channel_config,
+                    account_id=account_id,
+                )
+
+                text = self.llm.generate(prompt, max_tokens=500)
+
+                # 해시태그 추출
+                use_hashtags = channel_config.get("hashtags", True)
+                hashtags = []
+                if use_hashtags:
+                    hashtags = [f"#{tag}" for tag in input_content.get("tags", [])[:3]]
+
+                pack_data = {
+                    "id": f"pack_{item['input_id']}_{channel}",
+                    "source_longform_id": f"longform_{item['input_id']}",
+                    "text": text.strip(),
+                    "hashtags": hashtags,
+                }
+
+                content = self.renderer.render_pack(pack_data, channel, channel_config)
+
+                # 저장
+                if not self.dry_run:
+                    output_path = f"{self.config.vault.packs}/{channel}/{pack_data['id']}.md"
+                    self.vault.ensure_dir(f"{self.config.vault.packs}/{channel}")
+                    meta = self._parse_frontmatter(content)
+                    body = content.split("---", 2)[2].strip() if content.startswith("---") else content
+                    self.vault.write_note(output_path, body, metadata=meta, overwrite=True)
+                    logger.info(f"Created pack: {output_path}")
+
+                created_count += 1
+
+            except Exception as e:
+                logger.warning(f"Failed to create {channel} pack: {e}")
+
+        return created_count
 
     def _update_digest_status(self, date: str, input_id: str) -> None:
         """Input 노트의 writing_status 업데이트"""

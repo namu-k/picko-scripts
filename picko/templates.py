@@ -233,6 +233,9 @@ title: "{{ title }}"
 type: longform
 status: draft
 source_input: {{ source_input_id | wikilink }}
+derivative_status: pending
+packs_channels: []
+images_approved: false
 created_at: {{ created_at }}
 {% if tags %}tags:
 {% for tag in tags %}  - {{ tag }}
@@ -240,6 +243,13 @@ created_at: {{ created_at }}
 ---
 
 # {{ title }}
+
+> [!tip] 파생 콘텐츠 승인
+> 이 롱폼을 바탕으로 소셜 미디어 팩/이미지를 생성하려면 아래 체크박스를 선택하세요:
+> - [ ] **팩 생성**: Twitter, LinkedIn, Newsletter용 포스트 자동 생성
+> - [ ] **이미지 생성**: 썸네일용 이미지 프롬프트 자동 생성
+>
+> 체크 후 저장하면 `generate_content --type packs,images` 실행 시 자동 생성됩니다.
 
 {{ intro }}
 
