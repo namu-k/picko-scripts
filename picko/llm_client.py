@@ -208,6 +208,66 @@ class OpenRouterClient(BaseLLMClient):
                 yield chunk.choices[0].delta.content
 
 
+class RelayClient(BaseLLMClient):
+    """Relay API 클라이언트 (OpenAI 호환)"""
+
+    _client: Any
+
+    def __init__(self, config: LLMConfig):
+        self.config = config
+        self._client = None
+
+    @property
+    def client(self) -> Any:
+        if self._client is None:
+            from openai import OpenAI
+
+            self._client = OpenAI(
+                api_key=self.config.api_key,
+                base_url="https://www.relayservice.im/api/v1",
+            )
+        return self._client
+
+    def generate(
+        self,
+        prompt: str,
+        system_prompt: str | None = None,
+        temperature: float | None = None,
+        max_tokens: int | None = None,
+        **kwargs,
+    ) -> str:
+        """텍스트 생성"""
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        response = self.client.chat.completions.create(
+            model=self.config.model,
+            messages=messages,
+            temperature=temperature or self.config.temperature,
+            max_tokens=max_tokens or self.config.max_tokens,
+            **kwargs,
+        )
+
+        return response.choices[0].message.content  # type: ignore[no-any-return]
+
+    def generate_stream(self, prompt: str, system_prompt: str | None = None, **kwargs) -> Generator[str, None, None]:
+        """스트리밍 텍스트 생성"""
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        response = self.client.chat.completions.create(
+            model=self.config.model, messages=messages, temperature=self.config.temperature, stream=True, **kwargs
+        )
+
+        for chunk in response:
+            if chunk.choices[0].delta.content:
+                yield chunk.choices[0].delta.content
+
+
 class OllamaClient(BaseLLMClient):
     """Ollama 로컬 LLM 클라이언트"""
 
@@ -283,6 +343,8 @@ class LLMClient:
             self._client = AnthropicClient(config)
         elif config.provider == "openrouter":
             self._client = OpenRouterClient(config)
+        elif config.provider == "relay":
+            self._client = RelayClient(config)
         elif config.provider == "ollama":
             self._client = OllamaClient(config)
         else:
@@ -464,6 +526,8 @@ def get_summary_client() -> LLMClient:
             api_key_env = config.api_key_env
         elif config.provider == "openrouter":
             api_key_env = "OPENROUTER_API_KEY"
+        elif config.provider == "relay":
+            api_key_env = "RELAY_API_KEY"
         else:
             api_key_env = "OPENAI_API_KEY"
 
@@ -495,12 +559,21 @@ def get_writer_client() -> LLMClient:
         config = get_config().writer_llm
 
         # WriterLLMConfig를 LLMConfig 형태로 변환
+        if config.api_key_env:
+            writer_api_key_env = config.api_key_env
+        elif config.provider == "openrouter":
+            writer_api_key_env = "OPENROUTER_API_KEY"
+        elif config.provider == "relay":
+            writer_api_key_env = "RELAY_API_KEY"
+        else:
+            writer_api_key_env = "OPENAI_API_KEY"
+
         llm_config = LLMConfig(
             provider=config.provider,
             model=config.model,
             temperature=config.temperature,
             max_tokens=config.max_tokens,
-            api_key_env=config.api_key_env,
+            api_key_env=writer_api_key_env,
         )
 
         _writer_client = LLMClient(config=llm_config)
