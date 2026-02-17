@@ -112,6 +112,7 @@ class PromptLoader:
         name: str = "default",
         account_id: str | None = None,
         exploration: dict | None = None,
+        weekly_context: dict | None = None,
     ) -> str:
         """
         롱폼용 프롬프트 생성
@@ -121,6 +122,7 @@ class PromptLoader:
             name: 프롬프트 이름
             account_id: 계정 ID
             exploration: 탐색 결과 (선택적, 있으면 with_exploration 템플릿 사용)
+            weekly_context: 주간 슬롯 컨텍스트 (cta, customer_outcome 등)
 
         Returns:
             렌더링된 프롬프트
@@ -128,6 +130,9 @@ class PromptLoader:
         # 탐색 결과가 있으면 with_exploration 템플릿 사용
         if exploration:
             name = "with_exploration"
+
+        # weekly_context 준비
+        weekly = weekly_context or {}
 
         return self.render(
             "longform",
@@ -139,10 +144,19 @@ class PromptLoader:
             excerpt=input_content.get("excerpt", ""),
             tags=input_content.get("tags", []),
             exploration=exploration or {},
+            weekly_cta=weekly.get("cta", ""),
+            weekly_outcome=weekly.get("customer_outcome", ""),
+            weekly_kpi=weekly.get("operator_kpi", ""),
+            weekly_pillar_distribution=weekly.get("pillar_distribution", {}),
         )
 
     def get_pack_prompt(
-        self, channel: str, input_content: dict, channel_config: dict | None = None, account_id: str | None = None
+        self,
+        channel: str,
+        input_content: dict,
+        channel_config: dict | None = None,
+        account_id: str | None = None,
+        weekly_context: dict | None = None,
     ) -> str:
         """
         채널별 팩용 프롬프트 생성
@@ -152,11 +166,15 @@ class PromptLoader:
             input_content: 입력 콘텐츠
             channel_config: 채널 설정 (max_length, tone, hashtags)
             account_id: 계정 ID
+            weekly_context: 주간 슬롯 컨텍스트 (cta, customer_outcome 등)
 
         Returns:
             렌더링된 프롬프트
         """
         channel_config = channel_config or {}
+
+        # weekly_context 준비
+        weekly = weekly_context or {}
 
         return self.render(
             "packs",
@@ -169,6 +187,8 @@ class PromptLoader:
             tone=channel_config.get("tone", "casual"),
             use_hashtags=channel_config.get("hashtags", True),
             tags=input_content.get("tags", []),
+            weekly_cta=weekly.get("cta", ""),
+            weekly_outcome=weekly.get("customer_outcome", ""),
         )
 
     def get_image_prompt(self, input_content: dict, name: str = "default", account_id: str | None = None) -> str:
