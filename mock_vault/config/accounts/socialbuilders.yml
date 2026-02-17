@@ -7,12 +7,36 @@ target_audience:
   - 개발자
   - AI 연구자
   - 테크 리더
+
+# 관심 주제 (relevance scoring용) - dict 구조
 interests:
-  - artificial intelligence
-  - machine learning
-  - software development
-  - tech trends
-  - startup
+  primary:
+    - artificial intelligence
+    - machine learning
+    - software development
+  secondary:
+    - tech trends
+    - startup
+
+# 키워드 가중치 (relevance scoring용)
+keywords:
+  high_relevance:
+    - AI
+    - GPT
+    - LLM
+    - deep learning
+  medium_relevance:
+    - productivity
+    - automation
+  low_relevance:
+    - news
+    - trends
+
+# 신뢰 소스 (quality scoring용)
+trusted_sources:
+  - TechCrunch
+  - arXiv
+  - GitHub
 
 channels:
   twitter:
