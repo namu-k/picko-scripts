@@ -51,7 +51,14 @@ class OutputValidator:
     REQUIRED_FIELDS = {
         "input": ["id", "title", "source", "source_url", "status"],
         "digest": ["type", "date"],
-        "longform": ["id", "title", "type", "status", "source_input", "derivative_status"],
+        "longform": [
+            "id",
+            "title",
+            "type",
+            "status",
+            "source_input",
+            "derivative_status",
+        ],
         "pack": ["id", "type", "channel", "status"],
         "image_prompt": ["id", "type", "source_content", "status"],
     }
@@ -62,7 +69,11 @@ class OutputValidator:
     }
 
     # 콘텐츠 타입별 필수 섹션
-    REQUIRED_SECTIONS = {"input": ["요약"], "longform": ["핵심 내용"], "image_prompt": ["메인 프롬프트"]}
+    REQUIRED_SECTIONS = {
+        "input": ["요약"],
+        "longform": ["핵심 내용"],
+        "image_prompt": ["메인 프롬프트"],
+    }
 
     def __init__(self):
         self.config = get_config()
@@ -203,7 +214,15 @@ class OutputValidator:
 
         # 상태 값 검증
         status = meta.get("status")
-        valid_statuses = ["inbox", "draft", "review", "published", "archived", "pending", "generated"]
+        valid_statuses = [
+            "inbox",
+            "draft",
+            "review",
+            "published",
+            "archived",
+            "pending",
+            "generated",
+        ]
         if status and status not in valid_statuses:
             result.warnings.append(f"Unknown status: {status}")
 
@@ -219,14 +238,18 @@ class OutputValidator:
 def main():
     """CLI 엔트리포인트"""
     parser = argparse.ArgumentParser(description="Validate Output - 생성된 콘텐츠 검증")
-    parser.add_argument("path", nargs="?", default="Content/", help="검증할 경로 (기본: Content/)")
+    parser.add_argument("path_arg", nargs="?", default=None, help="검증할 경로 (기본: Content/)")
+    parser.add_argument("--path", "-p", dest="path_opt", default=None, help="검증할 경로 (--path 옵션)")
     parser.add_argument("--recursive", "-r", action="store_true", help="하위 디렉토리 포함")
     parser.add_argument("--verbose", "-v", action="store_true", help="상세 출력")
 
     args = parser.parse_args()
 
+    # --path 옵션이 있으면 우선 사용, 없으면 위치 인자, 없으면 기본값
+    path = args.path_opt or args.path_arg or "Content/"
+
     validator = OutputValidator()
-    report = validator.validate_path(args.path, recursive=args.recursive)
+    report = validator.validate_path(path, recursive=args.recursive)
 
     # 결과 출력
     print(f"\n{'=' * 60}")

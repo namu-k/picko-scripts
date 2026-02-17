@@ -49,13 +49,19 @@ class DailyCollector:
 
         logger.info(f"DailyCollector initialized for account: {self.account_id}")
 
-    def run(self, date: str | None = None, sources: list[str] | None = None) -> dict[str, Any]:
+    def run(
+        self,
+        date: str | None = None,
+        sources: list[str] | None = None,
+        max_items: int | None = None,
+    ) -> dict[str, Any]:
         """
         수집 파이프라인 실행
 
         Args:
             date: 대상 날짜 (기본: 오늘)
             sources: 특정 소스만 처리 (기본: 전체)
+            max_items: 처리할 최대 항목 수 (기본: 제한 없음)
 
         Returns:
             실행 결과 요약
@@ -95,6 +101,12 @@ class DailyCollector:
 
             # 6. 점수 계산
             scored_items = self._score(embedded_items)
+
+            # max_items 적용 (상위 N개만 처리)
+            if max_items is not None and max_items > 0:
+                scored_items = scored_items[:max_items]
+                logger.info(f"Limited to {len(scored_items)} items (max_items={max_items})")
+
             results["processed"] = len(scored_items)
 
             # 7. Input 노트 Export
@@ -417,13 +429,20 @@ def main():
     parser.add_argument("--date", "-d", help="대상 날짜 (YYYY-MM-DD, 기본: 오늘)")
     parser.add_argument("--account", "-a", default="socialbuilders", help="계정 프로필 ID")
     parser.add_argument("--sources", "-s", nargs="+", help="특정 소스만 처리")
+    parser.add_argument(
+        "--max-items",
+        "-m",
+        type=int,
+        default=None,
+        help="처리할 최대 항목 수 (기본: 제한 없음)",
+    )
     parser.add_argument("--dry-run", action="store_true", help="저장 없이 시뮬레이션")
 
     args = parser.parse_args()
 
     collector = DailyCollector(account_id=args.account, dry_run=args.dry_run)
 
-    results = collector.run(date=args.date, sources=args.sources)
+    results = collector.run(date=args.date, sources=args.sources, max_items=args.max_items)
 
     print(f"\n{'=' * 50}")
     print(f"Collection Results for {results['date']}")

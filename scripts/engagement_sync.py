@@ -14,6 +14,12 @@ from picko.config import get_config
 from picko.logger import setup_logger
 from picko.vault_io import VaultIO
 
+# Optional dependency: tweepy (Twitter API)
+try:
+    import tweepy  # type: ignore[import-not-found,import-untyped]
+except ImportError:
+    tweepy = None  # type: ignore[misc,assignment]
+
 logger = setup_logger("engagement_sync")
 
 
@@ -232,14 +238,17 @@ class EngagementSyncer:
         Twitter API 클라이언트 초기화 (lazy)
 
         Returns:
-            tweepy.Client 또는 None (API 키 없으면)
+            tweepy.Client 또는 None (API 키 없거나 tweepy 미설치 시)
         """
         if self._twitter_client is not None:
             return self._twitter_client
 
-        try:
-            import tweepy
+        # tweepy가 설치되지 않은 경우
+        if tweepy is None:
+            logger.warning("tweepy not installed - run: pip install tweepy")
+            return None
 
+        try:
             # 환경변수에서 API 키 로드
             bearer_token = os.environ.get("TWITTER_BEARER_TOKEN")
             api_key = os.environ.get("TWITTER_API_KEY")
@@ -252,7 +261,7 @@ class EngagementSyncer:
                 return None
 
             # Twitter API v2 클라이언트 생성
-            self._twitter_client = tweepy.Client(
+            self._twitter_client = tweepy.Client(  # type: ignore[union-attr]
                 bearer_token=bearer_token,
                 consumer_key=api_key,
                 consumer_secret=api_secret,
@@ -263,9 +272,6 @@ class EngagementSyncer:
             logger.info("Twitter API client initialized")
             return self._twitter_client
 
-        except ImportError:
-            logger.warning("tweepy not installed - run: pip install tweepy")
-            return None
         except Exception as e:
             logger.error(f"Failed to initialize Twitter client: {e}")
             return None

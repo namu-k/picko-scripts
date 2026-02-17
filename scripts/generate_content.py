@@ -20,6 +20,48 @@ from picko.vault_io import VaultIO
 logger = setup_logger("generate_content")
 
 
+def smart_truncate(text: str, max_length: int, suffix: str = "...") -> str:
+    """
+    텍스트를 max_length 이하로 자르되, 단어 경계에서 자릅니다.
+    해시태그가 포함된 경우 해시태그를 보존합니다.
+    """
+    if len(text) <= max_length:
+        return text
+
+    # 해시태그 분리 (본문 끝에 있는 경우)
+    lines = text.strip().split("\n")
+    hashtags = []
+    body_lines = []
+
+    for line in reversed(lines):
+        stripped = line.strip()
+        if stripped.startswith("#") and " " not in stripped:
+            hashtags.insert(0, stripped)
+        else:
+            body_lines = lines[lines.index(line) :]
+            break
+
+    body = "\n".join(body_lines).strip()
+    hashtag_str = " ".join(hashtags)
+
+    # 본문 + 해시태그가 max_length를 넘으면 본문 자르기
+    available_length = max_length - len(hashtag_str) - 1 if hashtag_str else max_length
+
+    if len(body) > available_length:
+        # 단어 경계에서 자르기
+        truncated = body[: available_length - len(suffix)]
+        last_space = truncated.rfind(" ")
+        if last_space > available_length // 2:
+            truncated = truncated[:last_space]
+        body = truncated + suffix
+
+    result = body
+    if hashtag_str:
+        result = f"{body}\n\n{hashtag_str}"
+
+    return result[:max_length]  # 최종 보장
+
+
 class ContentGenerator:
     """콘텐츠 생성기"""
 
@@ -122,7 +164,7 @@ class ContentGenerator:
             if not input_content:
                 return
 
-            self._generate_content_types(item, input_content, content_types, results)
+            self._generate_content_types(item, input_content, content_types, results, force)
 
             # Digest 상태 업데이트
             if not self.dry_run:
@@ -156,6 +198,7 @@ class ContentGenerator:
         input_content: dict[str, Any],
         content_types: list[str],
         results: dict[str, Any],
+        force: bool = False,
     ) -> None:
         """
         지정된 콘텐츠 타입들 생성
@@ -165,10 +208,11 @@ class ContentGenerator:
             input_content: Input 노트 내용
             content_types: 생성할 타입 목록
             results: 결과 집계 딕셔너리
+            force: 강제 재생성 여부
         """
-        # writing_status 확인: manual 또는 completed이면 스킵
+        # writing_status 확인: force가 아니고 manual/completed이면 스킵
         writing_status = input_content.get("writing_status", "pending")
-        if writing_status in ["manual", "completed"]:
+        if not force and writing_status in ["manual", "completed"]:
             logger.info(f"Skipping {writing_status} item: {item['input_id']}")
             return
 
@@ -405,8 +449,8 @@ class ContentGenerator:
         # WeeklySlot 컨텍스트 준비
         weekly_context = self._prepare_weekly_context()
 
-        # 계정 ID
-        account_id = item.get("account_id", "default")
+        # 계정 ID (None인 경우 기본값 사용)
+        account_id = item.get("account_id") or "socialbuilders"
 
         # 프롬프트 합성 (prompt_composer 사용)
         content_type = "longform_with_exploration" if exploration else "longform"
@@ -479,8 +523,8 @@ class ContentGenerator:
         """채널별 패키징 콘텐츠 생성"""
         logger.info(f"Generating packs for: {item['input_id']}")
 
-        # 계정 프로필에서 채널 설정 로드
-        account_id = item.get("account_id", "socialbuilders")
+        # 계정 프로필에서 채널 설정 로드 (None인 경우 기본값 사용)
+        account_id = item.get("account_id") or "socialbuilders"
         account = self.config.get_account(account_id)
         channels = account.get("channels", {})
 
@@ -501,6 +545,15 @@ class ContentGenerator:
                 )
 
                 text = self.llm.generate(prompt, max_tokens=500)
+
+                # max_length 강제 적용
+                max_length = channel_config.get("max_length", 280)
+                original_len = len(text)
+                if original_len > max_length:
+                    logger.warning(
+                        f"Pack text exceeded max_length ({original_len}/{max_length}), truncating: {channel}"
+                    )
+                    text = smart_truncate(text, max_length)
 
                 # 해시태그 추출
                 use_hashtags = channel_config.get("hashtags", True)
@@ -537,10 +590,10 @@ class ContentGenerator:
         """이미지 프롬프트 생성"""
         logger.info(f"Generating image prompt for: {item['input_id']}")
 
-        # 프롬프트 로더를 통해 이미지 프롬프트 생성
+        # 프롬프트 로더를 통해 이미지 프롬프트 생성 (None인 경우 기본값 사용)
         prompt = self.prompt_loader.get_image_prompt(
             input_content=input_content,
-            account_id=item.get("account_id"),
+            account_id=item.get("account_id") or "socialbuilders",
         )
 
         response = self.llm.generate(prompt, max_tokens=500)
@@ -680,7 +733,8 @@ class ContentGenerator:
         self, item: dict[str, Any], input_content: dict[str, Any], channels: list[str]
     ) -> int:
         """지정된 채널에 대해서만 팩 생성"""
-        account_id = item.get("account_id", "socialbuilders")
+        # None인 경우 기본값 사용
+        account_id = item.get("account_id") or "socialbuilders"
         account = self.config.get_account(account_id)
         all_channels = account.get("channels", {})
 
@@ -707,6 +761,15 @@ class ContentGenerator:
                 )
 
                 text = self.llm.generate(prompt, max_tokens=500)
+
+                # max_length 강제 적용
+                max_length = channel_config.get("max_length", 280)
+                original_len = len(text)
+                if original_len > max_length:
+                    logger.warning(
+                        f"Pack text exceeded max_length ({original_len}/{max_length}), truncating: {channel}"
+                    )
+                    text = smart_truncate(text, max_length)
 
                 # 해시태그 추출
                 use_hashtags = channel_config.get("hashtags", True)
