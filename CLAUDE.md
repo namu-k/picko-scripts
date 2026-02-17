@@ -83,6 +83,8 @@ export OPENAI_API_KEY=your_api_key_here  # macOS/Linux
 - **embedding.py**: Local-first embedding with sentence-transformers, OpenAI fallback
 - **scoring.py**: Content scoring algorithm (novelty, relevance, quality) with configurable weights
 - **account_context.py**: Account identity, weekly slot, and style profile loader for persona-based content
+- **prompt_loader.py**: External prompt loader from `config/prompts/` with Jinja2 template support
+- **prompt_composer.py**: Multi-layer prompt composition system (base + style + identity + context)
 - **templates.py**: Jinja2-based template rendering for different content formats
 - **logger.py**: Unified logging setup using loguru with daily rotation
 
@@ -125,6 +127,8 @@ The system uses different LLMs for different tasks via `picko/llm_client.py`:
 - **archive_manager.py**: Archives old unapproved content and cleans related cache
 - **retry_failed.py**: Retries failed items from logs by specific stage (fetch/nlp/embed/score/export)
 - **publish_log.py**: Creates and manages publication logs with platform tracking
+- **explore_topic.py**: Topic exploration script for thought expansion before longform writing
+- **style_extractor.py**: Extracts writing style from reference URLs and generates style prompts
 
 #### Phase 3: Analytics Scripts (Placeholder Implementations)
 - **engagement_sync.py**: Syncs platform metrics (views, likes, etc.) to publish logs - requires API integration
@@ -220,6 +224,8 @@ picko-scripts/
 │   ├── embedding.py         # Local-first embedding manager
 │   ├── scoring.py           # Content scoring algorithm
 │   ├── account_context.py   # Account identity, weekly slot, style profile loader
+│   ├── prompt_loader.py     # External prompt loader with Jinja2 template support
+│   ├── prompt_composer.py   # Multi-layer prompt composition system
 │   ├── templates.py         # Jinja2 template definitions (embedded)
 │   └── logger.py            # Loguru-based logging setup
 ├── scripts/                 # Executable CLI scripts
@@ -230,6 +236,8 @@ picko-scripts/
 │   ├── archive_manager.py   # Old content archival
 │   ├── retry_failed.py      # Retry failed pipeline items
 │   ├── publish_log.py       # Publication logging
+│   ├── explore_topic.py     # Topic exploration for longform writing
+│   ├── style_extractor.py   # Style extraction from reference URLs
 │   ├── engagement_sync.py   # Platform metrics sync (Phase 3)
 │   ├── score_calibrator.py  # Score weight analysis (Phase 3)
 │   ├── duplicate_checker.py # Duplicate detection (Phase 3)

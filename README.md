@@ -115,6 +115,19 @@ python -m scripts.explore_topic --input-id 7ce483b7a9e4
 python -m scripts.explore_topic --input-id 7ce483b7a9e4 --account socialbuilders
 ```
 
+### 스타일 추출
+
+```bash
+# URL에서 스타일 분석 및 프롬프트 추출
+python -m scripts.style_extractor --urls URL1 URL2 --name "style_name"
+
+# 파일에서 URL 목록 읽기
+python -m scripts.style_extractor --file urls.txt --name "style_name"
+
+# 결과 미리보기 (저장 없이)
+python -m scripts.style_extractor --urls URL1 --name "style_name" --dry-run
+```
+
 ### 검증 및 관리
 
 ```bash
@@ -152,10 +165,10 @@ picko-scripts/
 │   ├── config.yml      # 메인 설정
 │   ├── sources.yml     # RSS 소스
 │   ├── prompts/        # LLM 프롬프트 템플릿
-│   └── accounts/       # 계정 프로필
+│   ├── accounts/       # 계정 프로필
+│   └── reference_styles/  # 레퍼런스 스타일 분석
 ├── picko/              # 핵심 모듈
 ├── scripts/            # 실행 스크립트
-├── templates/          # 템플릿 파일
 ├── logs/              # 실행 로그
 ├── cache/             # 임베딩 캐시
 └── mock_vault/        # 테스트용 Obsidian Vault

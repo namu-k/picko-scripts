@@ -740,6 +740,33 @@ python -m scripts.generate_content --force
 python -m scripts.validate_output --path Content/ --recursive --verbose
 ```
 
+**6. 주제 탐색 (선택사항)**
+
+롱폼 작성 전에 주제를 확장하고 인사이트를 도출하려면:
+
+```bash
+# 특정 Input에 대한 주제 탐색
+python -m scripts.explore_topic --input-id 7ce483b7a9e4
+
+# 특정 계정 프로필로 탐색
+python -m scripts.explore_topic --input-id 7ce483b7a9e4 --account socialbuilders
+```
+
+**7. 스타일 추출 (선택사항)**
+
+레퍼런스 콘텐츠에서 작성 스타일을 추출하려면:
+
+```bash
+# URL에서 스타일 분석
+python -m scripts.style_extractor --urls URL1 URL2 --name "style_name"
+
+# 파일에서 URL 목록 읽기
+python -m scripts.style_extractor --file urls.txt --name "style_name"
+
+# 결과 미리보기 (저장 없이)
+python -m scripts.style_extractor --urls URL1 --name "style_name" --dry-run
+```
+
 ### 주간 루틴
 
 **1. 오래된 콘텐츠 아카이브**
@@ -788,6 +815,26 @@ python -m scripts.publish_log create --content Content/Longform/longform_xxx.md 
 | `--dry-run` | 저장 없이 시뮬레이션 | `--dry-run` |
 
 **content 타입:** `longform`, `packs`, `images`, `all`
+
+### explore_topic
+
+| 옵션 | 설명 | 예시 |
+|------|------|------|
+| `--date, -d` | Digest 날짜 (YYYY-MM-DD) | `--date 2026-02-09` |
+| `--input, -i` | 특정 Input ID만 탐색 | `--input 7ce483b7a9e4` |
+| `--force, -f` | 이미 탐색된 항목도 재탐색 | `--force` |
+| `--dry-run` | 저장 없이 시뮬레이션 | `--dry-run` |
+
+### style_extractor
+
+| 옵션 | 설명 | 예시 |
+|------|------|------|
+| `--urls` | 분석할 URL 목록 | `--urls URL1 URL2` |
+| `--file` | URL 목록 파일 | `--file urls.txt` |
+| `--name` | 스타일 이름 (필수) | `--name tech_influencer` |
+| `--output` | 출력 디렉토리 | `--output config/reference_styles` |
+| `--max-samples` | 최대 샘플 수 | `--max-samples 10` |
+| `--dry-run` | 저장 없이 분석만 | `--dry-run` |
 
 ---
 
@@ -985,7 +1032,7 @@ pip install sentence-transformers
 
 ---
 
-버전: 0.3.0
-최종 업데이트: 2026-02-10
+버전: 0.4.0 (unreleased)
+최종 업데이트: 2026-02-18
 모델 아키텍처: 요약/태깅(로컬) + 임베딩(로컬) + 글쓰기(클라우드)
-주요 변경사항: Pre-writing Approval 워크플로우 추가
+주요 변경사항: Account Context System, Prompt Composer, 주제 탐색, 스타일 추출기 추가
