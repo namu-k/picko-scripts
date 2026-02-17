@@ -82,6 +82,7 @@ export OPENAI_API_KEY=your_api_key_here  # macOS/Linux
 - **llm_client.py**: Multi-provider LLM client with Ollama (local), OpenAI, Anthropic, OpenRouter support
 - **embedding.py**: Local-first embedding with sentence-transformers, OpenAI fallback
 - **scoring.py**: Content scoring algorithm (novelty, relevance, quality) with configurable weights
+- **account_context.py**: Account identity, weekly slot, and style profile loader for persona-based content
 - **templates.py**: Jinja2-based template rendering for different content formats
 - **logger.py**: Unified logging setup using loguru with daily rotation
 
@@ -218,6 +219,7 @@ picko-scripts/
 │   ├── llm_client.py        # Multi-provider LLM client
 │   ├── embedding.py         # Local-first embedding manager
 │   ├── scoring.py           # Content scoring algorithm
+│   ├── account_context.py   # Account identity, weekly slot, style profile loader
 │   ├── templates.py         # Jinja2 template definitions (embedded)
 │   └── logger.py            # Loguru-based logging setup
 ├── scripts/                 # Executable CLI scripts
@@ -285,6 +287,31 @@ python -m scripts.daily_collector --date 2026-02-09 --dry-run
 - `temp_vault_dir`: Creates temporary vault directory structure
 - `mock_config`: Provides mocked Config object
 - `sample_input_data`: Sample input content for testing
+
+### Account Context Module
+
+The `account_context.py` module provides account persona loading for personalized content:
+
+```python
+from picko.account_context import get_identity, get_weekly_slot, get_style_for_account
+
+# Load account identity
+identity = get_identity("builders_social_club")
+print(identity.one_liner)  # "예비창업자~초기창업자가..."
+
+# Load weekly slot preset
+weekly_slot = get_weekly_slot("2026-02-16")
+print(weekly_slot.pillar_distribution)  # {"P1": 2, "P2": 2, "P3": 2, "P4": 1}
+
+# Load style profile
+style = get_style_for_account("builders_social_club")
+print(style["tone"])  # Style characteristics
+```
+
+**Data Structures:**
+- `AccountIdentity`: Account persona (one_liner, target_audience, pillars, tone_voice, boundaries)
+- `WeeklySlot`: Weekly content preset (pillar_distribution, customer_outcome, CTA)
+- `StyleProfile`: Writing style characteristics from reference analysis
 
 ## Environment Variables
 

@@ -30,3 +30,7 @@ pre-commit==4.5.1
 # Security
 safety==3.7.0
 pip-audit==2.10.0
+
+# Optional: Platform API integrations
+# Uncomment as needed for engagement_sync.py
+# tweepy==4.14.0  # Twitter/X API
