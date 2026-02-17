@@ -132,7 +132,7 @@ def parse_identity(md_content: str, account_id: str = "unknown") -> AccountIdent
 
         # 1) 한 문장 정의
         for key, content in sections.items():
-            if "한 문장 정의" in key or "one_liner" in key.lower():
+            if "한 문장" in key or "one_liner" in key.lower():
                 # ^one_liner 애노테이션으로 추출
                 for line in content.split("\n"):
                     if "^one_liner" in line:
@@ -398,6 +398,10 @@ class AccountContextLoader:
 
         # 파일명에서 account_id 추출
         account_id = file_path.stem
+
+        # 캐시 확인
+        if account_id in self._identity_cache:
+            return self._identity_cache[account_id]
 
         try:
             with open(file_path, "r", encoding="utf-8") as f:

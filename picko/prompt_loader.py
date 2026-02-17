@@ -18,7 +18,11 @@ DEFAULT_PROMPTS_DIR = Path(__file__).parent.parent / "config" / "prompts"
 class PromptLoader:
     """프롬프트 로더 - 파일에서 프롬프트를 로드하고 Jinja2로 렌더링"""
 
-    def __init__(self, prompts_dir: str | Path | None = None, account_overrides_dir: str | Path | None = None):
+    def __init__(
+        self,
+        prompts_dir: str | Path | None = None,
+        account_overrides_dir: str | Path | None = None,
+    ):
         """
         프롬프트 로더 초기화
 
@@ -48,7 +52,7 @@ class PromptLoader:
         프롬프트 로드
 
         Args:
-            prompt_type: 프롬프트 타입 (longform, packs, image)
+            prompt_type: 프롬프트 타입 (longform, packs, image) 또는 전체 경로 (longform/default.md)
             name: 프롬프트 이름 (기본: default)
             account_id: 계정 ID (오버라이드용)
 
@@ -58,22 +62,40 @@ class PromptLoader:
         Raises:
             FileNotFoundError: 프롬프트 파일을 찾을 수 없음
         """
+        # prompt_type이 이미 파일 경로인지 확인 (.md 확장자 포함 여부)
+        is_full_path = prompt_type.endswith(".md") and ("/" in prompt_type or "\\" in prompt_type)
+
         # 1. 계정별 오버라이드 확인
         if account_id and self.account_overrides_dir:
-            override_path = self.account_overrides_dir / account_id / "prompts" / prompt_type / f"{name}.md"
+            if is_full_path:
+                override_path = self.account_overrides_dir / account_id / "prompts" / prompt_type
+            else:
+                override_path = self.account_overrides_dir / account_id / "prompts" / prompt_type / f"{name}.md"
             if override_path.exists():
                 logger.debug(f"Using account override prompt: {override_path}")
                 return override_path.read_text(encoding="utf-8")
 
         # 2. 기본 프롬프트 로드
-        prompt_path = self.prompts_dir / prompt_type / f"{name}.md"
+        if is_full_path:
+            # 이미 전체 경로인 경우 그대로 사용
+            prompt_path = self.prompts_dir / prompt_type
+        else:
+            # 타입/이름 형태로 조합
+            prompt_path = self.prompts_dir / prompt_type / f"{name}.md"
+
         if not prompt_path.exists():
             raise FileNotFoundError(f"Prompt not found: {prompt_path}")
 
         logger.debug(f"Loading prompt: {prompt_path}")
         return prompt_path.read_text(encoding="utf-8")
 
-    def render(self, prompt_type: str, name: str = "default", account_id: str | None = None, **variables) -> str:
+    def render(
+        self,
+        prompt_type: str,
+        name: str = "default",
+        account_id: str | None = None,
+        **variables,
+    ) -> str:
         """
         프롬프트 로드 후 렌더링
 

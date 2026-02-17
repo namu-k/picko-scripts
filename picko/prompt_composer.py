@@ -3,6 +3,7 @@
 기본 프롬프트 + 스타일 프로필 + 계정 정체성 + 주간 컨텍스트를 합성
 """
 
+import json
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -210,7 +211,15 @@ class PromptComposer:
         Returns:
             ComposedPrompt 인스턴스
         """
-        cache_key = f"{self.account_id}:{content_type}:{hash(frozenset(self.variables.items()))}"
+
+        # 캐시 키 생성 (list/dict를 JSON 문자열로 변환하여 hash 가능하게)
+        def make_hashable(obj: Any) -> str:
+            if isinstance(obj, (list, dict)):
+                return json.dumps(obj, sort_keys=True, ensure_ascii=False)
+            return str(obj)
+
+        vars_hash = hash(frozenset((k, make_hashable(v)) for k, v in self.variables.items()))
+        cache_key = f"{self.account_id}:{content_type}:{vars_hash}"
 
         if cache_key in self._cache:
             return self._cache[cache_key]

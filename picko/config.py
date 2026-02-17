@@ -133,7 +133,13 @@ class ScoringConfig:
     """점수 계산 설정"""
 
     weights: dict = field(default_factory=lambda: {"novelty": 0.3, "relevance": 0.4, "quality": 0.3})
-    thresholds: dict = field(default_factory=lambda: {"auto_approve": 0.85, "auto_reject": 0.3, "minimum_display": 0.4})
+    thresholds: dict = field(
+        default_factory=lambda: {
+            "auto_approve": 0.85,
+            "auto_reject": 0.3,
+            "minimum_display": 0.4,
+        }
+    )
 
 
 @dataclass
@@ -188,11 +194,22 @@ class Config:
     def get_account(self, account_id: str) -> dict:
         """계정 프로필 로드"""
         if account_id not in self._accounts:
+            # 1. vault 루트 기준 경로 시도
             account_path = Path(self.vault.root) / self.accounts_dir / f"{account_id}.yml"
+
+            # 2. vault 경로에 없으면 프로젝트 루트 기준 경로 시도 (fallback)
+            if not account_path.exists():
+                account_path = PROJECT_ROOT / self.accounts_dir / f"{account_id}.yml"
+
             if account_path.exists():
                 with open(account_path, "r", encoding="utf-8") as f:
-                    self._accounts[account_id] = yaml.safe_load(f) or {}
-                logger.debug(f"Loaded account profile: {account_id}")
+                    loaded = yaml.safe_load(f) or {}
+                # dict가 아닌 경우 빈 dict로 폴백
+                if not isinstance(loaded, dict):
+                    logger.warning(f"Account profile is not a dict: {account_id}, got {type(loaded)}")
+                    loaded = {}
+                self._accounts[account_id] = loaded
+                logger.debug(f"Loaded account profile: {account_id} from {account_path}")
             else:
                 logger.warning(f"Account profile not found: {account_id}")
                 self._accounts[account_id] = {}
