@@ -261,11 +261,18 @@ class TestRealFilesIntegration:
     @pytest.mark.slow
     def test_load_real_identity(self):
         """실제 계정 정체성 파일 로드"""
-        loader = AccountContextLoader("mock_vault")
-        # 실제 파일 경로: config/Folders_to_operate_social-media_copied_from_Vault/aa. 소셜빌더스/
-        result = loader.load_identity_from_file(
-            "mock_vault/config/Folders_to_operate_social-media_copied_from_Vault/aa. 소셜빌더스/빌더스소셜클럽 — 계정 정체성.md"
+        from pathlib import Path
+
+        identity_file = Path(
+            "mock_vault/config/Folders_to_operate_social-media_copied_from_Vault/aa. 소셜빌더스/"
+            "빌더스소셜클럽 — 계정 정체성.md"
         )
+        # 파일이 gitignore되어 CI 환경에서는 없을 수 있으므로 존재 확인
+        if not identity_file.exists():
+            pytest.skip("Identity file not found (gitignored in CI)")
+
+        loader = AccountContextLoader("mock_vault")
+        result = loader.load_identity_from_file(str(identity_file))
 
         # 파일이 존재하면 파싱 확인
         assert result is not None
@@ -285,18 +292,21 @@ class TestRealFilesIntegration:
             "mock_vault/config/Folders_to_operate_social-media_copied_from_Vault/aa. 소셜빌더스/"
             "빌더스소셜클럽 — 주간 7개 주제 슬롯 프리셋(2-2-2-1).md"
         )
-        if weekly_slot_file.exists():
-            content = weekly_slot_file.read_text(encoding="utf-8")
-            result = parse_weekly_slot(content, "2026-02-16")
+        # 파일이 gitignore되어 CI 환경에서는 없을 수 있으므로 존재 확인
+        if not weekly_slot_file.exists():
+            pytest.skip("Weekly slot file not found (gitignored in CI)")
 
-            assert result is not None
-            assert result.account_id == "builders_social_club"
-            assert result.pillar_distribution == {"P1": 2, "P2": 2, "P3": 2, "P4": 1}
-            assert (
-                "검증" in result.customer_outcome
-                or "실행" in result.customer_outcome
-                or "로드맵" in result.customer_outcome
-            )
+        content = weekly_slot_file.read_text(encoding="utf-8")
+        result = parse_weekly_slot(content, "2026-02-16")
+
+        assert result is not None
+        assert result.account_id == "builders_social_club"
+        assert result.pillar_distribution == {"P1": 2, "P2": 2, "P3": 2, "P4": 1}
+        assert (
+            "검증" in result.customer_outcome
+            or "실행" in result.customer_outcome
+            or "로드맵" in result.customer_outcome
+        )
 
     @pytest.mark.slow
     def test_load_real_account_profile(self):
