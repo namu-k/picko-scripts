@@ -166,9 +166,7 @@ class TestCollectPerformanceData:
         assert result == []
 
     @patch("scripts.score_calibrator.get_config")
-    def test_collect_filters_non_published(
-        self, mock_get_config, mock_config, mock_vault
-    ):
+    def test_collect_filters_non_published(self, mock_get_config, mock_config, mock_vault):
         """Test that non-published items are filtered"""
         mock_get_config.return_value = mock_config
 
@@ -187,9 +185,7 @@ class TestCollectPerformanceData:
         assert result == []
 
     @patch("scripts.score_calibrator.get_config")
-    def test_collect_filters_low_engagement(
-        self, mock_get_config, mock_config, mock_vault
-    ):
+    def test_collect_filters_low_engagement(self, mock_get_config, mock_config, mock_vault):
         """Test that items below minimum engagement are filtered"""
         mock_get_config.return_value = mock_config
 
@@ -228,9 +224,7 @@ class TestCalculateCorrelations:
     """Tests for _calculate_correlations method"""
 
     @patch("scripts.score_calibrator.get_config")
-    def test_calculate_correlations_insufficient_data(
-        self, mock_get_config, mock_config
-    ):
+    def test_calculate_correlations_insufficient_data(self, mock_get_config, mock_config):
         """Test with insufficient data (< 3 records)"""
         mock_get_config.return_value = mock_config
 
@@ -256,7 +250,7 @@ class TestCalculateCorrelations:
             result = calibrator._calculate_correlations(records)
 
         # With < 3 records, should return zeros
-        assert result == {"novelty": 0, "relevance": 0, "quality": 0}
+        assert result == {"novelty": 0.0, "relevance": 0.0, "quality": 0.0}
 
     @patch("scripts.score_calibrator.get_config")
     def test_calculate_correlations_with_data(self, mock_get_config, mock_config):
@@ -307,7 +301,7 @@ class TestSuggestWeights:
         with patch.object(ScoreCalibrator, "__init__", lambda x: None):
             calibrator = ScoreCalibrator.__new__(ScoreCalibrator)
 
-            correlations = {"novelty": 0, "relevance": 0, "quality": 0}
+            correlations = {"novelty": 0.0, "relevance": 0.0, "quality": 0.0}
             result = calibrator._suggest_weights(correlations)
 
         # Should return equal weights
@@ -407,7 +401,7 @@ class TestEmptyReport:
             result = calibrator._empty_report()
 
         assert result.total_analyzed == 0
-        assert result.correlation == {"novelty": 0, "relevance": 0, "quality": 0}
+        assert result.correlation == {"novelty": 0.0, "relevance": 0.0, "quality": 0.0}
         assert result.improvement_estimate == 0
         assert result.top_performers == []
         assert result.underperformers == []
@@ -426,9 +420,7 @@ class TestApplyWeights:
         with patch.object(ScoreCalibrator, "__init__", lambda x: None):
             calibrator = ScoreCalibrator.__new__(ScoreCalibrator)
 
-            result = calibrator.apply_weights(
-                {"novelty": 0.3, "relevance": 0.4, "quality": 0.3}
-            )
+            result = calibrator.apply_weights({"novelty": 0.3, "relevance": 0.4, "quality": 0.3})
 
         # Should return False (not implemented)
         assert result is False
@@ -464,7 +456,7 @@ class TestAnalyze:
             calibrator.config = mock_config
             calibrator.vault = mock_vault
             calibrator.logs_path = "Logs/Publish"
-            calibrator._collect_performance_data = MagicMock(return_value=[])
+            calibrator._collect_performance_data = MagicMock(return_value=[])  # type: ignore[method-assign]
 
             result = calibrator.analyze(30, 10)
 
@@ -499,7 +491,7 @@ class TestAnalyze:
                 )
                 for i in range(5)
             ]
-            calibrator._collect_performance_data = MagicMock(return_value=records)
+            calibrator._collect_performance_data = MagicMock(return_value=records)  # type: ignore[method-assign]
 
             result = calibrator.analyze(30, 10)
 
