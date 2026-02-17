@@ -1,0 +1,40 @@
+# F5 — 검증 스크립트(validate_output) 시나리오
+# 목적: 생성된 롱폼·팩·이미지 프롬프트가 필수 frontmatter·섹션을 만족하는지 검증 스크립트로 확인.
+
+id: F5
+name: 검증 스크립트(validate_output)
+type: feature
+description: |
+  validate_output으로 지정 경로(또는 재귀) 검사. 필수 필드·필수 섹션·타입 감지가
+  올바른지, invalid/경고 건수가 기대와 맞는지 검증.
+
+input:
+  - 이미 생성된 Content/Longform/, Content/Packs/, Assets/Images/_prompts/ 등
+  - 또는 테스트용으로 만든 샘플 노트
+
+steps:
+  - description: 롱폼 경로 재귀 검증
+    command: |
+      python -m scripts.validate_output --path Content/Longform/ --recursive --verbose
+  - description: 팩 경로 재귀 검증
+    command: |
+      python -m scripts.validate_output --path Content/Packs/ --recursive --verbose
+  - description: 이미지 프롬프트 경로 검증
+    command: |
+      python -m scripts.validate_output --path Assets/Images/_prompts/ --recursive --verbose
+  - description: 전체 콘텐츠 루트 재귀 (선택)
+    command: |
+      python -m scripts.validate_output --path Content/ --recursive --verbose
+
+expected_outputs:
+  - 스크립트 종료 코드 0 (에러 시 비정상 종료 가능)
+  - valid_files / invalid_files 카운트, 개별 결과의 errors/warnings 목록
+
+metrics:
+  - success_rate
+  - length_compliance
+  - duration
+
+notes: |
+  의도적으로 필수 필드를 빼거나 잘못된 타입의 노트를 넣어 실패 케이스도 테스트하면
+  검증 로직 회귀 방지에 유리.

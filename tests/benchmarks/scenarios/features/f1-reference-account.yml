@@ -1,0 +1,46 @@
+# F1 — 레퍼런스 계정 문체 시나리오
+# 목적: 계정 프로필(config/accounts/*.yml)·레퍼런스 스타일이 롱폼/팩 생성에 반영되는지 검증.
+#       톤, CTA, 마무리 패턴이 계정별로 일관되는지 확인.
+
+id: F1
+name: 레퍼런스 계정 문체
+type: feature
+description: |
+  동일 입력에 대해 서로 다른 계정 프로필(또는 레퍼런스 스타일)을 적용했을 때
+  출력 톤·구조·CTA가 계정에 맞게 달라지는지 검증.
+  계정: config/accounts/*.yml (예: socialbuilders.yml) 및 get_identity, get_style_for_account 사용 구간.
+
+input:
+  - 이미 수집·승인된 입력 노트 1~3개 (또는 고정된 테스트 입력)
+  - 비교할 계정 ID (예: socialbuilders) — 계정이 하나면 동일 계정으로 생성 후 수동 톤 검토
+
+steps:
+  - description: 계정 프로필 로드 확인
+    command: |
+      python -c "
+      from picko.account_context import get_identity, get_style_for_account
+      id = get_identity('socialbuilders')
+      style = get_style_for_account('socialbuilders')
+      print('Identity:', id.one_liner[:80] if id else None)
+      print('Style keys:', list(style.keys()) if style else None)
+      "
+  - description: 해당 계정으로 롱폼/팩 생성 (generate_content는 config/CLI에서 계정 지정 시)
+    command: |
+      python -m scripts.generate_content --date 2026-02-16 --type longform
+      python -m scripts.generate_content --date 2026-02-16 --type packs
+    notes: |
+      현재 generate_content가 계정을 어떻게 받는지 확인 후, 계정별로 나눠 생성하거나
+      한 계정으로 생성한 뒤 출력물에서 톤·CTA·레퍼런스 반영 여부를 수동 평가.
+
+expected_outputs:
+  - Content/Longform/ (계정 톤이 반영된 롱폼)
+  - Content/Packs/ (채널별 팩, 계정 tone_voice 등 반영)
+
+metrics:
+  - account_consistency
+  - content_quality
+  - success_rate
+
+notes: |
+  계정이 여러 개일 때: 동일 날짜·입력에 대해 계정만 바꿔가며 생성한 뒤
+  account_consistency(1–5)로 레퍼런스와의 일치도를 기록.

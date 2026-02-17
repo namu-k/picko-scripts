@@ -1,0 +1,45 @@
+# S5 — 전체 소스·전체 타입 파이프라인
+# 목적: --sources 없이 전체 RSS 수집 후 전체 타입(longform, packs, images) 생성. 부하·안정성 검증.
+
+id: S5
+name: 전체 소스·전체 타입
+type: e2e
+description: |
+  config/sources.yml에 정의된 enabled 소스 전부로 수집하고,
+  승인된 항목에 대해 롱폼·팩·이미지 모두 생성.
+  실행 시간·에러율·리소스 사용 관찰용.
+
+run:
+  date: "2026-02-16"
+  # sources 생략 = 전체 소스 사용
+  use_all_sources: true
+
+commands:
+  dry_run: |
+    python -m scripts.daily_collector --date 2026-02-16 --dry-run
+  collect: |
+    python -m scripts.daily_collector --date 2026-02-16
+  generate: |
+    python -m scripts.generate_content --date 2026-02-16
+  validate: |
+    python -m scripts.validate_output --path Content/Longform/ --recursive --verbose
+    python -m scripts.validate_output --path Content/Packs/ --recursive --verbose
+  health: |
+    python -m scripts.health_check
+
+expected_outputs:
+  - Inbox/Inputs/_digests/
+  - Inbox/Inputs/
+  - Content/Longform/
+  - Content/Packs/
+  - Assets/Images/_prompts/
+
+metrics:
+  - success_rate
+  - error_retry_rate
+  - duration
+  - length_compliance
+  - content_quality
+
+notes: |
+  아이템 수가 많을 수 있으므로 시간 여유 있을 때 실행. duration 기록 권장.

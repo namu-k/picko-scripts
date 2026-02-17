@@ -1,0 +1,41 @@
+# F2 — 이미지 프롬프트·레이아웃 시나리오
+# 목적: 롱폼(또는 입력) → 채널별 이미지 프롬프트·레이아웃 추천 품질 검증.
+#       본문과 정합성, 채널 가이드(비율·분위기) 준수 여부 확인.
+
+id: F2
+name: 이미지 프롬프트·레이아웃
+type: feature
+description: |
+  완성된 롱폼 또는 입력 노트를 소스로 이미지 프롬프트만 생성해,
+  품질(본문과 맞는지, 채널별 스펙 반영 여부)을 평가.
+  관련: generate_content --type image, prompt_loader.get_image_prompt, get_channel_image_prompt.
+
+input:
+  - 이미 생성된 롱폼 2~5개 (또는 입력 노트)
+  - config/prompts/image/ 설정 및 채널별 이미지 스펙(있는 경우)
+
+steps:
+  - description: 이미지 프롬프트만 생성
+    command: |
+      python -m scripts.generate_content --date 2026-02-16 --type images
+    notes: |
+      날짜는 이미 롱폼/입력이 있는 날짜로 지정. 파생 승인 등 조건이 있으면
+      해당 조건을 만족한 뒤 실행.
+  - description: 생성된 이미지 프롬프트 검증
+    command: |
+      python -m scripts.validate_output --path Assets/Images/_prompts/ --recursive --verbose
+    notes: |
+      config.yml의 vault.images_prompts 경로에 맞게 경로 조정.
+
+expected_outputs:
+  - Assets/Images/_prompts/ (또는 config에 정의된 images_prompts 경로)
+  - 각 파일에 메인 프롬프트·채널별 레이아웃 힌트(구현 시) 등
+
+metrics:
+  - image_prompt_quality
+  - success_rate
+  - length_compliance
+
+notes: |
+  채널별 레이아웃 추천(예: twitter 16:9, linkedin 1:1)이 구현되어 있으면
+  해당 필드 존재 여부·내용 적절성도 체크리스트에 포함.

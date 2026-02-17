@@ -1,0 +1,39 @@
+# F7 — 점수·스코어링 시나리오
+# 목적: scoring 모듈의 가중치·임계값(auto_approve, auto_reject)이 기대대로 적용되는지 검증.
+
+id: F7
+name: 점수·스코어링
+type: feature
+description: |
+  수집 단계에서 계산되는 콘텐츠 점수(novelty, relevance, quality)와
+  config의 weights/thresholds가 반영되는지. 다이제스트 정렬·자동 승인/거부 경계 확인.
+
+input:
+  - config.yml의 scoring.weights, scoring.thresholds
+  - (선택) 고정된 입력 벡터 또는 테스트용 임베딩
+
+steps:
+  - description: 단위 테스트로 스코어링 로직 검증
+    command: |
+      pytest tests/test_scoring.py -v
+  - description: 수집 시 점수 분포 관찰
+    command: |
+      python -m scripts.daily_collector --date 2026-02-16 --sources techcrunch ai_news --dry-run
+    notes: |
+      로그 또는 다이제스트에서 점수 분포·auto_approve/auto_reject 근처 항목 확인.
+  - description: (선택) score_calibrator 실행
+    command: |
+      python -m scripts.score_calibrator --help
+    notes: |
+      실제 보정 실행은 publish/성과 데이터가 있을 때. 여기서는 스크립트 존재·옵션 확인.
+
+expected_outputs:
+  - test_scoring 통과
+  - dry_run 또는 실제 수집 시 점수 필드 존재, 임계값 대비 분류 일관성
+
+metrics:
+  - success_rate
+  - duration
+
+notes: |
+  weights를 바꾼 뒤 동일 소스·날짜로 수집해 점수·순위 변화를 비교하면 스코어링 민감도 파악 가능.

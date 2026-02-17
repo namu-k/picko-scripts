@@ -1,0 +1,47 @@
+# S3 — 다국어·혼합 언어 시나리오
+# 목적: 한글/영문 등 혼합 피드에서 언어 감지·롱폼/팩 출력 일관성·이미지 프롬프트 언어 검증.
+
+id: S3
+name: 다국어·혼합 언어
+type: e2e
+description: |
+  한/영 혼합 또는 다국어 소스를 사용해 수집→생성.
+  현재 sources.yml이 영문 위주이므로, 한글/혼합 소스를 추가한 뒤
+  이 시나리오의 sources를 해당 소스로 바꿔 실행하는 것을 권장.
+
+run:
+  date: "2026-02-16"
+  # 한글/혼합 소스가 등록되면 예: [korean_tech, ai_news] 등으로 변경
+  sources:
+    - techcrunch
+    - ai_news
+    - hacker_news
+
+commands:
+  dry_run: |
+    python -m scripts.daily_collector --date 2026-02-16 --sources techcrunch ai_news hacker_news --dry-run
+  collect: |
+    python -m scripts.daily_collector --date 2026-02-16 --sources techcrunch ai_news hacker_news
+  generate: |
+    python -m scripts.generate_content --date 2026-02-16
+  validate: |
+    python -m scripts.validate_output --path Content/Longform/ --recursive --verbose
+    python -m scripts.validate_output --path Content/Packs/ --recursive --verbose
+
+expected_outputs:
+  - Inbox/Inputs/_digests/
+  - Inbox/Inputs/
+  - Content/Longform/
+  - Content/Packs/
+  - Assets/Images/_prompts/
+
+metrics:
+  - success_rate
+  - error_retry_rate
+  - content_quality
+  - image_prompt_quality
+  - duration
+
+notes: |
+  다국어 전용 RSS가 없을 때는 기존 소스로 E2E만 돌리며, 추후 한글/혼합 소스 추가 시
+  run.sources와 commands를 해당 소스로 갱신해 사용.

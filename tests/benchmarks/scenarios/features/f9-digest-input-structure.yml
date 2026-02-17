@@ -1,0 +1,37 @@
+# F9 — 다이제스트·입력 노트 구조 시나리오
+# 목적: 수집 후 생성되는 다이제스트·입력 노트의 frontmatter·필수 필드·링크 구조가 규격에 맞는지 검증.
+
+id: F9
+name: 다이제스트·입력 노트 구조
+type: feature
+description: |
+  daily_collector 실행 후 Inbox/Inputs/_digests/ 및 Inbox/Inputs/ 하위 노트가
+  validate_output이 기대하는 input/digest 타입 규격을 만족하는지 확인.
+  필수 필드: id, title, source, source_url, status (input), type, date (digest) 등.
+
+input:
+  - 수집 완료된 vault (해당 날짜 다이제스트·입력 노트 존재)
+
+steps:
+  - description: 다이제스트 디렉토리 검증
+    command: |
+      python -m scripts.validate_output --path Inbox/Inputs/_digests/ --recursive --verbose
+  - description: 입력 노트 디렉토리 검증 (해당 날짜 하위)
+    command: |
+      python -m scripts.validate_output --path Inbox/Inputs/ --recursive --verbose
+    notes: |
+      path는 config vault.inbox 등에 맞게 조정. input 타입 노트만 있는 경로로 한정 가능.
+
+expected_outputs:
+  - digest 노트: type, date 등 필수 필드 존재
+  - input 노트: id, title, source, source_url, status, 요약 섹션 등 존재
+  - 다이제스트에서 입력 노트로의 링크(위키링크) 유효
+
+metrics:
+  - success_rate
+  - length_compliance
+  - duration
+
+notes: |
+  validate_output의 REQUIRED_FIELDS["input"], ["digest"]와 실제 노트를 대조해
+  신규 필드 추가 시 회귀 테스트로 활용.

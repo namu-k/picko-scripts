@@ -1,0 +1,49 @@
+# F8 — 임베딩·캐시 시나리오
+# 목적: embedding provider(ollama/local/openai)·캐시 적중·폴백이 정상 동작하는지 검증.
+
+id: F8
+name: 임베딩·캐시
+type: feature
+description: |
+  수집 시 임베딩 생성·캐시 저장/재사용이 동작하는지. provider 장애 시
+  fallback이 적용되는지 확인. 관련: picko/embedding.py, config embedding/cache 설정.
+
+input:
+  - config.yml의 embedding (provider, model, cache_enabled, cache_dir, fallback_*)
+  - cache/embeddings/ 디렉토리 (캐시 적중 테스트 시)
+
+steps:
+  - description: 임베딩 단일 벡터 생성 (캐시 미사용 시)
+    command: |
+      python -c "
+      from picko.embedding import get_embedding_manager
+      m = get_embedding_manager()
+      v = m.embed('Test sentence for embedding.')
+      print('dim:', len(v) if v else 0)
+      "
+  - description: 동일 텍스트 재호출 (캐시 적중 기대)
+    command: |
+      python -c "
+      from picko.embedding import get_embedding_manager
+      m = get_embedding_manager()
+      v1 = m.embed('Same text twice.')
+      v2 = m.embed('Same text twice.')
+      print('cached same:', v1 == v2 if v1 and v2 else 'N/A')
+      "
+  - description: 수집 dry_run으로 임베딩 경로 실행
+    command: |
+      python -m scripts.daily_collector --date 2026-02-16 --sources ai_news --dry-run
+    notes: |
+      로그에서 embedding 호출·캐시 hit/miss 여부 확인.
+
+expected_outputs:
+  - embed() 호출 시 차원이 config.dimensions와 일치하는 벡터 반환
+  - 캐시 사용 시 동일 입력에 대해 동일 벡터·캐시 hit 로그
+
+metrics:
+  - success_rate
+  - duration
+  - error_retry_rate
+
+notes: |
+  Ollama 중지 후 실행해 fallback이 동작하는지 확인하면 폴백 경로 검증 가능.

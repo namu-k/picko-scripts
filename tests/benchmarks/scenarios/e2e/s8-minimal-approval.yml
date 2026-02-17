@@ -1,0 +1,40 @@
+# S8 — 최소 승인 경로 시나리오
+# 목적: 다이제스트에서 1개만 체크(승인)한 뒤 생성해, 최소 경로가 정상 동작하는지 검증.
+
+id: S8
+name: 최소 승인 경로
+type: e2e
+description: |
+  수집 후 다이제스트에서 auto_ready로 체크된 항목을 1개만 두고
+  나머지는 체크 해제. generate_content로 1건만 롱폼·팩·이미지 생성되는지 확인.
+
+run:
+  date: "2026-02-16"
+  sources:
+    - techcrunch
+  approved_count: 1   # 의도적으로 1개만 승인
+
+commands:
+  collect: |
+    python -m scripts.daily_collector --date 2026-02-16 --sources techcrunch
+  # 수동: 다이제스트에서 1개만 체크
+  generate: |
+    python -m scripts.generate_content --date 2026-02-16
+  validate: |
+    python -m scripts.validate_output --path Content/Longform/ --recursive --verbose
+    python -m scripts.validate_output --path Content/Packs/ --recursive --verbose
+
+expected_outputs:
+  - Inbox/Inputs/_digests/
+  - Inbox/Inputs/
+  - Content/Longform/ (1건)
+  - Content/Packs/ (1건 대응)
+  - Assets/Images/_prompts/ (1건)
+
+metrics:
+  - success_rate
+  - duration
+  - content_quality
+
+notes: |
+  빠른 회귀 테스트용. 승인 1개만 두고 실행해 전체 플로우가 끊기지 않는지 확인.

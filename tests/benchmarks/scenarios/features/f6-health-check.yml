@@ -1,0 +1,33 @@
+# F6 — 헬스체크(health_check) 시나리오
+# 목적: API 키·vault 접근·RSS 소스·캐시/디스크 등 시스템 전제조건이 충족되는지 검증.
+
+id: F6
+name: 헬스체크(health_check)
+type: feature
+description: |
+  health_check 스크립트로 환경 상태 점검. 배포 전·CI·다른 머신에서
+  파이프라인을 돌리기 전에 실행해 실패 원인을 조기에 파악.
+
+input:
+  - .env 또는 환경 변수 (API 키 등)
+  - config.yml, config/sources.yml
+  - vault 루트 경로 접근 가능 여부
+
+steps:
+  - description: 기본 헬스체크
+    command: |
+      python -m scripts.health_check
+  - description: JSON 출력 (파싱·자동화용)
+    command: |
+      python -m scripts.health_check --json
+
+expected_outputs:
+  - 모든 체크 항목 통과 또는 실패 시 원인 메시지
+  - JSON 모드 시 파싱 가능한 구조
+
+metrics:
+  - success_rate
+  - duration
+
+notes: |
+  API 키를 비우거나 vault 경로를 잘못된 값으로 두고 실행해 실패 경로도 테스트 권장.

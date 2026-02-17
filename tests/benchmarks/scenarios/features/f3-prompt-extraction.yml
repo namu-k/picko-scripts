@@ -1,0 +1,46 @@
+# F3 — 글→프롬프트 추출 시나리오
+# 목적: 레퍼런스 글에서 톤/구조를 역추출해 프롬프트로 만든 뒤,
+#       그 프롬프트로 새 글을 썼을 때 레퍼런스와의 유사도(재현도) 검증.
+#       스크립트: scripts/style_extractor.py
+
+id: F3
+name: 글→프롬프트 추출
+type: feature
+description: |
+  "잘 쓴 글" 샘플(URL 또는 로컬 파일)을 style_extractor로 분석해
+  작성/이미지/영상용 프롬프트를 추출. 추출된 프롬프트만 읽었을 때
+  계정 느낌이 드는지, 해당 프롬프트로 생성한 글이 레퍼런스와 비슷한지 평가.
+
+input:
+  - 레퍼런스 글 URL 2~5개 또는 vault 내 마크다운 경로
+  - 스타일 이름(출력 디렉토리/파일 식별용)
+
+steps:
+  - description: URL 목록으로 스타일 추출 (예시)
+    command: |
+      python -m scripts.style_extractor --urls "https://example.com/post1" "https://example.com/post2" --name benchmark_style
+    notes: |
+      실제 실행 시 유효한 레퍼런스 URL로 교체. 또는 --file urls.txt 로 목록 파일 사용.
+  - description: 로컬 파일에서 추출 (구현되어 있을 경우)
+    command: |
+      python -m scripts.style_extractor --file path/to/urls.txt --name benchmark_style
+  - description: 출력물 확인
+    notes: |
+      스크립트 출력 디렉토리에서 writing_prompt.md, image_prompt.md 등 확인.
+      추출된 프롬프트를 config/prompts/ 또는 실험용 경로에 넣고,
+      generate_content 등에서 사용해 새 글 생성 후 수동 비교.
+
+expected_outputs:
+  - 스타일 분석 JSON/요약
+  - writing_prompt.md (글 작성용 프롬프트)
+  - image_prompt.md (이미지 프롬프트 템플릿)
+  - (구현 시) video 등 추가 산출물
+
+metrics:
+  - extraction_fidelity
+  - content_quality
+  - account_consistency
+
+notes: |
+  추출된 프롬프트로 실제 롱폼 1편을 생성한 뒤, 레퍼런스와 나란히 두고
+  톤·구조·에너지 유사도를 1–5점(extraction_fidelity)으로 기록하면 좋음.

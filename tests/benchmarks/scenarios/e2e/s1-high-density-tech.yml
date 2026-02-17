@@ -1,0 +1,46 @@
+# S1 — 고밀도 기술 기사 위주 시나리오
+# 목적: 기술 블로그/리서치 성격 피드로 수집→다이제스트→롱폼·팩·이미지 생성까지 검증.
+#       롱폼 길이·구조, 소셜 팩 길이·채널별 제약 준수 여부를 확인.
+
+id: S1
+name: 고밀도 기술 기사
+type: e2e
+description: |
+  techcrunch, ai_news, hacker_news 소스만 사용.
+  고정 날짜로 반복 실행해 변경 전후 비교에 사용.
+
+run:
+  date: "2026-02-16"   # 실행 시 동일 날짜 유지 권장
+  sources:
+    - techcrunch
+    - ai_news
+    - hacker_news
+  # 옵션: dry_run으로 먼저 확인 가능
+  # dry_run: true
+
+commands:
+  dry_run: |
+    python -m scripts.daily_collector --date 2026-02-16 --sources techcrunch ai_news hacker_news --max-items 20 --dry-run
+  collect: |
+    python -m scripts.daily_collector --date 2026-02-16 --sources techcrunch ai_news hacker_news --max-items 20
+  generate: |
+    python -m scripts.generate_content --date 2026-02-16
+  validate: |
+    python -m scripts.validate_output --path Content/Longform/ --recursive --verbose
+    python -m scripts.validate_output --path Content/Packs/ --recursive --verbose
+  health: |
+    python -m scripts.health_check
+
+expected_outputs:
+  - Inbox/Inputs/_digests/ (해당 날짜 다이제스트)
+  - Inbox/Inputs/ (입력 노트)
+  - Content/Longform/
+  - Content/Packs/
+  - Assets/Images/_prompts/ (또는 config 기준 이미지 프롬프트 경로)
+
+metrics:
+  - success_rate
+  - error_retry_rate
+  - length_compliance
+  - duration
+  - content_quality

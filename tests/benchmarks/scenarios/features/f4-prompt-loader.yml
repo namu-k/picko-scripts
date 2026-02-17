@@ -1,0 +1,55 @@
+# F4 — 외부 프롬프트 로더 시나리오
+# 목적: config/prompts/ (롱폼·팩·이미지) 로드가 정상 동작하는지, Jinja2 변수·계정 오버라이드 검증.
+
+id: F4
+name: 외부 프롬프트 로더
+type: feature
+description: |
+  PromptLoader가 config/prompts/ 및 계정별 오버라이드에서 프롬프트를
+  올바르게 로드하고 Jinja2 변수를 치환하는지 검증.
+  관련: picko/prompt_loader.py, config/prompts/.
+
+input:
+  - config/prompts/ 하위 longform, packs, image 디렉토리 및 default.md 등
+  - (선택) 계정별 prompts 오버라이드
+
+steps:
+  - description: 프롬프트 로드 (롱폼 default)
+    command: |
+      python -c "
+      from picko.prompt_loader import PromptLoader
+      loader = PromptLoader()
+      t = loader.load('longform', 'default')
+      print('longform/default length:', len(t))
+      print('has jinja:', '{{' in t)
+      "
+  - description: 롱폼 프롬프트에 변수 주입 후 렌더 테스트
+    command: |
+      python -c "
+      from picko.prompt_loader import PromptLoader
+      loader = PromptLoader()
+      prompt = loader.get_longform_prompt({'title': 'Test', 'summary': 'Short.'})
+      print('rendered length:', len(prompt))
+      "
+  - description: 이미지 프롬프트 로드
+    command: |
+      python -c "
+      from picko.prompt_loader import PromptLoader
+      loader = PromptLoader()
+      t = loader.load('image', 'default')
+      print('image/default length:', len(t))
+      "
+  - description: 계정 오버라이드 존재 시 로드
+    notes: |
+      account_id를 넘겨 계정별 prompts 디렉토리에서 로드되는지 확인.
+
+expected_outputs:
+  - 각 prompt_type별로 비어 있지 않은 문자열 반환
+  - Jinja2 변수({{ title }}, {{ summary }} 등) 치환 시 에러 없음
+
+metrics:
+  - success_rate
+  - duration
+
+notes: |
+  pytest의 test_prompt_loader.py와 연계해 자동화 가능. 수동 실행 시 로드 성공 여부만 기록.

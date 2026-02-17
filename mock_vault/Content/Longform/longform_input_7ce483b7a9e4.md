@@ -10,6 +10,9 @@ tags:
 - ai
 title: Amazon’s ‘Melania’ documentary stumbles in second weekend
 type: longform
+derivative_status: pending
+packs_channels: []
+images_approved: false
 ---
 
 # Amazon’s ‘Melania’ documentary stumbles in second weekend

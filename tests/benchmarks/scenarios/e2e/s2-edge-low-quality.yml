@@ -1,0 +1,46 @@
+# S2 — 엣지/저품질 소스 시나리오
+# 목적: 클릭베이트, 짧은 본문, 광고성 기사 등에서 요약·점수·생성 품질이 어떻게 나오는지 검증.
+#       과도한 상상 방지, 점수 하한/상한 반영 여부 확인.
+
+id: S2
+name: 엣지·저품질 소스
+type: e2e
+description: |
+  저품질·엣지 케이스가 많은 소스를 포함해 수집→생성 전 구간 검증.
+  현재 sources.yml에 전용 소스가 없으면, 기존 소스 중 본문이 짧거나
+  제목 위주인 피드가 많은 날짜/소스 조합으로 대체 실행 가능.
+
+run:
+  date: "2026-02-16"   # 또는 엣지가 많은 날짜로 조정
+  # 저품질 비중이 높은 소스가 있다면 여기 추가. 없으면 tech_news 등으로 대체 테스트.
+  sources:
+    - techcrunch
+    - hacker_news
+  # 필요 시 소스 추가 후 재정의
+  # sources: [clickbait_feed, short_body_feed]
+
+commands:
+  dry_run: |
+    python -m scripts.daily_collector --date 2026-02-16 --sources techcrunch hacker_news --dry-run
+  collect: |
+    python -m scripts.daily_collector --date 2026-02-16 --sources techcrunch hacker_news
+  generate: |
+    python -m scripts.generate_content --date 2026-02-16
+  validate: |
+    python -m scripts.validate_output --path Content/Longform/ --recursive --verbose
+
+expected_outputs:
+  - Inbox/Inputs/_digests/
+  - Inbox/Inputs/
+  - Content/Longform/
+
+metrics:
+  - success_rate
+  - error_retry_rate
+  - content_quality
+  - length_compliance
+  - duration
+
+notes: |
+  소스 추가 시 config/sources.yml에 엣지용 피드(예: 클릭베이트 성향 RSS)를 등록한 뒤
+  이 시나리오의 sources 목록을 갱신하면 됨.

@@ -1,0 +1,41 @@
+# S7 — 주간 슬롯(week-of) 적용 시나리오
+# 목적: WeeklySlot(주간 CTA·필러 분포 등)이 적용된 상태로 생성할 때 동작 검증.
+
+id: S7
+name: 주간 슬롯(week-of)
+type: e2e
+description: |
+  generate_content에 --week-of YYYY-MM-DD를 넘겨 해당 주의 WeeklySlot을 로드하고
+  롱폼/팩 생성에 반영. CTA·필러 분포 등이 설정대로 나오는지 확인.
+
+run:
+  date: "2026-02-16"
+  week_of: "2026-02-16"   # 해당 주의 월요일 또는 기준일
+  sources:
+    - techcrunch
+    - ai_news
+
+commands:
+  collect: |
+    python -m scripts.daily_collector --date 2026-02-16 --sources techcrunch ai_news
+  generate: |
+    python -m scripts.generate_content --date 2026-02-16 --week-of 2026-02-16
+  validate: |
+    python -m scripts.validate_output --path Content/Longform/ --recursive --verbose
+    python -m scripts.validate_output --path Content/Packs/ --recursive --verbose
+
+expected_outputs:
+  - Inbox/Inputs/_digests/
+  - Inbox/Inputs/
+  - Content/Longform/ (주간 CTA·필러 반영)
+  - Content/Packs/
+
+metrics:
+  - success_rate
+  - account_consistency
+  - content_quality
+  - duration
+
+notes: |
+  config/accounts 또는 WeeklySlot 데이터가 해당 week_of에 존재해야 함.
+  생성물에서 CTA 문구·필러 분포가 설정과 일치하는지 수동 점검.
