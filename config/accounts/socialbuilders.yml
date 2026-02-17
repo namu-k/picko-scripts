@@ -1,0 +1,95 @@
+# Socialbuilders Account Profile
+# 소셜빌더스클럽 계정 설정
+
+# 계정 기본 정보
+account_id: socialbuilders
+name: "빌더스소셜클럽"
+description: "예비창업자~초기창업자를 위한 실전 창업 인사이트"
+
+# 스타일 참조 (config/reference_styles/ 하위 디렉토리명)
+style_name: founder_tech_brief
+
+# 관심 주제 (relevance scoring용)
+interests:
+  primary:
+    - 창업
+    - 스타트업
+    - 비즈니스 모델
+    - 투자
+    - PMF
+    - 고객 개발
+    - 린 스타트업
+  secondary:
+    - 마케팅
+    - 성장 전략
+    - 팀 빌딩
+    - 프로덕트
+    - AI 도구
+    - 생산성
+
+# 키워드 가중치 (relevance scoring용)
+keywords:
+  high_relevance:
+    - 창업자
+    - 초기 창업
+    - 시드 투자
+    - 제품 시장 적합성
+    - 고객 인터뷰
+    - MVP
+    - 피벗
+  medium_relevance:
+    - 마케팅 전략
+    - 콘텐츠 마케팅
+    - 그로스 해킹
+    - 사용자 경험
+    - 데이터 기반
+  low_relevance:
+    - 트렌드
+    - 뉴스
+    - 동향
+
+# 신뢰 소스 (quality scoring용)
+trusted_sources:
+  - TechCrunch
+  - Y Combinator Blog
+  - First Round Review
+  - a16z
+  - Sequoia
+  - Harvard Business Review
+
+# 채널별 설정
+channels:
+  twitter:
+    enabled: true
+    max_length: 280
+    tone: "친근하고 간결, 인사이트 중심"
+    hashtags:
+      - "#창업"
+      - "#스타트업"
+      - "#빌더스소셜클럽"
+
+  linkedin:
+    enabled: true
+    max_length: 3000
+    tone: "전문적이면서도 접근 가능한, 스토리텔링 중심"
+    hashtags:
+      - "#창업"
+      - "#스타트업"
+      - "#비즈니스전략"
+
+  newsletter:
+    enabled: true
+    max_length: 5000
+    tone: "깊이 있는 분석, 실전 팁 중심"
+    subject_prefix: "[빌더스소셜클럽]"
+
+# 콘텐츠 생성 설정
+content_settings:
+  # 롱폼 생성 시 참조할 exploration 결과 활용
+  use_exploration: true
+  # 레퍼런스 스타일 적용
+  apply_reference_style: true
+  # 채널별 팩 생성 (기본값)
+  generate_packs: true
+  # 이미지 프롬프트 생성
+  generate_image_prompts: true

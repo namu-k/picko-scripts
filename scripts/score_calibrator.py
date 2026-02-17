@@ -218,7 +218,7 @@ class ScoreCalibrator:
             underperformers=[],
         )
 
-    def apply_weights(self, new_weights: dict[str, bool] = True) -> bool:
+    def apply_weights(self, new_weights: dict[str, float] | bool = True) -> bool:
         """
         제안된 가중치를 config.yml에 적용
 

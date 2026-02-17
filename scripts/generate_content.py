@@ -6,6 +6,7 @@ Generate Content 스크립트
 import argparse
 import re
 from datetime import datetime
+from typing import Any
 
 from picko.account_context import WeeklySlot, get_weekly_slot
 from picko.config import get_config
@@ -40,8 +41,12 @@ class ContentGenerator:
         logger.info("ContentGenerator initialized")
 
     def run(
-        self, date: str = None, content_types: list[str] = None, force: bool = False, auto_all: bool = False
-    ) -> dict:
+        self,
+        date: str | None = None,
+        content_types: list[str] | None = None,
+        force: bool = False,
+        auto_all: bool = False,
+    ) -> dict[str, Any]:
         """
         콘텐츠 생성 파이프라인 실행
 
@@ -61,7 +66,7 @@ class ContentGenerator:
 
         logger.info(f"Starting content generation for {date}, types: {content_types}")
 
-        results = {
+        results: dict[str, Any] = {
             "date": date,
             "approved_items": 0,
             "longform_created": 0,
@@ -91,7 +96,14 @@ class ContentGenerator:
         logger.info(f"Content generation complete: {results}")
         return results
 
-    def _process_item(self, item: dict, content_types: list[str], force: bool, date: str, results: dict) -> None:
+    def _process_item(
+        self,
+        item: dict[str, Any],
+        content_types: list[str],
+        force: bool,
+        date: str,
+        results: dict[str, Any],
+    ) -> None:
         """
         단일 항목 처리
 
@@ -120,7 +132,7 @@ class ContentGenerator:
             logger.error(f"Failed to process {item.get('input_id')}: {e}")
             results["errors"].append(str(e))
 
-    def _should_process_item(self, item: dict, force: bool) -> bool:
+    def _should_process_item(self, item: dict[str, Any], force: bool) -> bool:
         """
         항목 처리 여부 확인
 
@@ -138,7 +150,13 @@ class ContentGenerator:
 
         return True
 
-    def _generate_content_types(self, item: dict, input_content: dict, content_types: list[str], results: dict) -> None:
+    def _generate_content_types(
+        self,
+        item: dict[str, Any],
+        input_content: dict[str, Any],
+        content_types: list[str],
+        results: dict[str, Any],
+    ) -> None:
         """
         지정된 콘텐츠 타입들 생성
 
@@ -173,7 +191,7 @@ class ContentGenerator:
     # Digest 파싱
     # ─────────────────────────────────────────────────────────────
 
-    def _parse_digest(self, date: str, auto_all: bool = False) -> list[dict]:
+    def _parse_digest(self, date: str, auto_all: bool = False) -> list[dict[str, Any]]:
         """
         Digest에서 승인된 항목 파싱
         [x] 체크된 항목 추출 (auto_all=True면 미체크도 포함)
@@ -196,7 +214,7 @@ class ContentGenerator:
         lines = content.split("\n")
         return self._parse_digest_lines(lines, auto_all)
 
-    def _parse_digest_lines(self, lines: list[str], auto_all: bool) -> list[dict]:
+    def _parse_digest_lines(self, lines: list[str], auto_all: bool) -> list[dict[str, Any]]:
         """
         Digest 라인들 파싱
 
@@ -220,7 +238,13 @@ class ContentGenerator:
         # input_id가 있는 항목만 반환
         return [item for item in approved if item.get("input_id")]
 
-    def _parse_line(self, line: str, current_item: dict | None, auto_all: bool, approved: list) -> dict | None:
+    def _parse_line(
+        self,
+        line: str,
+        current_item: dict[str, Any] | None,
+        auto_all: bool,
+        approved: list[dict[str, Any]],
+    ) -> dict[str, Any] | None:
         """
         단일 라인 파싱
 
@@ -246,7 +270,7 @@ class ContentGenerator:
 
         return current_item
 
-    def _create_item_from_checkbox(self, match: re.Match, auto_all: bool) -> dict | None:
+    def _create_item_from_checkbox(self, match: re.Match[str], auto_all: bool) -> dict[str, Any] | None:
         """
         체크박스 매치에서 항목 생성
 
@@ -270,7 +294,7 @@ class ContentGenerator:
             }
         return None
 
-    def _parse_item_detail(self, line: str, current_item: dict) -> dict:
+    def _parse_item_detail(self, line: str, current_item: dict[str, Any]) -> dict[str, Any]:
         """
         항목 세부 정보 파싱
 
@@ -294,7 +318,7 @@ class ContentGenerator:
 
         return current_item
 
-    def _load_input(self, input_id: str) -> dict | None:
+    def _load_input(self, input_id: str) -> dict[str, Any] | None:
         """Input 노트 로드"""
         input_path = f"{self.config.vault.inbox}/{input_id}.md"
 
@@ -333,7 +357,7 @@ class ContentGenerator:
             logger.warning(f"Input not found: {input_path}")
             return None
 
-    def _load_exploration(self, input_id: str) -> dict | None:
+    def _load_exploration(self, input_id: str) -> dict[str, Any] | None:
         """탐색 노트 로드 (있으면)"""
         exploration_path = f"{self.config.vault.explorations}/explore_{input_id}.md"
 
@@ -371,7 +395,7 @@ class ContentGenerator:
     # 콘텐츠 생성
     # ─────────────────────────────────────────────────────────────
 
-    def _generate_longform(self, item: dict, input_content: dict) -> bool:
+    def _generate_longform(self, item: dict[str, Any], input_content: dict[str, Any]) -> bool:
         """Longform 콘텐츠 생성"""
         logger.info(f"Generating longform for: {item['input_id']}")
 
@@ -396,7 +420,7 @@ class ContentGenerator:
                 "key_points": input_content.get("key_points", []),
                 "excerpt": input_content.get("excerpt", ""),
                 "exploration": exploration,
-                **weekly_context,
+                **(weekly_context or {}),
             },
         )
 
@@ -429,7 +453,7 @@ class ContentGenerator:
 
         return True
 
-    def _parse_generated_sections(self, text: str) -> dict:
+    def _parse_generated_sections(self, text: str) -> dict[str, Any]:
         """LLM 생성 텍스트에서 섹션 파싱"""
         sections = {}
         current_section = None
@@ -451,7 +475,7 @@ class ContentGenerator:
 
         return sections
 
-    def _generate_packs(self, item: dict, input_content: dict) -> int:
+    def _generate_packs(self, item: dict[str, Any], input_content: dict[str, Any]) -> int:
         """채널별 패키징 콘텐츠 생성"""
         logger.info(f"Generating packs for: {item['input_id']}")
 
@@ -509,7 +533,7 @@ class ContentGenerator:
 
         return created_count
 
-    def _generate_image_prompt(self, item: dict, input_content: dict) -> bool:
+    def _generate_image_prompt(self, item: dict[str, Any], input_content: dict[str, Any]) -> bool:
         """이미지 프롬프트 생성"""
         logger.info(f"Generating image prompt for: {item['input_id']}")
 
@@ -543,7 +567,7 @@ class ContentGenerator:
 
         return True
 
-    def _generate_packs_with_approval(self, item: dict, input_content: dict) -> int:
+    def _generate_packs_with_approval(self, item: dict[str, Any], input_content: dict[str, Any]) -> int:
         """파생 승인 확인 후 팩 생성"""
         # 롱폼 노트에서 파생 승인 상태 확인
         derivative_status = self._check_derivative_approval(item["input_id"])
@@ -565,7 +589,7 @@ class ContentGenerator:
 
         return self._generate_packs_for_channels(item, input_content, approved_channels)
 
-    def _generate_image_with_approval(self, item: dict, input_content: dict) -> bool:
+    def _generate_image_with_approval(self, item: dict[str, Any], input_content: dict[str, Any]) -> bool:
         """파생 승인 확인 후 이미지 프롬프트 생성"""
         # 롱폼 노트에서 파생 승인 상태 확인
         derivative_status = self._check_derivative_approval(item["input_id"])
@@ -585,7 +609,7 @@ class ContentGenerator:
 
         return self._generate_image_prompt(item, input_content)
 
-    def _check_derivative_approval(self, input_id: str) -> dict:
+    def _check_derivative_approval(self, input_id: str) -> dict[str, Any]:
         """롱폼 노트에서 파생 승인 상태 및 채널 선택 확인"""
         longform_path = f"{self.config.vault.longform}/longform_{input_id}.md"
 
@@ -636,7 +660,7 @@ class ContentGenerator:
             logger.debug(f"Longform not found for derivative check: {input_id}")
             return {"status": "pending", "packs_channels": [], "images_approved": False}
 
-    def _load_longform_content(self, input_id: str) -> dict | None:
+    def _load_longform_content(self, input_id: str) -> dict[str, Any] | None:
         """롱폼 노트 내용 로드"""
         longform_path = f"{self.config.vault.longform}/longform_{input_id}.md"
 
@@ -652,7 +676,9 @@ class ContentGenerator:
         except FileNotFoundError:
             return None
 
-    def _generate_packs_for_channels(self, item: dict, input_content: dict, channels: list[str]) -> int:
+    def _generate_packs_for_channels(
+        self, item: dict[str, Any], input_content: dict[str, Any], channels: list[str]
+    ) -> int:
         """지정된 채널에 대해서만 팩 생성"""
         account_id = item.get("account_id", "socialbuilders")
         account = self.config.get_account(account_id)
@@ -730,7 +756,7 @@ class ContentGenerator:
         except Exception as e:
             logger.warning(f"Failed to update status for {input_id}: {e}")
 
-    def _prepare_weekly_context(self) -> dict | None:
+    def _prepare_weekly_context(self) -> dict[str, Any] | None:
         """
         WeeklySlot에서 CTA, customer_outcome 등 추출하여 프롬프트 컨텍스트 생성
 
@@ -747,7 +773,7 @@ class ContentGenerator:
             "pillar_distribution": self.weekly_slot.pillar_distribution,
         }
 
-    def _parse_frontmatter(self, content: str) -> dict:
+    def _parse_frontmatter(self, content: str) -> dict[str, Any]:
         """frontmatter 파싱"""
         import yaml
 
@@ -775,7 +801,9 @@ def main():
     parser.add_argument("--force", "-f", action="store_true", help="이미 생성된 항목도 재생성")
     parser.add_argument("--dry-run", action="store_true", help="저장 없이 시뮬레이션")
     parser.add_argument(
-        "--auto-all", action="store_true", help="체크되지 않은 항목도 자동으로 처리 (수동 작업 거부 시)"
+        "--auto-all",
+        action="store_true",
+        help="체크되지 않은 항목도 자동으로 처리 (수동 작업 거부 시)",
     )
     parser.add_argument("--week-of", "-w", help="주간 슬롯 시작일 (YYYY-MM-DD, WeeklySlot 로드용)")
 
@@ -802,7 +830,12 @@ def main():
 
     generator = ContentGenerator(dry_run=args.dry_run, weekly_slot=weekly_slot)
 
-    results = generator.run(date=args.date, content_types=content_types, force=args.force, auto_all=args.auto_all)
+    results = generator.run(
+        date=args.date,
+        content_types=content_types,
+        force=args.force,
+        auto_all=args.auto_all,
+    )
 
     print(f"\n{'=' * 50}")
     print(f"Content Generation Results for {results['date']}")

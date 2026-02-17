@@ -4,9 +4,11 @@ Engagement Sync 스크립트
 """
 
 import argparse
+import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from picko.config import get_config
 from picko.logger import setup_logger
@@ -26,7 +28,7 @@ class EngagementMetrics:
     clicks: int = 0
     impressions: int = 0
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, int]:
         return {
             "views": self.views,
             "likes": self.likes,
@@ -52,15 +54,26 @@ class SyncResult:
 class EngagementSyncer:
     """성과 메트릭 동기화 관리자"""
 
-    SUPPORTED_PLATFORMS = ["twitter", "linkedin", "newsletter", "blog", "instagram", "youtube"]
+    SUPPORTED_PLATFORMS = [
+        "twitter",
+        "linkedin",
+        "newsletter",
+        "blog",
+        "instagram",
+        "youtube",
+    ]
 
     def __init__(self):
         self.config = get_config()
         self.vault = VaultIO()
         self.logs_path = "Logs/Publish"
+
+        # Twitter API 클라이언트 (lazy initialization)
+        self._twitter_client = None
+
         logger.info("EngagementSyncer initialized")
 
-    def sync_all(self, days: int = 7, platforms: list[str] = None, dry_run: bool = False) -> list[SyncResult]:
+    def sync_all(self, days: int = 7, platforms: list[str] | None = None, dry_run: bool = False) -> list[SyncResult]:
         """
         모든 발행 로그의 성과 메트릭 동기화
 
@@ -142,7 +155,10 @@ class EngagementSyncer:
 
             if platform not in self.SUPPORTED_PLATFORMS:
                 return SyncResult(
-                    log_path=log_path, platform=platform, success=False, error=f"Unsupported platform: {platform}"
+                    log_path=log_path,
+                    platform=platform,
+                    success=False,
+                    error=f"Unsupported platform: {platform}",
                 )
 
             metrics = self._fetch_metrics(meta, platform)
@@ -162,7 +178,7 @@ class EngagementSyncer:
             logger.error(f"Failed to sync {log_path}: {e}")
             return SyncResult(log_path=log_path, platform="unknown", success=False, error=str(e))
 
-    def _get_published_logs(self, since: datetime) -> list[dict]:
+    def _get_published_logs(self, since: datetime) -> list[dict[str, Any]]:
         """발행 완료된 로그 조회"""
         logs = []
         notes = self.vault.list_notes(self.logs_path)
@@ -185,46 +201,174 @@ class EngagementSyncer:
 
         return logs
 
-    def _fetch_metrics(self, log_entry: dict, platform: str) -> EngagementMetrics | None:
+    def _fetch_metrics(self, log_entry: dict[str, Any], platform: str) -> EngagementMetrics | None:
         """
-        플랫폼 API에서 메트릭 가져오기 (Placeholder)
+        플랫폼 API에서 메트릭 가져오기
 
-        Note: 실제 구현 시 각 플랫폼의 API 연결 필요
-        - Twitter/X: Tweepy / official API
-        - LinkedIn: LinkedIn API
-        - Newsletter: Substack API, etc.
+        Args:
+            log_entry: 발행 로그 정보 (content_id, published_url 등)
+            platform: 플랫폼명 (twitter, linkedin 등)
+
+        Returns:
+            EngagementMetrics 또는 None (API 미지원/실패 시)
         """
-        # TODO: 각 플랫폼별 API 구현
-        # 현재는 더미 데이터 반환
-
         content_id = log_entry.get("content_id", "")
+        published_url = log_entry.get("published_url", "")
 
         logger.debug(f"Fetching metrics for {platform}: {content_id}")
 
-        # Placeholder: 실제 API 호출 없이 0 반환
-        # API 구현 예시:
-        # if platform == "twitter":
-        #     return self._fetch_twitter_metrics(published_url)
-        # elif platform == "linkedin":
-        #     return self._fetch_linkedin_metrics(published_url)
+        # 플랫폼별 API 호출
+        if platform == "twitter":
+            return self._fetch_twitter_metrics(content_id, published_url)
+        elif platform == "linkedin":
+            return self._fetch_linkedin_metrics(content_id, published_url)
+        else:
+            # 미구현 플랫폼은 빈 메트릭 반환
+            logger.warning(f"Platform {platform} not yet implemented")
+            return EngagementMetrics()
 
+    def _get_twitter_client(self):
+        """
+        Twitter API 클라이언트 초기화 (lazy)
+
+        Returns:
+            tweepy.Client 또는 None (API 키 없으면)
+        """
+        if self._twitter_client is not None:
+            return self._twitter_client
+
+        try:
+            import tweepy
+
+            # 환경변수에서 API 키 로드
+            bearer_token = os.environ.get("TWITTER_BEARER_TOKEN")
+            api_key = os.environ.get("TWITTER_API_KEY")
+            api_secret = os.environ.get("TWITTER_API_SECRET")
+            access_token = os.environ.get("TWITTER_ACCESS_TOKEN")
+            access_token_secret = os.environ.get("TWITTER_ACCESS_TOKEN_SECRET")
+
+            if not bearer_token:
+                logger.warning("TWITTER_BEARER_TOKEN not set - Twitter metrics unavailable")
+                return None
+
+            # Twitter API v2 클라이언트 생성
+            self._twitter_client = tweepy.Client(
+                bearer_token=bearer_token,
+                consumer_key=api_key,
+                consumer_secret=api_secret,
+                access_token=access_token,
+                access_token_secret=access_token_secret,
+            )
+
+            logger.info("Twitter API client initialized")
+            return self._twitter_client
+
+        except ImportError:
+            logger.warning("tweepy not installed - run: pip install tweepy")
+            return None
+        except Exception as e:
+            logger.error(f"Failed to initialize Twitter client: {e}")
+            return None
+
+    def _fetch_twitter_metrics(self, content_id: str, url: str) -> EngagementMetrics:
+        """
+        Twitter API로 메트릭 수집
+
+        Args:
+            content_id: 트윗 ID (숫자 형태)
+            url: 트윗 URL (백업용)
+
+        Returns:
+            EngagementMetrics (API 실패 시 빈 메트릭)
+        """
+        client = self._get_twitter_client()
+        if not client:
+            logger.warning("Twitter client not available")
+            return EngagementMetrics()
+
+        try:
+            # URL에서 트윗 ID 추출 (없으면 content_id 사용)
+            tweet_id = self._extract_tweet_id(url) or content_id
+
+            if not tweet_id:
+                logger.warning(f"No tweet ID found for {url}")
+                return EngagementMetrics()
+
+            # Twitter API v2로 트윗 메트릭 조회
+            response = client.get_tweet(
+                tweet_id,
+                tweet_fields=["public_metrics", "non_public_metrics"],
+            )
+
+            if not response.data:
+                logger.warning(f"No data returned for tweet {tweet_id}")
+                return EngagementMetrics()
+
+            metrics = response.data.public_metrics
+
+            return EngagementMetrics(
+                views=getattr(metrics, "impression_count", 0) or 0,
+                likes=getattr(metrics, "like_count", 0) or 0,
+                comments=getattr(metrics, "reply_count", 0) or 0,
+                shares=(getattr(metrics, "retweet_count", 0) or 0) + (getattr(metrics, "quote_count", 0) or 0),
+                clicks=0,  # Twitter API에서 제공하지 않음
+                impressions=getattr(metrics, "impression_count", 0) or 0,
+            )
+
+        except Exception as e:
+            logger.error(f"Failed to fetch Twitter metrics: {e}")
+            return EngagementMetrics()
+
+    def _extract_tweet_id(self, url: str) -> str | None:
+        """
+        트윗 URL에서 ID 추출
+
+        Args:
+            url: 트윗 URL (예: https://twitter.com/user/status/1234567890)
+
+        Returns:
+            트윗 ID 또는 None
+        """
+        import re
+
+        if not url:
+            return None
+
+        # Twitter/X URL 패턴 매칭
+        patterns = [
+            r"twitter\.com/\w+/status/(\d+)",
+            r"x\.com/\w+/status/(\d+)",
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, url)
+            if match:
+                return match.group(1)
+
+        return None
+
+    def _fetch_linkedin_metrics(self, content_id: str, url: str) -> EngagementMetrics:
+        """
+        LinkedIn API 메트릭 수집
+
+        Args:
+            content_id: LinkedIn 게시물 ID
+            url: 게시물 URL
+
+        Returns:
+            EngagementMetrics (미구현 시 빈 메트릭)
+        """
+        # TODO: LinkedIn API 구현 필요
+        # LinkedIn API는 OAuth 2.0 인증 필요
+        logger.warning("LinkedIn API not yet implemented")
         return EngagementMetrics()
-
-    def _fetch_twitter_metrics(self, url: str) -> EngagementMetrics:
-        """Twitter API 메트릭 수집 (TODO: 구현 필요)"""
-        # import tweepy
-        # client = tweepy.Client(bearer_token="...")
-        # tweet = client.get_tweet(...)
-        # return EngagementMetrics(likes=tweet.like_count, ...)
-        raise NotImplementedError("Twitter API integration not implemented")
-
-    def _fetch_linkedin_metrics(self, url: str) -> EngagementMetrics:
-        """LinkedIn API 메트릭 수집 (TODO: 구현 필요)"""
-        raise NotImplementedError("LinkedIn API integration not implemented")
 
     def _update_log_metrics(self, log_path: str, metrics: EngagementMetrics):
         """발행 로그의 메트릭 업데이트"""
-        updates = {"metrics": metrics.to_dict(), "metrics_synced_at": datetime.now().isoformat()}
+        updates = {
+            "metrics": metrics.to_dict(),
+            "metrics_synced_at": datetime.now().isoformat(),
+        }
         self.vault.update_frontmatter(log_path, updates)
 
 
@@ -235,7 +379,11 @@ def main():
     parser.add_argument("--log", "-l", help="단일 로그 파일 동기화")
     parser.add_argument("--days", "-d", type=int, default=7, help="최근 N일의 로그 동기화 (기본: 7)")
     parser.add_argument(
-        "--platforms", "-p", nargs="+", choices=EngagementSyncer.SUPPORTED_PLATFORMS, help="대상 플랫폼"
+        "--platforms",
+        "-p",
+        nargs="+",
+        choices=EngagementSyncer.SUPPORTED_PLATFORMS,
+        help="대상 플랫폼",
     )
     parser.add_argument("--dry-run", action="store_true", help="실제 업데이트 없이 시뮬레이션")
 

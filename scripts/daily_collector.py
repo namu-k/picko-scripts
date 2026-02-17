@@ -7,6 +7,7 @@ import argparse
 import hashlib
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 import feedparser
@@ -27,7 +28,7 @@ logger = setup_logger("daily_collector")
 class DailyCollector:
     """일일 콘텐츠 수집기"""
 
-    def __init__(self, account_id: str = None, dry_run: bool = False):
+    def __init__(self, account_id: str | None = None, dry_run: bool = False):
         self.config = get_config()
         self.vault = VaultIO()
         # 요약/태깅용 로컬 LLM 사용
@@ -48,7 +49,7 @@ class DailyCollector:
 
         logger.info(f"DailyCollector initialized for account: {self.account_id}")
 
-    def run(self, date: str = None, sources: list[str] = None) -> dict:
+    def run(self, date: str | None = None, sources: list[str] | None = None) -> dict[str, Any]:
         """
         수집 파이프라인 실행
 
@@ -64,7 +65,13 @@ class DailyCollector:
 
         logger.info(f"Starting collection for date: {date}")
 
-        results = {"date": date, "collected": 0, "processed": 0, "exported": 0, "errors": []}
+        results: dict[str, Any] = {
+            "date": date,
+            "collected": 0,
+            "processed": 0,
+            "exported": 0,
+            "errors": [],
+        }
 
         try:
             # 1. 소스에서 URL 수집
@@ -112,7 +119,7 @@ class DailyCollector:
     # 파이프라인 단계
     # ─────────────────────────────────────────────────────────────
 
-    def _ingest(self, source_filter: list[str] = None) -> list[dict]:
+    def _ingest(self, source_filter: list[str] | None = None) -> list[dict[str, Any]]:
         """소스에서 URL 수집"""
         items = []
         sources_config = self.config.sources.get("sources", [])
@@ -138,7 +145,7 @@ class DailyCollector:
 
         return items
 
-    def _fetch_rss(self, source: dict) -> list[dict]:
+    def _fetch_rss(self, source: dict[str, Any]) -> list[dict[str, Any]]:
         """RSS 피드 파싱"""
         feed = feedparser.parse(source["url"])
         items = []
@@ -157,7 +164,7 @@ class DailyCollector:
 
         return items
 
-    def _dedupe(self, items: list[dict]) -> list[dict]:
+    def _dedupe(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """URL 정규화 + 중복 제거"""
         seen_hashes = set()
         unique = []
@@ -193,7 +200,7 @@ class DailyCollector:
         canonical = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
         return canonical.rstrip("/")
 
-    def _fetch(self, items: list[dict]) -> list[dict]:
+    def _fetch(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """본문/제목/발행일 추출"""
         fetched = []
 
@@ -230,7 +237,7 @@ class DailyCollector:
 
         return fetched
 
-    def _nlp_process(self, items: list[dict]) -> list[dict]:
+    def _nlp_process(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """LLM으로 요약/핵심/태깅"""
         processed = []
 
@@ -275,7 +282,7 @@ class DailyCollector:
 
         return processed
 
-    def _embed(self, items: list[dict]) -> list[dict]:
+    def _embed(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """임베딩 생성"""
         for item in items:
             try:
@@ -287,7 +294,7 @@ class DailyCollector:
 
         return items
 
-    def _score(self, items: list[dict]) -> list[dict]:
+    def _score(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """점수 계산"""
         # 기존 임베딩 로드 (novelty 계산용)
         existing_embeddings = self._load_existing_embeddings()
@@ -318,7 +325,7 @@ class DailyCollector:
         self._existing_embeddings = embeddings
         return embeddings
 
-    def _export(self, items: list[dict], date: str) -> list[Path]:
+    def _export(self, items: list[dict[str, Any]], date: str) -> list[Path]:
         """Input 노트 Export"""
         exported = []
         inbox_path = self.config.vault.inbox
@@ -341,7 +348,9 @@ class DailyCollector:
             note_path = f"{inbox_path}/{note_id}.md"
             try:
                 saved = self.vault.write_note(
-                    note_path, content.split("---", 2)[2].strip(), metadata=self._parse_frontmatter(content)
+                    note_path,
+                    content.split("---", 2)[2].strip(),
+                    metadata=self._parse_frontmatter(content),
                 )
                 exported.append(saved)
                 logger.debug(f"Exported: {note_path}")
@@ -350,7 +359,7 @@ class DailyCollector:
 
         return exported
 
-    def _parse_frontmatter(self, content: str) -> dict:
+    def _parse_frontmatter(self, content: str) -> dict[str, Any]:
         """frontmatter 파싱"""
         import yaml
 
@@ -360,7 +369,7 @@ class DailyCollector:
                 return yaml.safe_load(parts[1]) or {}
         return {}
 
-    def _create_digest(self, items: list[dict], date: str) -> Path:
+    def _create_digest(self, items: list[dict[str, Any]], date: str) -> Path:
         """Digest 노트 생성"""
         # 표시할 항목만 필터링
         display_items = []
@@ -388,7 +397,7 @@ class DailyCollector:
             logger.error(f"Failed to create digest: {e}")
             raise
 
-    def _parse_date(self, date_str: str) -> str:
+    def _parse_date(self, date_str: Any) -> str:
         """날짜 문자열 파싱"""
         if not date_str:
             return datetime.now().strftime("%Y-%m-%d")
