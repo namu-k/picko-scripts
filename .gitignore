@@ -28,7 +28,7 @@ logs/
 Thumbs.db
 
 # Project-specific
-cache/               # Embedding and LLM response cache
+cache/
 .pytest_cache/
 pytest.ini
 
