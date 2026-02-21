@@ -31,6 +31,10 @@ Thumbs.db
 cache/
 .pytest_cache/
 pytest.ini
+.sisyphus/
+.ruff_cache/
+/NUL
+/C*picko-scripts.sisyphus*
 
 # Test output files
 *_output.txt
