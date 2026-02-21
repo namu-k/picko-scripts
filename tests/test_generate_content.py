@@ -93,9 +93,7 @@ Image prompt"""
 def mock_prompt_loader():
     """Mock prompt loader"""
     loader = MagicMock()
-    loader.get_longform_prompt.return_value = (
-        "Generate a longform article about: {title}"
-    )
+    loader.get_longform_prompt.return_value = "Generate a longform article about: {title}"
     loader.get_pack_prompt.return_value = "Generate a {channel} post about: {title}"
     loader.get_image_prompt.return_value = "Generate image prompt for: {title}"
     return loader
@@ -211,9 +209,7 @@ class TestDigestParsing:
     """Tests for digest parsing"""
 
     @patch("scripts.generate_content.get_config")
-    def test_parse_digest_finds_checked_items(
-        self, mock_get_config, mock_config, mock_vault, sample_digest_content
-    ):
+    def test_parse_digest_finds_checked_items(self, mock_get_config, mock_config, mock_vault, sample_digest_content):
         """Test that checked items are found"""
         mock_get_config.return_value = mock_config
         mock_vault.read_note.return_value = ({}, sample_digest_content)
@@ -259,9 +255,7 @@ class TestDigestParsing:
         assert len(result) == 2
 
     @patch("scripts.generate_content.get_config")
-    def test_parse_digest_handles_missing_file(
-        self, mock_get_config, mock_config, mock_vault
-    ):
+    def test_parse_digest_handles_missing_file(self, mock_get_config, mock_config, mock_vault):
         """Test handling of missing digest file"""
         mock_get_config.return_value = mock_config
         mock_vault.read_note.side_effect = FileNotFoundError("Digest not found")
@@ -294,9 +288,7 @@ class TestLineParsing:
 
             # Create mock match object (group(1) = checkbox, group(2) = title)
             match = MagicMock()
-            match.group.side_effect = lambda i: {1: "x", 2: "Test Article Title"}.get(
-                i, ""
-            )
+            match.group.side_effect = lambda i: {1: "x", 2: "Test Article Title"}.get(i, "")
 
             result = generator._create_item_from_checkbox(match, auto_all=False)
 
@@ -317,9 +309,7 @@ class TestLineParsing:
 
             # Create mock match object (group(1) = checkbox, group(2) = title)
             match = MagicMock()
-            match.group.side_effect = lambda i: {1: " ", 2: "Test Article Title"}.get(
-                i, ""
-            )
+            match.group.side_effect = lambda i: {1: " ", 2: "Test Article Title"}.get(i, "")
 
             result = generator._create_item_from_checkbox(match, auto_all=False)
 
@@ -349,9 +339,7 @@ class TestInputLoading:
     """Tests for input note loading"""
 
     @patch("scripts.generate_content.get_config")
-    def test_load_input_returns_content(
-        self, mock_get_config, mock_config, mock_vault, sample_input_content
-    ):
+    def test_load_input_returns_content(self, mock_get_config, mock_config, mock_vault, sample_input_content):
         """Test loading input note"""
         mock_get_config.return_value = mock_config
         mock_vault.read_note.return_value = (
@@ -374,9 +362,7 @@ class TestInputLoading:
         assert result["writing_status"] == "auto_ready"
 
     @patch("scripts.generate_content.get_config")
-    def test_load_input_handles_missing_file(
-        self, mock_get_config, mock_config, mock_vault
-    ):
+    def test_load_input_handles_missing_file(self, mock_get_config, mock_config, mock_vault):
         """Test handling of missing input file"""
         mock_get_config.return_value = mock_config
         mock_vault.read_note.side_effect = FileNotFoundError("Input not found")
@@ -424,9 +410,7 @@ This is the summary section.
         assert "This is the summary section" in result
 
     @patch("scripts.generate_content.get_config")
-    def test_extract_section_returns_empty_for_missing(
-        self, mock_get_config, mock_config
-    ):
+    def test_extract_section_returns_empty_for_missing(self, mock_get_config, mock_config):
         """Test extracting missing section"""
         mock_get_config.return_value = mock_config
 
@@ -559,9 +543,7 @@ class TestRun:
     """Tests for full pipeline run"""
 
     @patch("scripts.generate_content.get_config")
-    def test_run_returns_results_structure(
-        self, mock_get_config, mock_config, mock_vault
-    ):
+    def test_run_returns_results_structure(self, mock_get_config, mock_config, mock_vault):
         """Test that run returns proper results structure"""
         mock_get_config.return_value = mock_config
 
@@ -587,9 +569,7 @@ class TestRun:
         assert "errors" in result
 
     @patch("scripts.generate_content.get_config")
-    def test_run_dry_run_skips_writes(
-        self, mock_get_config, mock_config, mock_vault, mock_llm, mock_renderer
-    ):
+    def test_run_dry_run_skips_writes(self, mock_get_config, mock_config, mock_vault, mock_llm, mock_renderer):
         """Test that dry run doesn't write files"""
         mock_get_config.return_value = mock_config
 
@@ -607,9 +587,7 @@ class TestRun:
             generator._CHECKBOX_PATTERN = r"##\s*\[([xX ])\]\s*(.+?)(?:\n|$)"
             generator._ID_PATTERN = r"\*\*ID\*\*:\s*(\S+)"
             generator._ACCOUNT_PATTERN = r"\*\*Account\*\*:\s*(\S+)"
-            generator._parse_digest = MagicMock(
-                return_value=[{"input_id": "test", "title": "Test"}]
-            )
+            generator._parse_digest = MagicMock(return_value=[{"input_id": "test", "title": "Test"}])
             generator._load_input = MagicMock(
                 return_value={
                     "title": "Test",
@@ -631,9 +609,7 @@ class TestExplorationLoading:
     """Tests for exploration note loading"""
 
     @patch("scripts.generate_content.get_config")
-    def test_load_exploration_returns_content(
-        self, mock_get_config, mock_config, mock_vault
-    ):
+    def test_load_exploration_returns_content(self, mock_get_config, mock_config, mock_vault):
         """Test loading exploration note"""
         mock_get_config.return_value = mock_config
         mock_vault.read_note.return_value = (
@@ -661,9 +637,7 @@ Discussion content.
         assert "topic_expansion" in result
 
     @patch("scripts.generate_content.get_config")
-    def test_load_exploration_returns_none_for_missing(
-        self, mock_get_config, mock_config, mock_vault
-    ):
+    def test_load_exploration_returns_none_for_missing(self, mock_get_config, mock_config, mock_vault):
         """Test loading missing exploration"""
         mock_get_config.return_value = mock_config
         mock_vault.read_note.side_effect = FileNotFoundError("Exploration not found")
@@ -699,9 +673,7 @@ class TestWritingStatusCheck:
             item = {"input_id": "test"}
             input_content = {"writing_status": "manual", "title": "Test"}
 
-            generator._generate_content_types(
-                item, input_content, ["longform"], results
-            )
+            generator._generate_content_types(item, input_content, ["longform"], results)
 
         # Should not create longform for manual status
         assert results["longform_created"] == 0
@@ -722,9 +694,7 @@ class TestWritingStatusCheck:
             item = {"input_id": "test"}
             input_content = {"writing_status": "completed", "title": "Test"}
 
-            generator._generate_content_types(
-                item, input_content, ["longform"], results
-            )
+            generator._generate_content_types(item, input_content, ["longform"], results)
 
         # Should not create longform for completed status
         assert results["longform_created"] == 0
