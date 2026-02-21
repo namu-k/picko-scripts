@@ -1,19 +1,24 @@
 # 콘텐츠 생성 파이프라인 스크립트 구현 계획
 
 ## 현재 작업
-- [x] Phase 1 스크립트 구현
-- [x] Phase 2 스크립트 구현
-- [x] Phase 3 스크립트 스캐폴드 구현
-- [x] 테스트 프레임워크 추가 (pytest)
-- [x] GitHub Actions CI 설정
-- [x] Windows Task Scheduler 설정 스크립트
-- [x] 개발 도구 설정 (pre-commit, mypy, black, isort)
-- [x] CI 하드닝 (시크릿 검사, 커버리지, 보안 스캔)
-- [x] CHANGELOG.md 작성 (v0.2.0)
-- [x] 버전 bump (pyproject.toml → 0.2.0)
-- [x] 문서화 (REVIEW_CHECKLIST.md, MONITORING.md)
+- [x] Phase 1~3 핵심 기능 구현 완료
+- [x] v0.3.0: Pipeline UX 개선 (주제 탐색, 외부 프롬프트, 스타일 추출)
+- [x] v0.4.0: 계정 컨텍스트 및 페르소나 기반 최적화
+- [x] CI/CD 및 운영 자동화 하드닝
 
 ## 작업 단계
+- [x] v0.4.0: 계정 컨텍스트 시스템 (2026-02-19)
+  - [x] picko/account_context.py 구현
+  - [x] picko/prompt_composer.py 구현
+  - [x] AccountIdentity/WeeklySlot/StyleProfile 파서 및 로더
+  - [x] 페르소나 기반 점수 모델 고도화 (scoring.py)
+  - [x] 테스트 및 문서화 최신화
+- [x] v0.3.0: 콘텐츠 생성 UX 개선 (2026-02-16)
+  - [x] scripts/explore_topic.py 구현
+  - [x] scripts/style_extractor.py 구현
+  - [x] picko/prompt_loader.py (외부 프롬프트 관리)
+  - [x] 외부 프롬프트 템플릿 작성 (config/prompts/)
+  - [x] 파이프라인 UX 고도화 (Derivative approval stage)
 - [x] 운영단계별 스크립트 구현 계획 문서 작성
   - [x] implementation_plan.md 생성
   - [x] 사용자 리뷰 승인 완료
@@ -77,35 +82,21 @@
 - [x] 의존성 관리: requirements.txt 핀, pyproject.toml dev deps
 - [x] 후속 작업 추적: FOLLOWUPS.md (12개 이슈)
 
-## 후속 작업 진행 상황 (2025-02-15)
+## 후속 작업 진행 상황 (2026-02-19)
 
 - [x] 1. Fix failing tests (Commit 575e7b7)
-  - test_scoring.py: ContentScorer 클래스 API로 수정
-  - test_config.py: Windows 경로 구분자 처리
-  - test_templates.py: 대문자 Twitter 예상값 수정
-  - test_e2e_dryrun.py: dry-run 출력 검증 제거
-  - 결과: 46/46 테스트 통과
-
 - [x] mypy.ini 설정 수정 (Commit ce5234b)
-  - 중복 섹션 에러 수정
-  - INI 문법 올바르게 수정 ([mypy-module.*] 형식)
-  - frontmind.* 모듈 추가
-
 - [x] 2. Fix flake8 lint warnings (Commit 03a333f, efa89fe)
-  - Black formatting 적용 (7개 파일)
-  - Isort import 정렬 (17개 파일)
-  - 모든 파일 컴파일 성공
-  - 치명적 에러 없음 (E9, F63, F7, F82)
-
-- [ ] 3. Add type hints to core modules (mypy compliance)
-- [ ] 4. Enable and test pre-commit hooks
-- [ ] 5. Pin all dependencies
-- [ ] 6. Run security audit (safety, pip-audit)
-
+- [x] 3. Add type hints to core modules (mypy compliance) (Commit 1b83f67+)
+- [x] 4. Enable and test pre-commit hooks
+- [x] 5. Pin all dependencies
+- [x] 6. Run security audit (safety, pip-audit)
+- [x] 7. Add CI badge to README.md
+- [x] 8. Create v0.2.0 GitHub Release
+- [x] 9. Document OPENAI_API_KEY setup (DEPLOYMENT.md)
 - [x] 10. Test Windows Task Scheduler script (Commit 514568a)
-  - setup_scheduler.ps1 -WhatIf 테스트 통과
-  - 'Picko Daily Collector' 태스크 생성 확인
-  - 스케줄: 매일 8:00 AM
+- [x] 11. Set up daily health check monitoring
+- [x] 12. Create SECURITY.md policy
 
 ### 참조
 - Commit 753183c: Phase 3 완료, 테스트, CI/CD 추가

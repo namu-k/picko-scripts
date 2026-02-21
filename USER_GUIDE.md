@@ -225,15 +225,15 @@ vault:
 
 # LLM 설정
 llm:
-  provider: "openai"
+  provider: "relay"  # relay | openai | anthropic | openrouter
   model: "gpt-4o-mini"
   temperature: 0.7
   max_tokens: 4000
-  api_key_env: "OPENAI_API_KEY"
+  api_key_env: "RELAY_API_KEY"
 
 # 요약/태깅용 LLM 설정 (로컬 우선)
 summary_llm:
-  provider: "ollama"  # ollama | openai | anthropic | openrouter
+  provider: "ollama"  # ollama | relay | openai | anthropic | openrouter
   model: "deepseek-r1:7b"  # qwen2.5:7b | deepseek-r1:7b | llama3.3:70b
   temperature: 0.3
   max_tokens: 1000
@@ -242,21 +242,17 @@ summary_llm:
   #   - openrouter → OPENROUTER_API_KEY
   #   - openai/anthropic 등 → OPENAI_API_KEY
   # 로컬 실패 시 폴백
-  fallback_provider: "openai"
+  fallback_provider: "relay"
   fallback_model: "gpt-4o-mini"
-  fallback_api_key_env: "OPENAI_API_KEY"
+  fallback_api_key_env: "RELAY_API_KEY"
 
 # 글쓰기용 LLM 설정 (클라우드)
 writer_llm:
-  provider: "openai"  # openai | anthropic | openrouter
-  model: "gpt-4o-mini"  # gpt-4o-mini | claude-3.5-sonnet | openai/gpt-4o-mini (openrouter)
+  provider: "relay"  # relay | openai | anthropic | openrouter
+  model: "gpt-4o-mini"  # gpt-4o-mini | claude-3.5-sonnet
   temperature: 0.8
   max_tokens: 2000
-  api_key_env: "OPENAI_API_KEY"
-  # OpenRouter 사용 시:
-  # provider: "openrouter"
-  # model: "openai/gpt-4o-mini"
-  # api_key_env: "OPENROUTER_API_KEY"
+  api_key_env: "RELAY_API_KEY"
 
 # 임베딩 설정 (로컬 우선)
 embedding:
@@ -873,24 +869,46 @@ Picko는 세 가지 기준으로 콘텐츠를 평가합니다:
 - 정보 중심 톤
 - 구조화된 섹션
 
-### 계정 프로필 활용
+### 계정 페르소나 및 컨텍스트 (v0.4.0)
 
-계정 프로필(`config/accounts/socialbuilders.yml`)을 수정하여 콘텐츠의 성격을 조정하세요:
+Picko는 단순한 키워드 매칭을 넘어, 계정의 정체성(Identity)과 현재 시점의 전략(Weekly Slot)을 기반으로 콘텐츠를 최적화합니다.
 
-```yaml
-interests:
-  primary:
-    - "관심 주제 1"    # 관련도 점수 1.0
-    - "관심 주제 2"
+#### 1. 계정 정체성 (Account Identity)
+`mock_vault/config/accounts/{account_id}/identity.md` 파일에 계정의 페르소나를 정의합니다.
+- **타깃 오디언스**: 누구를 위한 콘텐츠인가?
+- **말투 및 톤**: 전문적인가, 친근한가?
+- **핵심 가치 (Pillars)**: 주로 다루는 4가지 핵심 주제 (P1~P4)
 
-keywords:
-  high_relevance:      # 관련도 점수 +1.0
-    - "중요 키워드"
-  medium_relevance:    # 관련도 점수 +0.5
-    - "보통 키워드"
-  low_relevance:       # 관련도 점수 +0.2
-    - "일반 키워드"
-```
+#### 2. 주간 슬롯 (Weekly Slot)
+`mock_vault/config/accounts/{account_id}/weekly_slots/{YYYY-MM-DD}.md` 파일에 이번 주의 전략을 정의합니다.
+- **KPI**: 이번 주의 목표는 무엇인가?
+- **Pillar 배분**: 각 주제별로 몇 개의 게시물을 발행할 것인가?
+- **CTA**: 어떤 행동을 유도할 것인가?
+
+#### 3. 스타일 프로필 (Style Profile)
+`scripts/style_extractor.py`를 통해 추출된 특정 개인이나 매체의 작성 스타일을 적용할 수 있습니다.
+- `config/reference_styles/{style_name}/profile.yml`에 저장된 특성을 프롬프트에 자동 반영합니다.
+
+### 프롬프트 컴포저 (Prompt Composer)
+
+Picko는 여러 레이어를 결합하여 최적의 프롬프트를 생성합니다:
+1. **Base**: 기본 작업 지시서
+2. **Style**: 스타일 프로필에서 추출된 말투와 구조
+3. **Identity**: 계정의 페르소나와 제한 사항
+4. **Context**: 현재 주의 목표와 CTA
+
+이 모든 과정은 `generate_content.py` 실행 시 자동으로 수행됩니다.
+
+### 외부 프롬프트 관리
+
+프롬프트를 코드에서 분리하여 `config/prompts/` 디렉토리에서 마크다운 파일로 관리합니다. Jinja2 템플릿 문법을 지원하여 동적인 데이터 주입이 가능합니다.
+
+| 디렉토리 | 용도 |
+|---------|------|
+| `longform/` | 블로그 포스트 생성용 프롬프트 |
+| `packs/` | 소셜 미디어(Twitter, LinkedIn 등) 패키지용 |
+| `image/` | AI 이미지 생성용 프롬프트 템플릿 |
+| `exploration/` | 주제 탐색용 |
 
 ---
 
@@ -1032,7 +1050,7 @@ pip install sentence-transformers
 
 ---
 
-버전: 0.4.0 (unreleased)
-최종 업데이트: 2026-02-18
+버전: 0.4.0
+최종 업데이트: 2026-02-19
 모델 아키텍처: 요약/태깅(로컬) + 임베딩(로컬) + 글쓰기(클라우드)
-주요 변경사항: Account Context System, Prompt Composer, 주제 탐색, 스타일 추출기 추가
+주요 변경사항: Account Context System, Prompt Composer, 주제 탐색, 스타일 추출기 추가, Relay 프로바이더 지원

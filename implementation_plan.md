@@ -11,6 +11,8 @@ Picko/
 ├── scripts/                    # 실행 스크립트
 │   ├── daily_collector.py      # A) Daily Collector
 │   ├── generate_content.py     # B) Approve → Generate
+│   ├── explore_topic.py        # C) 주제 탐색 및 확장
+│   ├── style_extractor.py      # D) 레퍼런스 스타일 추출
 │   ├── health_check.py         # 파이프라인 상태 점검
 │   ├── validate_output.py      # 생성물 검증
 │   ├── archive_manager.py      # 라이프사이클 관리
@@ -20,17 +22,20 @@ Picko/
 │   ├── __init__.py
 │   ├── config.py               # 설정 로더
 │   ├── vault_io.py             # Obsidian Vault 읽기/쓰기
+│   ├── account_context.py      # 계정 페르소나/슬롯 로더
+│   ├── prompt_loader.py        # 외부 프롬프트 템플릿 로더
+│   ├── prompt_composer.py      # 멀티 레이어 프롬프트 합성기
 │   ├── llm_client.py           # LLM API 클라이언트
 │   ├── embedding.py            # 임베딩 생성/관리
-│   ├── scoring.py              # 점수 계산 로직
+│   ├── scoring.py              # 페르소나 기반 점수 계산
 │   └── templates.py            # 템플릿 렌더링
 │
 ├── config/
-│   ├── config.yml              # 메인 설정 파일
-│   ├── sources.yml             # RSS/크롤링 소스 목록
-│   └── accounts/               # 계정별 프로필
-│       ├── socialbuilders.yml
-│       └── ai_review.yml
+│   ├── config.yml              # 메인 설정
+│   ├── sources.yml             # RSS 소스
+│   ├── prompts/                # 외부 프롬프트 (Jinja2)
+│   ├── reference_styles/       # 추출된 부가 스타일
+│   └── accounts/               # 계정 프로필 및 정체성
 │
 ├── logs/                       # 실행 로그
 │   └── YYYY-MM-DD/
@@ -40,6 +45,7 @@ Picko/
 └── cache/                      # 임베딩/API 캐시
     ├── embeddings/
     └── responses/
+
 ```
 
 ---
@@ -195,66 +201,45 @@ def create_log(content_path: str):
 
 ---
 
-## Phase 3: 성숙 단계
+## Phase 3: 콘텐츠 고도화 (v0.3.0 ~ v0.4.0)
+
+### 주제 탐색 및 스타일 추출
+
+#### [NEW] [explore_topic.py](scripts/explore_topic.py)
+- 롱폼 작성 전 LLM과 대화하며 주제 확장
+- `Inbox/Explorations/`에 생각의 흔적 저장
+
+#### [NEW] [style_extractor.py](scripts/style_extractor.py)
+- 레퍼런스 URL 분석하여 작성 스타일(특징, 말투, 구조) 추출
+- `config/reference_styles/`에 프로필 저장
+
+### 계정 컨텍스트 및 프롬프트 합성
+
+#### [NEW] [account_context.py](picko/account_context.py)
+- `AccountIdentity`: 계정의 목표, 타깃, 말투 정의
+- `WeeklySlot`: 주간 콘텐츠 배분 및 KPI 관리
+
+#### [NEW] [prompt_composer.py](picko/prompt_composer.py)
+- **Layered Prompting**: Base + Style + Identity + Context 결합
+- 상황에 맞는 최적의 프롬프트 자동 생성
 
 ### 성과 메트릭 동기화
 
-#### [NEW] [engagement_sync.py](file:///H:/내 드라이브/obsidian_GGD/side-projects/Files/Side_projects/Picko/scripts/engagement_sync.py)
+#### [NEW] [engagement_sync.py](scripts/engagement_sync.py)
 - 플랫폼 API에서 조회수/좋아요 수집
 - Publish Log 자동 업데이트
 
 ### 점수 보정
 
-#### [NEW] [score_calibrator.py](file:///H:/내 드라이브/obsidian_GGD/side-projects/Files/Side_projects/Picko/scripts/score_calibrator.py)
+#### [NEW] [score_calibrator.py](scripts/score_calibrator.py)
 - 실제 성과 ↔ 예측 점수 비교 분석
 - 가중치 조정 제안
 
 ### 중복 검사
 
-#### [NEW] [duplicate_checker.py](file:///H:/내 드라이브/obsidian_GGD/side-projects/Files/Side_projects/Picko/scripts/duplicate_checker.py)
+#### [NEW] [duplicate_checker.py](scripts/duplicate_checker.py)
 - 임베딩 기반 유사도 검사
 - 기존 발행물과 중복 경고
-
----
-
-## 공통 설정 파일
-
-#### [NEW] [config.yml](file:///H:/내 드라이브/obsidian_GGD/side-projects/Files/Side_projects/Picko/config/config.yml)
-
-```yaml
-# 메인 설정 파일
-vault:
-  root: "H:/내 드라이브/obsidian_GGD/side-projects/Files/Side_projects/Picko"
-  inbox: "Inbox/Inputs"
-  content: "Content"
-  assets: "Assets"
-  archive: "Archive"
-
-llm:
-  provider: "openai"  # openai | anthropic
-  model: "gpt-4o"
-  temperature: 0.7
-  max_tokens: 4000
-
-embedding:
-  provider: "openai"
-  model: "text-embedding-3-small"
-  cache_enabled: true
-
-scoring:
-  weights:
-    novelty: 0.3
-    relevance: 0.4
-    quality: 0.3
-  thresholds:
-    auto_approve: 0.85
-    auto_reject: 0.3
-
-logging:
-  level: "INFO"
-  format: "{time} | {level} | {message}"
-  retention_days: 30
-```
 
 ---
 

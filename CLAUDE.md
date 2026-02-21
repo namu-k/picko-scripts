@@ -361,3 +361,10 @@ For local LLM usage (summary/tagging/embedding):
 - **Summary/Tagging (Ollama)**: deepseek-r1:7b, qwen2.5:7b, qwen2.5:3b
 - **Embedding (Ollama)**: mxbai-embed-large:1024, qwen3-embedding:0.6b
 - **Embedding (sentence-transformers)**: BAAI/bge-m3, BAAI/bge-base-en-v1.5, all-MiniLM-L6-v2
+
+## Active Technologies
+- Python 3.13+ + Jinja2 (existing), PyYAML (existing), argparse (existing) (001-context-interaction)
+- File-based (Obsidian vault markdown + YAML frontmatter) (001-context-interaction)
+
+## Recent Changes
+- 001-context-interaction: Added Python 3.13+ + Jinja2 (existing), PyYAML (existing), argparse (existing)
