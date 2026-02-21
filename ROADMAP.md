@@ -207,44 +207,80 @@ image:
 
 ---
 
-### 옵션 B: 상용 서비스 사용
+### 옵션 B: 자체 브랜드 자동화 시스템 (GPT + Midjourney + HTML)
 
-#### B-1. Predis.ai (추천) ⭐
+#### B-1. 커스텀 자동화 시스템 (추천) ⭐
+
+> GPT + Midjourney + HTML 자동 렌더링으로 브랜드 인스타그램 썸네일 제작
+
+**핵심 개념**:
+> GPT는 "디자이너"가 아니라 "아트 디렉터 + 레이아웃 선택기" 역할
 
 ```
-텍스트 한 줄 → 캐러셀/이미지/영상 자동 생성
+[1] GPT (전략 & 레이아웃 설계)
+        ↓ JSON
+[2] Midjourney (배경 이미지 생성)
+        ↓ 이미지 파일
+[3] HTML 템플릿 시스템
+        ↓
+[4] Playwright 렌더링
+        ↓
+[5] PNG 출력 (1080 x 1350)
 ```
 
 | 항목 | 내용 |
 |---|---|
-| **핵심 기능** | 텍스트 → 캐러셀/이미지/영상 자동 생성 |
-| **한국어** | ✅ 26개 언어 지원 |
-| **API** | ✅ REST API + Webhook |
-| **가격** | Lite $32/월, Premium $59/월 |
-| **장점** | 캐러셀 생성 최강, 스케줄링 포함 |
-| **단점** | 크레딧 시스템 |
+| **출력 사이즈** | 1080 x 1350 (4:5) 인스타 피드 |
+| **이미지 모델** | Midjourney v7 |
+| **전략 모델** | GPT-4o / Claude 3.5 |
+| **렌더링** | Node.js + Playwright |
+| **월 예산** | $35-60 (Midjourney $30-60 + API 토큰 $5) |
+| **장점** | 템플릿 티 없음, 완전한 브랜드 일관성, 무제한 커스터마이징 |
+| **단점** | 초기 구축 공수 (1-2주) |
 
-**API 통합 예시**:
-```python
-import requests
-
-PREDIS_API_KEY = "your_api_key"
-
-def generate_carousel(content: dict):
-    """롱폼 → 인스타 캐러셀 자동 생성"""
-    response = requests.post(
-        "https://api.predis.ai/v1/generate",
-        headers={"Authorization": f"Bearer {PREDIS_API_KEY}"},
-        json={
-            "text": content["summary"],
-            "content_type": "carousel",
-            "brand_id": "your_brand_id",
-            "input_language": "ko",
-            "output_language": "ko"
-        }
-    )
-    return response.json()
+**브랜드 규칙 정의 (고정값)**:
+```json
+{
+  "brand": {
+    "primary_color": "#111111",
+    "accent_color": "#FF4D4D",
+    "font_display": "Pretendard",
+    "font_body": "Pretendard",
+    "corner_radius": "28px",
+    "style": "minimal luxury"
+  }
+}
 ```
+
+**레이아웃 시스템** (6~10개 레이아웃 권장):
+- **L1**: Top Headline + Center Subject
+- **L2**: Split Layout (좌측 텍스트 / 우측 이미지)
+- **L3**: Text Card Overlay (중앙 카드형 텍스트 + 배경 흐림)
+- **L4**: Big Typography Focus (텍스트 70%, 이미지 보조)
+- **L5**: Accent Block (컬러 블록 + 텍스트)
+- **L6**: Minimal Frame (여백 강조)
+
+**GPT 역할** (매 포스트마다 생성):
+```json
+{
+  "layout": "L3_text_card",
+  "headline": "AI 시대, 기획이 전부다",
+  "subline": "도구보다 사고력이 중요하다",
+  "tone": "bold",
+  "image_prompt": "dramatic cinematic lighting, modern office, high contrast",
+  "overlay_strength": 0.45
+}
+```
+
+**품질 유지 포인트**:
+- GPT가 CSS까지 만들게 하면 망함 → 레이아웃은 사람이 설계
+- 레이아웃 1~2개만 쓰면 티남 → 최소 7개 이상
+- 이미지엔 텍스트 넣지 않기 → 후편집 통제력
+- 디자인 시스템이 먼저 → GPT는 전략만
+
+**자동화 수준**:
+- 100% 자동 → 빠르지만 감성 약함
+- **80% 자동 + 20% 수동** → 가장 현실적 (추천)
 
 ---
 
@@ -296,7 +332,7 @@ def generate_carousel(content: dict):
 
 | 서비스 | 캐러셀 | 영상 | 이미지 | 카피 | 스케줄링 | 한국어 | API | 가격 |
 |---|---|---|---|---|---|---|---|---|
-| **Predis.ai** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ✅ | ✅ | ✅ | $32-249/월 |
+| **커스텀 시스템** | ⭐⭐⭐⭐⭐ | ❌ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ✅ | ✅ | ✅ | $35-60/월 |
 | **Fliki** | ⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐ | ❌ | ✅ | ✅ | $21-88/월 |
 | **Creasquare** | ⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ✅ | ✅ | ⚠️ | $25-199/월 |
 | **Ocoya** | ⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ✅ | ✅ | ⚠️ | $15-159/월 |
@@ -325,43 +361,43 @@ def generate_carousel(content: dict):
 
 ## 추천 조합
 
-### 🥇 1순위: Predis.ai 단독 (빠른 출시)
+### 🥇 1순위: 커스텀 자동화 시스템 (브랜드 감성 최우선)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                                                             │
 │   Picko (롱폼/팩)                                           │
 │        │                                                    │
-│        └──→ Predis.ai API                                   │
-│              ├── 캐러셀 자동 생성                           │
-│              ├── 이미지 자동 생성                           │
-│              ├── 영상 자동 생성                             │
-│              └── 스케줄링                                   │
+│        └──→ GPT-4o/Claude → 레이아웃 & 전략 설계            │
+│              │                                              │
+│              └──→ Midjourney → 배경 이미지                  │
+│                    │                                        │
+│                    └──→ HTML 템플릿 + Playwright → PNG      │
 │                                                             │
-│   월 예산: $32-59                                           │
-│   개발 공수: 2-3일                                          │
+│   월 예산: $35-60                                           │
+│   개발 공수: 1-2주                                          │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**장점**: 최소 개발, 검증된 품질, 올인원
-**단점**: 커스터마이징 제한
+**장점**: 템플릿 티 없음, 완전한 브랜드 일관성, 무제한 커스터마이징
+**단점**: 초기 구축 공수
 
 ---
 
-### 🥈 2순위: Picko + Predis + Fliki (완전 자동화)
+### 🥈 2순위: 커스텀 + Fliki (이미지+영상 커버)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                                                             │
 │   Picko (롱폼/팩)                                           │
 │        │                                                    │
-│        ├──→ Predis.ai API → 캐러셀/이미지                   │
+│        ├──→ GPT + Midjourney + HTML → 캐러셀/이미지         │
 │        │                                                    │
 │        └──→ Fliki API → 릴스/숏폼                           │
 │                                                             │
-│   월 예산: $53-125 (Predis $32 + Fliki $21)                 │
-│   개발 공수: 3-5일                                          │
+│   월 예산: $56-126 (Midjourney $30-60 + Fliki $21-66)       │
+│   개발 공수: 2-3주                                          │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -399,8 +435,8 @@ def generate_carousel(content: dict):
 
 | 상황 | 추천 조합 | 월 비용 | 이유 |
 |---|---|---|---|
-| **MVP 빠른 출시** | Predis.ai 단독 | $32-59 | 최소 공수, 검증됨 |
-| **완전 자동화** | Predis + Fliki | $53-125 | 이미지+영상 커버 |
+| **브랜드 감성 최우선** | 커스텀 자동화 | $35-60 | 템플릿 티 없음, 완전 커스텀 |
+| **완전 자동화** | 커스텀 + Fliki | $56-126 | 이미지+영상 커버 |
 | **완전 커스텀** | DALL-E 3 + GPT-4o | $35-50 | 유연성 최대 |
 | **최고 품질** | Midjourney + Claude | $50-80 | 감성 퀄리티 압도적 |
 | **가성비** | FLUX + Gemini | $15-25 | 최저 비용 |
@@ -411,11 +447,10 @@ def generate_carousel(content: dict):
 
 ### Phase 1: 이미지 생성 (2-3주)
 
-#### Week 1: Predis.ai 통합
-- [ ] Predis.ai 계정 생성, API 키 발급
-- [ ] `picko/predis_client.py` 구현
-- [ ] `scripts/generate_images.py` 작성
-- [ ] config.yml에 이미지 설정 추가
+#### Week 1: 디자인 시스템 구축
+- [ ] 브랜드 규칙 정의 (컬러, 폰트, 코너 라디우스 등)
+- [ ] 6~10개 레이아웃 HTML 템플릿 제작
+- [ ] `picko/layout_client.py` 구현 (레이아웃 선택 로직)
 
 #### Week 2: 파이프라인 통합
 - [ ] `generate_content.py`에 이미지 생성 연동
@@ -467,8 +502,8 @@ def generate_carousel(content: dict):
 
 | 조합 | 이미지 | 영상 | QA | 기타 | 합계 |
 |---|---|---|---|---|---|
-| **Predis 단독** | $32-59 | 포함 | 포함 | - | **$32-59** |
-| **Predis + Fliki** | $32 | $21-66 | 포함 | - | **$53-125** |
+| **커스텀 자동화** | $30-50 | - | $5-10 | - | **$35-60** |
+| **커스텀 + Fliki** | $30-50 | $21-66 | $5-10 | - | **$56-126** |
 | **DALL-E + GPT-4o** | $30-40 | - | $5-10 | - | **$35-50** |
 | **Midjourney + Claude** | $30 | - | $5-10 | $13 (Canva) | **$48-53** |
 | **FLUX + Gemini** | $10-15 | - | $1-2 | - | **$11-17** |
@@ -477,8 +512,8 @@ def generate_carousel(content: dict):
 
 | 조합 | 월 | 연간 |
 |---|---|---|
-| Predis 단독 | $32-59 | $384-708 |
-| Predis + Fliki | $53-125 | $636-1,500 |
+| 커스텀 자동화 | $35-60 | $420-720 |
+| 커스텀 + Fliki | $56-126 | $672-1,512 |
 | DALL-E + GPT-4o | $35-50 | $420-600 |
 
 ---
@@ -493,15 +528,25 @@ def generate_carousel(content: dict):
 # ============================================
 image:
   enabled: true
-  provider: "predis"  # predis | dalle | ideogram | flux
+  provider: "custom"  # custom | dalle | ideogram | flux
 
-  # Predis.ai 설정
-  predis:
-    api_key_env: "PREDIS_API_KEY"
-    brand_id: "your_brand_id"
-    default_content_type: "carousel"  # carousel | single_image | video
-    input_language: "ko"
-    output_language: "ko"
+  # 커스텀 자동화 설정
+  custom:
+    midjourney:
+      provider: "apify"  # apify | manual
+      actor_id: "apify/midjourney-scraper"
+    playwright:
+      viewport_width: 1080
+      viewport_height: 1350
+      device_scale_factor: 2
+    templates_dir: "config/layouts/"
+    layouts:
+      - "L1_top_headline"
+      - "L2_split"
+      - "L3_text_card"
+      - "L4_big_typography"
+      - "L5_accent_block"
+      - "L6_minimal_frame"
 
   # DALL-E 설정 (직접 구축 시)
   dalle:
@@ -567,7 +612,7 @@ video:
 social:
   scheduling:
     enabled: true
-    provider: "predis"  # predis | buffer | later
+    provider: "custom"  # custom | buffer | later
 
   platforms:
     instagram:
@@ -590,8 +635,8 @@ OPENAI_API_KEY=sk-...
 RELAY_API_KEY=...
 
 # 이미지/영상 생성
-PREDIS_API_KEY=your_predis_key
-FLIKI_API_KEY=your_fliki_key  # 선택
+MIDJOURNEY_API_KEY=your_midjourney_key  # Apify용
+FLIKI_API_KEY=your_fliki_key  # 선택 (영상)
 IDEOGRAM_API_KEY=your_ideogram_key  # 선택
 ```
 
@@ -600,13 +645,14 @@ IDEOGRAM_API_KEY=your_ideogram_key  # 선택
 ## 참고 링크
 
 ### 공식 문서
-- [Predis.ai API](https://predis.ai/docs/api)
+- [Midjourney Docs](https://docs.midjourney.com/)
+- [Apify Midjourney Actor](https://apify.com/apify/midjourney-scraper)
+- [Playwright Docs](https://playwright.dev/python/)
 - [Fliki API](https://fliki.ai/docs/api)
 - [OpenAI DALL-E API](https://platform.openai.com/docs/guides/images)
 - [Ideogram API](https://docs.ideogram.ai/)
 
 ### 비교 리뷰
-- [Predis.ai Review 2026](https://socialrails.com/blog/predis-review)
 - [Instagram AI Tools Comparison](https://yourgpt.ai/blog/comparison/best-ai-tools-for-instagram)
 - [DALL-E vs Midjourney vs Flux](https://apatero.com/blog/dalle-vs-midjourney-vs-flux-comparison-2026)
 
