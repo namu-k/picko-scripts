@@ -50,6 +50,27 @@ def temp_prompts_dir(tmp_path):
     reference_dir.mkdir()
     (reference_dir / "analyze.md").write_text("Analyze style:\n{{ reference_content }}\n")
 
+    # Create video prompts
+    video_dir = prompts_dir / "video"
+    video_dir.mkdir()
+    (video_dir / "default.md").write_text(
+        "Title: {{ title }}\n"
+        "Summary: {{ summary | default('') }}\n"
+        "[오프닝 훅]\n"
+        "Hook content\n"
+        "[샷리스트]\n"
+        "Shot list\n"
+        "[내레이션]\n"
+        "Narration\n"
+        "[온스크린 텍스트]\n"
+        "Text\n"
+        "[B-roll/그래픽]\n"
+        "Graphics\n"
+        "[클로징/CTA]\n"
+        "CTA content\n",
+        encoding="utf-8",
+    )
+
     return prompts_dir
 
 
@@ -333,6 +354,76 @@ class TestPromptLoaderListPrompts:
         assert prompts == []
 
 
+class TestPromptLoaderVideo:
+    """Test video prompt templates"""
+
+    def test_list_video_prompts(self, temp_prompts_dir):
+        """Test listing video prompts"""
+        loader = PromptLoader(prompts_dir=temp_prompts_dir)
+
+        prompts = loader.list_prompts("video")
+        assert "default" in prompts
+
+    def test_render_video_prompt_with_required_vars(self, temp_prompts_dir, sample_input_content):
+        """Test rendering video prompt with required variables"""
+        loader = PromptLoader(prompts_dir=temp_prompts_dir)
+
+        result = loader.render(
+            "video",
+            "default",
+            title=sample_input_content["title"],
+            summary=sample_input_content["summary"],
+        )
+
+        # Check that all required bracket headers are present
+        assert "[오프닝 훅]" in result
+        assert "[샷리스트]" in result
+        assert "[내레이션]" in result
+        assert "[온스크린 텍스트]" in result
+        assert "[B-roll/그래픽]" in result
+        assert "[클로징/CTA]" in result
+        # Check variable interpolation
+        assert "AI Trends 2026" in result
+
+    def test_render_video_prompt_with_optional_vars(self, temp_prompts_dir, sample_input_content):
+        """Test rendering video prompt with optional variables (customer_outcome, cta)"""
+        loader = PromptLoader(prompts_dir=temp_prompts_dir)
+
+        result = loader.render(
+            "video",
+            "default",
+            title=sample_input_content["title"],
+            summary=sample_input_content["summary"],
+            tags=sample_input_content["tags"],
+            customer_outcome="Learn new AI trends",
+            cta="Subscribe to channel",
+        )
+
+        # Should render without errors
+        assert isinstance(result, str)
+        assert "[오프닝 훅]" in result
+
+    def test_render_video_prompt_without_optional_vars(self, temp_prompts_dir, sample_input_content):
+        """Test rendering video prompt without optional variables (should use defaults)"""
+        loader = PromptLoader(prompts_dir=temp_prompts_dir)
+
+        # Render without customer_outcome and cta
+        result = loader.render(
+            "video",
+            "default",
+            title=sample_input_content["title"],
+        )
+
+        # Should render without errors and contain bracket headers
+        assert isinstance(result, str)
+        assert "[오프닝 훅]" in result
+        assert "[샷리스트]" in result
+        assert "[내레이션]" in result
+        assert "[온스크린 텍스트]" in result
+        assert "[B-roll/그래픽]" in result
+        assert "[클로징/CTA]" in result
+
+
 class TestPromptLoaderReferences:
     """Test reference-related methods"""
 
@@ -462,3 +553,139 @@ class TestPromptLoaderEdgeCases:
             summary="Summary with\nnewlines\nand\ttabs",
         )
         assert "Title with" in result
+
+
+class TestRealRepoImageTemplates:
+    """Test REAL repo image templates under config/prompts/image/"""
+
+    def test_image_templates_have_mandatory_headers(self):
+        """Test that image templates contain all 6 mandatory bracket headers"""
+        from pathlib import Path
+
+        # Find repo config/prompts/image directory
+        project_root = Path(__file__).parent.parent
+        image_prompts_dir = project_root / "config" / "prompts" / "image"
+
+        # Skip if directory doesn't exist (e.g., in minimal test setups)
+        if not image_prompts_dir.exists():
+            pytest.skip(f"Image prompts directory not found: {image_prompts_dir}")
+
+        # Expected mandatory bracket headers in all image templates
+        # Using plain text for clarity (6 required headers)
+        mandatory_headers = [
+            "[메인 프롬프트]",
+            "[스타일]",
+            "[분위기]",
+            "[색상]",
+            "[네거티브 프롬프트]",
+            "[참고 이미지]",
+        ]
+
+        # Check all .md files in image prompts directory
+        md_files = sorted(image_prompts_dir.glob("*.md"))
+        assert len(md_files) > 0, f"No .md files found in {image_prompts_dir}"
+
+        for template_file in md_files:
+            content = template_file.read_text(encoding="utf-8")
+            template_name = template_file.name
+
+            # Verify each mandatory header is present
+            for header in mandatory_headers:
+                assert header in content, f"{template_name} missing required header: {header}"
+
+
+class TestRealRepoPacksTemplates:
+    """Test REAL repo packs templates under config/prompts/packs/"""
+
+    def test_packs_templates_ban_hashtags_in_output(self):
+        """Test that packs templates explicitly ban hashtags in LLM output body.
+
+        Validates that twitter.md, linkedin.md, and newsletter.md each contain
+        keywords forbidding hashtags in the output contract section.
+        """
+        from pathlib import Path
+
+        # Find repo config/prompts/packs directory
+        project_root = Path(__file__).parent.parent
+        packs_prompts_dir = project_root / "config" / "prompts" / "packs"
+
+        # Skip if directory doesn't exist (e.g., in minimal test setups)
+        if not packs_prompts_dir.exists():
+            pytest.skip(f"Packs prompts directory not found: {packs_prompts_dir}")
+
+        # Keywords that must be present in packs templates
+        # These keywords ensure hashtags are explicitly forbidden in output
+        # "해시태그" (hashtag) + "출력" (output) required in all files
+        # "금지" (explicit ban) OR "절대" (absolute/forbidden) required for ban concept
+        keywords_base = {"해시태그", "출력"}  # Must appear in all files
+        keywords_ban = {"금지", "절대"}  # At least one must appear for ban concept
+
+        # List of packs templates to validate
+        template_names = ["twitter.md", "linkedin.md", "newsletter.md"]
+
+        for template_name in template_names:
+            template_file = packs_prompts_dir / template_name
+            assert template_file.exists(), f"Template not found: {template_file}"
+
+            content = template_file.read_text(encoding="utf-8")
+
+            # Verify base keywords are present
+            for keyword in keywords_base:
+                assert keyword in content, (
+                    f"{template_name} missing keyword '{keyword}' " f"(required to ban hashtags in output contract)"
+                )
+
+            # Verify at least one ban keyword is present (금지 or 절대)
+            has_ban_keyword = any(kw in content for kw in keywords_ban)
+            assert has_ban_keyword, (
+                f"{template_name} missing ban keywords {keywords_ban} " f"(required to express hashtag output ban)"
+            )
+
+
+class TestRealRepoLongformTemplates:
+    """Test REAL repo longform templates under config/prompts/longform/"""
+
+    def test_longform_templates_contain_bracket_headers_and_weekly_vars(self):
+        """Test that longform templates contain all 4 bracket headers and weekly context vars.
+
+        Validates that default.md, with_exploration.md, and with_reference.md each contain:
+        - All 4 required bracket headers: [인트로], [메인 콘텐츠], [주요 시사점], [마무리]
+        - Substring references to 'customer_outcome' and 'cta' (weekly context variables)
+        """
+        from pathlib import Path
+
+        # Find repo config/prompts/longform directory
+        project_root = Path(__file__).parent.parent
+        longform_prompts_dir = project_root / "config" / "prompts" / "longform"
+
+        # Skip if directory doesn't exist (e.g., in minimal test setups)
+        if not longform_prompts_dir.exists():
+            pytest.skip(f"Longform prompts directory not found: {longform_prompts_dir}")
+
+        # Expected mandatory bracket headers in all longform templates
+        mandatory_headers = [
+            "[인트로]",
+            "[메인 콘텐츠]",
+            "[주요 시사점]",
+            "[마무리]",
+        ]
+
+        # Expected weekly context variable references
+        weekly_vars = ["customer_outcome", "cta"]
+
+        # List of longform templates to validate
+        template_names = ["default.md", "with_exploration.md", "with_reference.md"]
+
+        for template_name in template_names:
+            template_file = longform_prompts_dir / template_name
+            assert template_file.exists(), f"Template not found: {template_file}"
+
+            content = template_file.read_text(encoding="utf-8")
+
+            # Verify all bracket headers are present
+            for header in mandatory_headers:
+                assert header in content, f"{template_name} missing required header: {header}"
+
+            # Verify weekly context variables are referenced
+            for var in weekly_vars:
+                assert var in content, f"{template_name} missing weekly context variable reference: {var}"

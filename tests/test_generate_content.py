@@ -486,6 +486,33 @@ Key takeaways.
         assert "주요 시사점" in result
         assert "introduction" in result["인트로"]
 
+    @patch("scripts.generate_content.get_config")
+    def test_parse_generated_sections_handles_missing_sections(self, mock_get_config, mock_config):
+        """Test parsing sections when some are missing (backward compatibility)"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.generate_content import ContentGenerator
+
+        llm_output = """[메인 프롬프트]
+Main prompt content.
+
+[스타일]
+Modern style.
+"""
+
+        with patch.object(ContentGenerator, "__init__", lambda x, **kwargs: None):
+            generator = ContentGenerator.__new__(ContentGenerator)
+            generator.config = mock_config
+
+            result = generator._parse_generated_sections(llm_output)
+
+        # Should still parse existing sections
+        assert "메인 프롬프트" in result
+        assert "스타일" in result
+        # Missing sections should return empty strings
+        assert result.get("네거티브 프롬프트", "") == ""
+        assert result.get("참고 이미지", "") == ""
+
 
 class TestShouldProcessItem:
     """Tests for item processing decision"""
@@ -698,3 +725,523 @@ class TestWritingStatusCheck:
 
         # Should not create longform for completed status
         assert results["longform_created"] == 0
+
+
+class TestImagePromptGeneration:
+    """Tests for image prompt generation with new fields"""
+
+    @patch("scripts.generate_content.get_config")
+    @patch("scripts.generate_content.VaultIO")
+    @patch("scripts.generate_content.get_writer_client")
+    @patch("scripts.generate_content.get_renderer")
+    @patch("scripts.generate_content.get_prompt_loader")
+    def test_generate_image_prompt_parses_negative_prompt(
+        self,
+        mock_loader,
+        mock_renderer,
+        mock_llm,
+        mock_vault,
+        mock_get_config,
+        mock_config,
+    ):
+        """Test that negative_prompt is parsed from [네거티브 프롬프트] section"""
+        mock_get_config.return_value = mock_config
+        mock_vault.read_note.return_value = ({}, "content")
+        mock_llm.generate.return_value = """[메인 프롬프트]
+A beautiful sunset over mountains.
+
+[스타일]
+Photorealistic, 8K.
+
+[분위기]
+Peaceful.
+
+[색상]
+Orange, purple, blue.
+
+[네거티브 프롬프트]
+Blurry, low quality, distorted, ugly, deformed, bad anatomy.
+
+[참고 이미지]
+없음
+"""
+
+        from scripts.generate_content import ContentGenerator
+
+        with patch.object(ContentGenerator, "__init__", lambda x, **kwargs: None):
+            generator = ContentGenerator.__new__(ContentGenerator)
+            generator.config = mock_config
+            generator.vault = mock_vault
+            generator.llm = mock_llm
+            generator.renderer = mock_renderer
+            generator.prompt_loader = mock_loader
+            generator.dry_run = True
+
+            item = {"input_id": "test_input", "account_id": "socialbuilders"}
+            input_content = {"title": "Test Title"}
+
+            generator._generate_image_prompt(item, input_content)
+
+        # Verify prompt_loader.get_image_prompt was called
+        mock_loader.get_image_prompt.assert_called_once()
+
+        # Verify renderer.render_image_prompt was called with correct data
+        mock_renderer.render_image_prompt.assert_called_once()
+        call_args = mock_renderer.render_image_prompt.call_args
+        prompt_data = call_args[0][0]
+
+        # Check that negative_prompt is in the data
+        assert "negative_prompt" in prompt_data
+        assert "Blurry, low quality" in prompt_data["negative_prompt"]
+
+    @patch("scripts.generate_content.get_config")
+    @patch("scripts.generate_content.VaultIO")
+    @patch("scripts.generate_content.get_writer_client")
+    @patch("scripts.generate_content.get_renderer")
+    @patch("scripts.generate_content.get_prompt_loader")
+    def test_generate_image_prompt_parses_reference_images(
+        self,
+        mock_loader,
+        mock_renderer,
+        mock_llm,
+        mock_vault,
+        mock_get_config,
+        mock_config,
+    ):
+        """Test that reference_images is parsed from [참고 이미지] section"""
+        mock_get_config.return_value = mock_config
+        mock_vault.read_note.return_value = ({}, "content")
+        mock_llm.generate.return_value = """[메인 프롬프트]
+A modern office workspace.
+
+[스타일]
+Minimalist, clean.
+
+[분위기]
+Professional.
+
+[색상]
+White, gray, blue.
+
+[네거티브 프롬프트]
+Cluttered, messy.
+
+[참고 이미지]
+- Reference image 1: https://example.com/image1.jpg
+- Reference image 2: https://example.com/image2.png
+- Reference image 3: https://example.com/image3.webp
+"""
+
+        from scripts.generate_content import ContentGenerator
+
+        with patch.object(ContentGenerator, "__init__", lambda x, **kwargs: None):
+            generator = ContentGenerator.__new__(ContentGenerator)
+            generator.config = mock_config
+            generator.vault = mock_vault
+            generator.llm = mock_llm
+            generator.renderer = mock_renderer
+            generator.prompt_loader = mock_loader
+            generator.dry_run = True
+
+            item = {"input_id": "test_input", "account_id": "socialbuilders"}
+            input_content = {"title": "Test Title"}
+
+            generator._generate_image_prompt(item, input_content)
+
+        # Verify renderer.render_image_prompt was called with correct data
+        mock_renderer.render_image_prompt.assert_called_once()
+        call_args = mock_renderer.render_image_prompt.call_args
+        prompt_data = call_args[0][0]
+
+        # Check that reference_images is in the data
+        assert "reference_images" in prompt_data
+        assert len(prompt_data["reference_images"]) == 3
+        assert "https://example.com/image1.jpg" in prompt_data["reference_images"]
+        assert "https://example.com/image2.png" in prompt_data["reference_images"]
+        assert "https://example.com/image3.webp" in prompt_data["reference_images"]
+
+    @patch("scripts.generate_content.get_config")
+    @patch("scripts.generate_content.VaultIO")
+    @patch("scripts.generate_content.get_writer_client")
+    @patch("scripts.generate_content.get_renderer")
+    @patch("scripts.generate_content.get_prompt_loader")
+    def test_generate_image_prompt_handles_empty_reference_images(
+        self,
+        mock_loader,
+        mock_renderer,
+        mock_llm,
+        mock_vault,
+        mock_get_config,
+        mock_config,
+    ):
+        """Test that empty reference_images (없음) is handled correctly"""
+        mock_get_config.return_value = mock_config
+        mock_vault.read_note.return_value = ({}, "content")
+        mock_llm.generate.return_value = """[메인 프롬프트]
+A simple landscape.
+
+[스타일]
+Realistic.
+
+[분위기]
+Calm.
+
+[색상]
+Green, blue.
+
+[네거티브 프롬프트]
+No specific negatives.
+
+[참고 이미지]
+없음
+"""
+
+        from scripts.generate_content import ContentGenerator
+
+        with patch.object(ContentGenerator, "__init__", lambda x, **kwargs: None):
+            generator = ContentGenerator.__new__(ContentGenerator)
+            generator.config = mock_config
+            generator.vault = mock_vault
+            generator.llm = mock_llm
+            generator.renderer = mock_renderer
+            generator.prompt_loader = mock_loader
+            generator.dry_run = True
+
+            item = {"input_id": "test_input", "account_id": "socialbuilders"}
+            input_content = {"title": "Test Title"}
+
+            generator._generate_image_prompt(item, input_content)
+
+        # Verify renderer.render_image_prompt was called with correct data
+        mock_renderer.render_image_prompt.assert_called_once()
+        call_args = mock_renderer.render_image_prompt.call_args
+        prompt_data = call_args[0][0]
+
+        # Check that reference_images is an empty list when value is "없음"
+        assert "reference_images" in prompt_data
+        assert prompt_data["reference_images"] == []
+
+    @patch("scripts.generate_content.get_config")
+    @patch("scripts.generate_content.VaultIO")
+    @patch("scripts.generate_content.get_writer_client")
+    @patch("scripts.generate_content.get_renderer")
+    @patch("scripts.generate_content.get_prompt_loader")
+    def test_generate_image_prompt_backward_compatibility(
+        self,
+        mock_loader,
+        mock_renderer,
+        mock_llm,
+        mock_vault,
+        mock_get_config,
+        mock_config,
+    ):
+        """Test backward compatibility when new sections are missing"""
+        mock_get_config.return_value = mock_config
+        mock_vault.read_note.return_value = ({}, "content")
+        mock_llm.generate.return_value = """[메인 프롬프트]
+A beautiful scene.
+
+[스타일]
+Modern.
+
+[분위기]
+Happy.
+
+[색상]
+Red, yellow.
+"""
+
+        from scripts.generate_content import ContentGenerator
+
+        with patch.object(ContentGenerator, "__init__", lambda x, **kwargs: None):
+            generator = ContentGenerator.__new__(ContentGenerator)
+            generator.config = mock_config
+            generator.vault = mock_vault
+            generator.llm = mock_llm
+            generator.renderer = mock_renderer
+            generator.prompt_loader = mock_loader
+            generator.dry_run = True
+
+            item = {"input_id": "test_input", "account_id": "socialbuilders"}
+            input_content = {"title": "Test Title"}
+
+            generator._generate_image_prompt(item, input_content)
+
+        # Verify renderer.render_image_prompt was called with correct data
+        mock_renderer.render_image_prompt.assert_called_once()
+        call_args = mock_renderer.render_image_prompt.call_args
+        prompt_data = call_args[0][0]
+
+        # Check that old fields are still present
+        assert "prompt" in prompt_data
+        assert "style" in prompt_data
+        assert "mood" in prompt_data
+        assert "colors" in prompt_data
+
+        # Check that new fields have safe defaults
+        assert prompt_data.get("negative_prompt", "") == ""
+        assert prompt_data.get("reference_images", []) == []
+
+    @patch("scripts.generate_content.get_config")
+    @patch("scripts.generate_content.VaultIO")
+    @patch("scripts.generate_content.get_writer_client")
+    @patch("scripts.generate_content.get_renderer")
+    @patch("scripts.generate_content.get_prompt_loader")
+    def test_generate_image_with_approval_uses_channel_specific_prompt(
+        self,
+        mock_loader,
+        mock_renderer,
+        mock_llm,
+        mock_vault,
+        mock_get_config,
+        mock_config,
+    ):
+        """Test that channel-specific prompt is used when packs_channels is non-empty"""
+        mock_get_config.return_value = mock_config
+        mock_vault.read_note.return_value = ({}, "content")
+        mock_llm.generate.return_value = """[메인 프롬프트]
+Test image.
+
+[스타일]
+Modern.
+
+[분위기]
+Professional.
+
+[색상]
+Blue.
+
+[네거티브 프롬프트]
+None.
+
+[참고 이미지]
+없음
+"""
+        mock_renderer.render_image_prompt.return_value = "---\nid: test_image\n---\nImage prompt"
+
+        from scripts.generate_content import ContentGenerator
+
+        with patch.object(ContentGenerator, "__init__", lambda x, **kwargs: None):
+            generator = ContentGenerator.__new__(ContentGenerator)
+            generator.config = mock_config
+            generator.vault = mock_vault
+            generator.llm = mock_llm
+            generator.renderer = mock_renderer
+            generator.prompt_loader = mock_loader
+            generator.dry_run = True
+
+            # Mock _check_derivative_approval to return approved with channels
+            with patch.object(
+                generator,
+                "_check_derivative_approval",
+                return_value={
+                    "status": "approved",
+                    "images_approved": True,
+                    "packs_channels": ["twitter"],
+                },
+            ):
+                # Mock _load_longform_content
+                with patch.object(
+                    generator,
+                    "_load_longform_content",
+                    return_value={"longform_title": "Test", "longform_body": "Body"},
+                ):
+                    item = {"input_id": "test_input", "account_id": "socialbuilders"}
+                    input_content = {"title": "Test Title"}
+
+                    generator._generate_image_with_approval(item, input_content)
+
+        # Verify get_channel_image_prompt was called with twitter channel
+        mock_loader.get_channel_image_prompt.assert_called_once()
+        call_kwargs = mock_loader.get_channel_image_prompt.call_args[1]
+        assert call_kwargs["channel"] == "twitter"
+
+
+class TestHashtagHandling:
+    """Tests for pack hashtag configuration handling"""
+
+    @patch("scripts.generate_content.get_config")
+    @patch("scripts.generate_content.VaultIO")
+    @patch("scripts.generate_content.get_writer_client")
+    @patch("scripts.generate_content.get_renderer")
+    @patch("scripts.generate_content.get_prompt_loader")
+    def test_hashtags_false_renders_empty_list(
+        self,
+        mock_loader,
+        mock_renderer,
+        mock_llm,
+        mock_vault,
+        mock_get_config,
+        mock_config,
+    ):
+        """Test that hashtags=False results in empty list passed to renderer"""
+        mock_get_config.return_value = mock_config
+        mock_config.get_account.return_value = {
+            "channels": {"twitter": {"enabled": True, "max_length": 280, "hashtags": False}}
+        }
+        mock_vault.read_note.return_value = ({}, "content")
+        mock_llm.generate.return_value = "Test pack content"
+        mock_renderer.render_pack.return_value = "---\nid: test_pack\n---\nPack content"
+
+        from scripts.generate_content import ContentGenerator
+
+        with patch.object(ContentGenerator, "__init__", lambda x, **kwargs: None):
+            generator = ContentGenerator.__new__(ContentGenerator)
+            generator.config = mock_config
+            generator.vault = mock_vault
+            generator.llm = mock_llm
+            generator.renderer = mock_renderer
+            generator.prompt_loader = mock_loader
+            generator.dry_run = True
+            generator.weekly_slot = None
+
+            item = {"input_id": "test_input", "account_id": "socialbuilders"}
+            input_content = {"title": "Test Title", "tags": ["AI", "startup", "tech"]}
+
+            generator._generate_packs(item, input_content)
+
+        # Verify renderer.render_pack was called with empty hashtags list
+        mock_renderer.render_pack.assert_called_once()
+        call_args = mock_renderer.render_pack.call_args[0][0]
+        assert call_args["hashtags"] == []
+
+    @patch("scripts.generate_content.get_config")
+    @patch("scripts.generate_content.VaultIO")
+    @patch("scripts.generate_content.get_writer_client")
+    @patch("scripts.generate_content.get_renderer")
+    @patch("scripts.generate_content.get_prompt_loader")
+    def test_hashtags_true_auto_generates_from_tags(
+        self,
+        mock_loader,
+        mock_renderer,
+        mock_llm,
+        mock_vault,
+        mock_get_config,
+        mock_config,
+    ):
+        """Test that hashtags=True auto-generates hashtags from input_content tags"""
+        mock_get_config.return_value = mock_config
+        mock_config.get_account.return_value = {
+            "channels": {"twitter": {"enabled": True, "max_length": 280, "hashtags": True}}
+        }
+        mock_vault.read_note.return_value = ({}, "content")
+        mock_llm.generate.return_value = "Test pack content"
+        mock_renderer.render_pack.return_value = "---\nid: test_pack\n---\nPack content"
+
+        from scripts.generate_content import ContentGenerator
+
+        with patch.object(ContentGenerator, "__init__", lambda x, **kwargs: None):
+            generator = ContentGenerator.__new__(ContentGenerator)
+            generator.config = mock_config
+            generator.vault = mock_vault
+            generator.llm = mock_llm
+            generator.renderer = mock_renderer
+            generator.prompt_loader = mock_loader
+            generator.dry_run = True
+            generator.weekly_slot = None
+
+            item = {"input_id": "test_input", "account_id": "socialbuilders"}
+            input_content = {"title": "Test Title", "tags": ["AI", "startup", "tech"]}
+
+            generator._generate_packs(item, input_content)
+
+        # Verify renderer.render_pack was called with auto-generated hashtags
+        mock_renderer.render_pack.assert_called_once()
+        call_args = mock_renderer.render_pack.call_args[0][0]
+        assert call_args["hashtags"] == ["#AI", "#startup", "#tech"]
+
+    @patch("scripts.generate_content.get_config")
+    @patch("scripts.generate_content.VaultIO")
+    @patch("scripts.generate_content.get_writer_client")
+    @patch("scripts.generate_content.get_renderer")
+    @patch("scripts.generate_content.get_prompt_loader")
+    def test_hashtags_list_uses_verbatim(
+        self,
+        mock_loader,
+        mock_renderer,
+        mock_llm,
+        mock_vault,
+        mock_get_config,
+        mock_config,
+    ):
+        """Test that hashtags=[list] uses the list verbatim (assume already prefixed)"""
+        mock_get_config.return_value = mock_config
+        mock_config.get_account.return_value = {
+            "channels": {
+                "twitter": {
+                    "enabled": True,
+                    "max_length": 280,
+                    "hashtags": ["#창업", "#스타트업", "#빌더스소셜클럽"],
+                }
+            }
+        }
+        mock_vault.read_note.return_value = ({}, "content")
+        mock_llm.generate.return_value = "Test pack content"
+        mock_renderer.render_pack.return_value = "---\nid: test_pack\n---\nPack content"
+
+        from scripts.generate_content import ContentGenerator
+
+        with patch.object(ContentGenerator, "__init__", lambda x, **kwargs: None):
+            generator = ContentGenerator.__new__(ContentGenerator)
+            generator.config = mock_config
+            generator.vault = mock_vault
+            generator.llm = mock_llm
+            generator.renderer = mock_renderer
+            generator.prompt_loader = mock_loader
+            generator.dry_run = True
+            generator.weekly_slot = None
+
+            item = {"input_id": "test_input", "account_id": "socialbuilders"}
+            input_content = {"title": "Test Title", "tags": ["AI", "startup", "tech"]}
+
+            generator._generate_packs(item, input_content)
+
+        # Verify renderer.render_pack was called with the provided hashtag list verbatim
+        mock_renderer.render_pack.assert_called_once()
+        call_args = mock_renderer.render_pack.call_args[0][0]
+        assert call_args["hashtags"] == ["#창업", "#스타트업", "#빌더스소셜클럽"]
+
+    @patch("scripts.generate_content.get_config")
+    @patch("scripts.generate_content.VaultIO")
+    @patch("scripts.generate_content.get_writer_client")
+    @patch("scripts.generate_content.get_renderer")
+    @patch("scripts.generate_content.get_prompt_loader")
+    def test_hashtags_for_channels_false_renders_empty_list(
+        self,
+        mock_loader,
+        mock_renderer,
+        mock_llm,
+        mock_vault,
+        mock_get_config,
+        mock_config,
+    ):
+        """Test _generate_packs_for_channels with hashtags=False"""
+        mock_get_config.return_value = mock_config
+        mock_config.get_account.return_value = {
+            "channels": {"twitter": {"enabled": True, "max_length": 280, "hashtags": False}}
+        }
+        mock_vault.read_note.return_value = ({}, "content")
+        mock_llm.generate.return_value = "Test pack content"
+        mock_renderer.render_pack.return_value = "---\nid: test_pack\n---\nPack content"
+
+        from scripts.generate_content import ContentGenerator
+
+        with patch.object(ContentGenerator, "__init__", lambda x, **kwargs: None):
+            generator = ContentGenerator.__new__(ContentGenerator)
+            generator.config = mock_config
+            generator.vault = mock_vault
+            generator.llm = mock_llm
+            generator.renderer = mock_renderer
+            generator.prompt_loader = mock_loader
+            generator.dry_run = True
+            generator.weekly_slot = None
+
+            item = {"input_id": "test_input", "account_id": "socialbuilders"}
+            input_content = {"title": "Test Title", "tags": ["AI", "startup", "tech"]}
+
+            generator._generate_packs_for_channels(item, input_content, ["twitter"])
+
+        # Verify renderer.render_pack was called with empty hashtags list
+        mock_renderer.render_pack.assert_called_once()
+        call_args = mock_renderer.render_pack.call_args[0][0]
+        assert call_args["hashtags"] == []

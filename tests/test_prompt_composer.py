@@ -159,6 +159,31 @@ class TestStyleSection:
         assert "casual" in section
         assert "문장 스타일" in section
 
+    def test_build_style_section_with_extended_fields(self):
+        """스타일 섹션 생성 (신 필드: signatures, formatting, content_themes)"""
+        composer = PromptComposer("test_account")
+        style = StyleProfile(
+            name="test_style",
+            source_urls=["https://example.com"],
+            analyzed_at="2026-02-16",
+            sample_count=5,
+            characteristics={
+                "tone": ["casual", "friendly"],
+                "signatures": ["latest news", "in brief"],
+                "formatting": ["headlines", "bulleted lists"],
+                "content_themes": ["AI", "tech"],
+            },
+        )
+
+        section = composer._build_style_section(style)
+
+        assert "시그니처 표현" in section
+        assert "latest news" in section
+        assert "포매팅 방식" in section
+        assert "headlines" in section
+        assert "콘텐츠 주제" in section
+        assert "AI" in section
+
     def test_build_identity_section(self):
         """정체성 섹션 생성"""
         composer = PromptComposer("test_account")
@@ -178,6 +203,27 @@ class TestStyleSection:
         assert "타겟 독자" in section
         assert "톤&보이스" in section
         assert "금칙어" in section
+
+    def test_build_identity_section_with_extended_fields(self):
+        """정체성 섹션 생성 (신 필드: value_proposition, boundaries)"""
+        composer = PromptComposer("test_account")
+        identity = AccountIdentity(
+            account_id="test_account",
+            one_liner="테스트 계정",
+            target_audience=["개발자"],
+            value_proposition="명확한 가치 제안",
+            pillars=["P1: 테스트"],
+            tone_voice={"tone": "캐주얼", "forbidden": "금칙어"},
+            boundaries=["부정적인 내용", "낙말"],
+        )
+
+        section = composer._build_identity_section(identity)
+
+        assert "가치 제안" in section
+        assert "명확한 가치 제안" in section
+        assert "하지 말 것/경계" in section
+        assert "부정적인 내용" in section
+        assert "낙말" in section
 
 
 class TestIntegration:
