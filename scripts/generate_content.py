@@ -519,6 +519,43 @@ class ContentGenerator:
 
         return sections
 
+    def _extract_hashtags(self, channel_config: dict[str, Any], input_content: dict[str, Any]) -> list[str]:
+        """
+        채널 설정에서 해시태그 추출
+
+        Mode 1: hashtags=False → []
+        Mode 2: hashtags=True → auto-generate from input_content["tags"][:3] with # prefix
+        Mode 3: hashtags=[list] → use verbatim (assume already prefixed with #)
+
+        Args:
+            channel_config: Channel configuration from account profile
+            input_content: Input content with 'tags' field
+
+        Returns:
+            List of hashtags to use in pack
+        """
+        hashtags_config = channel_config.get("hashtags", True)
+
+        # Mode 1: Disabled (False)
+        if hashtags_config is False:
+            return []
+
+        # Mode 3: Explicit list (assume already prefixed with #)
+        if isinstance(hashtags_config, list):
+            return hashtags_config
+
+        # Mode 2: Auto-generate from tags (True or any truthy non-list value)
+        if hashtags_config is True:
+            tags = input_content.get("tags", [])
+            return [f"#{tag}" for tag in tags[:3]]
+
+        # Fallback: treat any other truthy value as True
+        if hashtags_config:
+            tags = input_content.get("tags", [])
+            return [f"#{tag}" for tag in tags[:3]]
+
+        return []
+
     def _generate_packs(self, item: dict[str, Any], input_content: dict[str, Any]) -> int:
         """채널별 패키징 콘텐츠 생성"""
         logger.info(f"Generating packs for: {item['input_id']}")
@@ -555,11 +592,8 @@ class ContentGenerator:
                     )
                     text = smart_truncate(text, max_length)
 
-                # 해시태그 추출
-                use_hashtags = channel_config.get("hashtags", True)
-                hashtags = []
-                if use_hashtags:
-                    hashtags = [f"#{tag}" for tag in input_content.get("tags", [])[:3]]
+                # 해시태그 추출 (bool/list 모드 지원)
+                hashtags = self._extract_hashtags(channel_config, input_content)
 
                 pack_data = {
                     "id": f"pack_{item['input_id']}_{channel}",
@@ -586,15 +620,28 @@ class ContentGenerator:
 
         return created_count
 
-    def _generate_image_prompt(self, item: dict[str, Any], input_content: dict[str, Any]) -> bool:
+    def _generate_image_prompt(
+        self, item: dict[str, Any], input_content: dict[str, Any], channel: str | None = None
+    ) -> bool:
         """이미지 프롬프트 생성"""
         logger.info(f"Generating image prompt for: {item['input_id']}")
 
-        # 프롬프트 로더를 통해 이미지 프롬프트 생성 (None인 경우 기본값 사용)
-        prompt = self.prompt_loader.get_image_prompt(
-            input_content=input_content,
-            account_id=item.get("account_id") or "socialbuilders",
-        )
+        # 프롬프트 로더를 통해 이미지 프롬프트 생성
+        account_id = item.get("account_id") or "socialbuilders"
+
+        if channel:
+            # 채널 지정 시 채널별 프롬프트 사용
+            prompt = self.prompt_loader.get_channel_image_prompt(
+                channel=channel,
+                input_content=input_content,
+                account_id=account_id,
+            )
+        else:
+            # 기본 이미지 프롬프트 사용
+            prompt = self.prompt_loader.get_image_prompt(
+                input_content=input_content,
+                account_id=account_id,
+            )
 
         response = self.llm.generate(prompt, max_tokens=500)
         sections = self._parse_generated_sections(response)
@@ -606,6 +653,8 @@ class ContentGenerator:
             "style": sections.get("스타일", "modern, clean"),
             "mood": sections.get("분위기", "professional"),
             "colors": sections.get("색상", "brand colors"),
+            "negative_prompt": sections.get("네거티브 프롬프트", ""),
+            "reference_images": self._parse_reference_images(sections.get("참고 이미지", "")),
         }
 
         content = self.renderer.render_image_prompt(prompt_data)
@@ -619,6 +668,37 @@ class ContentGenerator:
             logger.info(f"Created image prompt: {output_path}")
 
         return True
+
+    def _parse_reference_images(self, ref_section: str) -> list[str]:
+        """참고 이미지 섹션에서 이미지 URL 추출
+
+        Args:
+            ref_section: 참고 이미지 섹션 내용
+
+        Returns:
+            URL 리스트. 없음/빈 경우 []
+        """
+        # 빈 값이거나 "없음"인 경우 빈 리스트 반환
+        if not ref_section or ref_section.strip().lower() == "없음":
+            return []
+
+        # 모든 https?:// URL 추출
+        urls = re.findall(r"https?://\S+", ref_section)
+        if urls:
+            return urls
+
+        # URL이 없지만 내용이 있으면 (예: 수동으로 기술된 이미지들), 줄 단위로 정리해서 반환
+        lines = []
+        for line in ref_section.split("\n"):
+            cleaned = line.strip()
+            if cleaned and not cleaned.startswith("-") and not cleaned.startswith("*"):
+                # 간단한 정리: "- Reference image 1: ..." 형식이면 뒷부분만
+                if ": " in cleaned:
+                    cleaned = cleaned.split(": ", 1)[1]
+                if cleaned:
+                    lines.append(cleaned)
+
+        return lines
 
     def _generate_packs_with_approval(self, item: dict[str, Any], input_content: dict[str, Any]) -> int:
         """파생 승인 확인 후 팩 생성"""
@@ -660,7 +740,11 @@ class ContentGenerator:
         if longform_content:
             input_content = {**input_content, **longform_content}
 
-        return self._generate_image_prompt(item, input_content)
+        # packs_channels가 있으면 첫 채널의 채널별 프롬프트 사용
+        channels = derivative_status.get("packs_channels", [])
+        channel_to_use = channels[0] if channels else None
+
+        return self._generate_image_prompt(item, input_content, channel=channel_to_use)
 
     def _check_derivative_approval(self, input_id: str) -> dict[str, Any]:
         """롱폼 노트에서 파생 승인 상태 및 채널 선택 확인"""
@@ -771,11 +855,8 @@ class ContentGenerator:
                     )
                     text = smart_truncate(text, max_length)
 
-                # 해시태그 추출
-                use_hashtags = channel_config.get("hashtags", True)
-                hashtags = []
-                if use_hashtags:
-                    hashtags = [f"#{tag}" for tag in input_content.get("tags", [])[:3]]
+                # 해시태그 추출 (bool/list 모드 지원)
+                hashtags = self._extract_hashtags(channel_config, input_content)
 
                 pack_data = {
                     "id": f"pack_{item['input_id']}_{channel}",

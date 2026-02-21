@@ -292,6 +292,21 @@ class PromptComposer:
             if isinstance(closings, list):
                 sections.append(f"- **마무리 방식**: {', '.join(closings)}")
 
+        if "signatures" in char:
+            signatures = char["signatures"]
+            if isinstance(signatures, list):
+                sections.append(f"- **시그니처 표현**: {', '.join(signatures)}")
+
+        if "formatting" in char:
+            formatting = char["formatting"]
+            if isinstance(formatting, list):
+                sections.append(f"- **포매팅 방식**: {', '.join(formatting)}")
+
+        if "content_themes" in char:
+            themes = char["content_themes"]
+            if isinstance(themes, list):
+                sections.append(f"- **콘텐츠 주제**: {', '.join(themes)}")
+
         if sections:
             return "### 스타일 특성\n\n" + "\n".join(sections)
         return ""
@@ -302,6 +317,9 @@ class PromptComposer:
 
         if identity.one_liner:
             sections.append(f"- **계정 정체성**: {identity.one_liner}")
+
+        if identity.value_proposition:
+            sections.append(f"- **가치 제안**: {identity.value_proposition}")
 
         if identity.target_audience:
             targets = identity.target_audience
@@ -320,6 +338,11 @@ class PromptComposer:
             pillars = identity.pillars
             if isinstance(pillars, list):
                 sections.append(f"- **필러(주제 영역)**: {', '.join(pillars)}")
+
+        if identity.boundaries:
+            boundaries = identity.boundaries
+            if isinstance(boundaries, list) and boundaries:
+                sections.append(f"- **하지 말 것/경계**: {', '.join(boundaries)}")
 
         if sections:
             return "### 계정 정체성\n\n" + "\n".join(sections)
