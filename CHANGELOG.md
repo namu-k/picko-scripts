@@ -8,6 +8,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Image Rendering Pipeline**:
+  - `multimedia_io.py`: Multimedia input template parser with YAML frontmatter support
+  - `proposal_generator.py`: Content type detection (quote, card, list, data, carousel) and proposal generation
+  - `html_renderer.py`: Playwright-based HTML-to-PNG rendering with background overlay support
+  - `render_media.py`: CLI for image rendering with status, review, and render commands
+  - HTML templates: `quote.html`, `card.html`, `list.html` for social media images
+  - Reference document loader with path traversal protection
+  - Platform-specific dimension support (configurable)
+  - 2-stage interactive review workflow (proposal → render → final)
+- **Security**:
+  - Path traversal validation in `load_reference()`
+  - Template whitelist validation in `ImageRenderer`
+  - Comprehensive error handling in CLI (FileNotFoundError, PermissionError, UnicodeDecodeError)
+- **Tests**:
+  - `test_multimedia_io.py`: Input parser and reference loader tests (6 tests)
+  - `test_proposal_generator.py`: Content type detection tests (6 tests)
+  - `test_html_renderer.py`: Playwright rendering tests (3 tests)
+  - `test_image_templates.py`: HTML template tests (4 tests)
+  - `test_render_media_cli.py`: CLI command tests (4 tests)
+  - `test_render_media_integration.py`: End-to-end pipeline tests (4 tests)
 - **Account Context System**:
   - `account_context.py`: Account identity, weekly slot, and style profile loader
   - `AccountIdentity`: Dataclass for account persona (one_liner, target_audience, pillars, tone_voice, boundaries)
