@@ -5,8 +5,9 @@
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            width: 1080px;
-            height: 1080px;
+            position: relative;
+            width: {{ width | default(1080) }}px;
+            height: {{ height | default(1080) }}px;
             background-color: {{ background_color }};
             display: flex;
             flex-direction: column;
