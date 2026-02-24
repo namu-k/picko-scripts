@@ -1,5 +1,7 @@
 """Tests for image HTML templates."""
 
+import pytest
+
 from picko.templates import get_image_renderer
 
 
@@ -70,3 +72,49 @@ class TestImageTemplates:
 
         assert "창업자 체크리스트" in result
         assert "아이디어 검증" in result
+
+    def test_render_data_template(self):
+        """Render data template with number and label."""
+        renderer = get_image_renderer()
+
+        result = renderer.render_image(
+            template="data",
+            context={
+                "value": "200%",
+                "unit": "증가",
+                "label": "월간 사용자 성장률",
+                "description": "지난 분기 대비",
+                "background_color": "#ffffff",
+            },
+        )
+
+        assert "200%" in result
+        assert "월간 사용자 성장률" in result
+
+    def test_render_carousel_template(self):
+        """Render carousel template with slide content."""
+        renderer = get_image_renderer()
+
+        result = renderer.render_image(
+            template="carousel",
+            context={
+                "slide_number": 1,
+                "total_slides": 5,
+                "title": "5가지 성장 전략",
+                "content": "첫 번째 전략: 고객 피드백 적극 수용",
+                "cta": "다음 슬라이드 보기 →",
+                "background_color": "#1a1a2e",
+            },
+        )
+
+        assert "5가지 성장 전략" in result
+
+    def test_invalid_template_raises(self):
+        """Invalid template name should raise ValueError."""
+        renderer = get_image_renderer()
+
+        with pytest.raises(ValueError, match="Invalid template"):
+            renderer.render_image(
+                template="nonexistent",
+                context={"title": "test"},
+            )

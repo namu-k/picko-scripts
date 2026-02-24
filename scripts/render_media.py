@@ -1,12 +1,17 @@
 """Render media CLI - image and video rendering pipeline."""
 
 from pathlib import Path
+from typing import Any
 
 import click
+import yaml
 
 from picko.logger import setup_logger
 
 logger = setup_logger("render_media")
+
+# Default vault path
+DEFAULT_VAULT = Path("mock_vault")
 
 
 @click.group()
@@ -22,7 +27,8 @@ def cli(ctx: click.Context, vault: Path | None):
 @click.pass_context
 def status(ctx: click.Context):
     """Show pipeline status."""
-    output = get_status()
+    vault = ctx.obj.get("vault", DEFAULT_VAULT)
+    output = get_status(vault)
     click.echo(output)
 
 
@@ -32,16 +38,25 @@ def status(ctx: click.Context):
 @click.pass_context
 def review(ctx: click.Context, finals: bool, item_id: str | None):
     """Review pending proposals or renders."""
+    vault = ctx.obj.get("vault", DEFAULT_VAULT)
+
     if finals:
-        items = get_pending_finals()
+        items = get_pending_finals(vault)
         review_mode = "결과물"
     else:
-        items = get_pending_proposals()
+        items = get_pending_proposals(vault)
         review_mode = "제안"
 
     if not items:
         click.echo(f"📋 검토 대기 중인 {review_mode} 없음")
         return
+
+    # Filter by item_id if specified
+    if item_id:
+        items = [i for i in items if i.get("id") == item_id]
+        if not items:
+            click.echo(f"📋 ID '{item_id}'에 해당하는 {review_mode} 없음")
+            return
 
     # Interactive review loop
     for item in items:
@@ -76,27 +91,185 @@ def render(ctx: click.Context, input_path: Path):
         raise SystemExit(1)
 
 
-def get_status() -> str:
-    """Get pipeline status summary."""
-    # TODO: Implement actual status check
-    return """📊 이미지 렌더링 상태
+def get_status(vault_path: Path | None = None) -> str:
+    """Get pipeline status summary.
+
+    Args:
+        vault_path: Vault root directory (defaults to DEFAULT_VAULT)
+
+    Returns:
+        Formatted status string
+    """
+    vault = vault_path or DEFAULT_VAULT
+    multimedia_dir = vault / "Inbox" / "Multimedia"
+    images_dir = vault / "Assets" / "Images"
+
+    items = []
+
+    # Scan multimedia inputs
+    if multimedia_dir.exists():
+        for f in multimedia_dir.glob("*.md"):
+            try:
+                content = f.read_text(encoding="utf-8")
+                if content.startswith("---"):
+                    parts = content.split("---", 2)
+                    if len(parts) >= 3:
+                        meta = yaml.safe_load(parts[1])
+                        status_val = meta.get("status", "draft")
+                        channels = meta.get("channels", [])
+                        items.append(
+                            {
+                                "id": meta.get("id", f.stem),
+                                "status": status_val,
+                                "channels": ", ".join(channels) if channels else "-",
+                            }
+                        )
+            except (yaml.YAMLError, UnicodeDecodeError, IndexError):
+                continue
+
+    # Scan rendered images metadata
+    if images_dir.exists():
+        for meta_file in images_dir.rglob("meta_*.md"):
+            try:
+                content = meta_file.read_text(encoding="utf-8")
+                if content.startswith("---"):
+                    parts = content.split("---", 2)
+                    if len(parts) >= 3:
+                        meta = yaml.safe_load(parts[1])
+                        status_val = meta.get("status", "unknown")
+                        if status_val in ["rendered", "pending_final_review"]:
+                            items.append(
+                                {
+                                    "id": meta.get("id", meta_file.stem),
+                                    "status": status_val,
+                                    "channels": meta.get("channel", "-"),
+                                }
+                            )
+            except (yaml.YAMLError, UnicodeDecodeError, IndexError):
+                continue
+
+    if not items:
+        return """📊 이미지 렌더링 상태
 ────────────────────────────────────────
 ID                    STATUS          CHANNELS
 ────────────────────────────────────────
 대기 중인 항목 없음
 ────────────────────────────────────────"""
 
+    # Format output
+    lines = ["📊 이미지 렌더링 상태", "─" * 50]
+    lines.append(f"{'ID':<20} {'STATUS':<16} {'CHANNELS'}")
+    lines.append("─" * 50)
 
-def get_pending_proposals() -> list:
-    """Get pending proposals for review."""
-    # TODO: Implement
-    return []
+    for item in items:
+        lines.append(f"{item['id']:<20} {item['status']:<16} {item['channels']}")
+
+    lines.append("─" * 50)
+
+    # Count by status
+    status_counts: dict[str, int] = {}
+    for item in items:
+        s = item["status"]
+        status_counts[s] = status_counts.get(s, 0) + 1
+
+    lines.append(f"총 {len(items)}개 항목")
+    for s, count in status_counts.items():
+        lines.append(f"  - {s}: {count}개")
+
+    return "\n".join(lines)
 
 
-def get_pending_finals() -> list:
-    """Get pending final renders for review."""
-    # TODO: Implement
-    return []
+def get_pending_proposals(vault_path: Path | None = None) -> list[dict[str, Any]]:
+    """Get pending proposals for review.
+
+    Args:
+        vault_path: Vault root directory (defaults to DEFAULT_VAULT)
+
+    Returns:
+        List of proposal dictionaries
+    """
+    vault = vault_path or DEFAULT_VAULT
+    multimedia_dir = vault / "Inbox" / "Multimedia"
+
+    proposals = []
+
+    if not multimedia_dir.exists():
+        return proposals
+
+    for f in multimedia_dir.glob("*.md"):
+        try:
+            content = f.read_text(encoding="utf-8")
+            if content.startswith("---"):
+                parts = content.split("---", 2)
+                if len(parts) >= 3:
+                    meta = yaml.safe_load(parts[1])
+                    status_val = meta.get("status", "draft")
+
+                    # Return items that are proposed or ready for review
+                    if status_val in ["proposed", "pending_review"]:
+                        proposals.append(
+                            {
+                                "id": meta.get("id", f.stem),
+                                "status": status_val,
+                                "account": meta.get("account", "unknown"),
+                                "channels": meta.get("channels", []),
+                                "content_types": meta.get("content_types", ["image"]),
+                                "file_path": str(f),
+                            }
+                        )
+        except (yaml.YAMLError, UnicodeDecodeError, IndexError):
+            continue
+
+    return proposals
+
+
+def get_pending_finals(vault_path: Path | None = None) -> list[dict[str, Any]]:
+    """Get pending final renders for review.
+
+    Args:
+        vault_path: Vault root directory (defaults to DEFAULT_VAULT)
+
+    Returns:
+        List of final render dictionaries
+    """
+    vault = vault_path or DEFAULT_VAULT
+    images_dir = vault / "Assets" / "Images"
+
+    finals = []
+
+    if not images_dir.exists():
+        return finals
+
+    for meta_file in images_dir.rglob("meta_*.md"):
+        try:
+            content = meta_file.read_text(encoding="utf-8")
+            if content.startswith("---"):
+                parts = content.split("---", 2)
+                if len(parts) >= 3:
+                    meta = yaml.safe_load(parts[1])
+                    status_val = meta.get("status", "unknown")
+
+                    if status_val in ["rendered", "pending_final_review"]:
+                        # Find the corresponding image file
+                        img_id = meta.get("id", "")
+                        parent_dir = meta_file.parent
+                        img_files = list(parent_dir.glob(f"img_*_{img_id}.png"))
+                        img_path = str(img_files[0]) if img_files else "Not found"
+
+                        finals.append(
+                            {
+                                "id": img_id,
+                                "status": status_val,
+                                "channel": meta.get("channel", "unknown"),
+                                "account": meta.get("account", "unknown"),
+                                "image_path": img_path,
+                                "meta_path": str(meta_file),
+                            }
+                        )
+        except (yaml.YAMLError, UnicodeDecodeError, IndexError):
+            continue
+
+    return finals
 
 
 def review_item(item: dict):

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            width: 1080px;
+            height: 1080px;
+            background-color: {{ background_color }};
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 80px;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .data-container {
+            text-align: center;
+            max-width: 85%;
+        }
+        .main-number {
+            font-size: 120px;
+            font-weight: 800;
+            color: #4a90d9;
+            line-height: 1.1;
+            margin-bottom: 20px;
+        }
+        .unit {
+            font-size: 48px;
+            font-weight: 600;
+            color: #666666;
+            margin-bottom: 30px;
+        }
+        .label {
+            font-size: 36px;
+            color: #333333;
+            margin-bottom: 15px;
+        }
+        .description {
+            font-size: 28px;
+            color: #666666;
+            line-height: 1.5;
+        }
+        .trend {
+            margin-top: 30px;
+            font-size: 32px;
+            font-weight: 600;
+        }
+        .trend-up { color: #27ae60; }
+        .trend-down { color: #e74c3c; }
+    </style>
+</head>
+<body>
+    <div class="data-container">
+        <div class="main-number">{{ value }}</div>
+        {% if unit %}<div class="unit">{{ unit }}</div>{% endif %}
+        <div class="label">{{ label }}</div>
+        {% if description %}<div class="description">{{ description }}</div>{% endif %}
+        {% if trend == "up" %}<div class="trend trend-up">▲ {{ trend_value }}</div>{% endif %}
+        {% if trend == "down" %}<div class="trend trend-down">▼ {{ trend_value }}</div>{% endif %}
+    </div>
+</body>
+</html>

@@ -11,6 +11,55 @@ from .logger import get_logger
 
 logger = get_logger("html_renderer")
 
+# Platform-specific image dimensions (width, height)
+PLATFORM_DIMENSIONS: dict[str, tuple[int, int]] = {
+    # Square formats
+    "instagram_feed": (1080, 1080),
+    "instagram_square": (1080, 1080),
+    "linkedin_square": (1200, 1200),
+    "twitter_square": (1200, 1200),
+    # Portrait formats
+    "instagram_portrait": (1080, 1350),
+    "instagram_story": (1080, 1920),
+    "threads": (1080, 1350),
+    # Landscape formats
+    "linkedin": (1200, 627),
+    "linkedin_landscape": (1200, 627),
+    "twitter": (1200, 675),
+    "twitter_landscape": (1200, 675),
+    "newsletter": (1200, 630),
+    "blog": (1200, 630),
+    # Default
+    "default": (1080, 1080),
+}
+
+# Channel aliases mapping
+CHANNEL_ALIASES: dict[str, str] = {
+    "instagram": "instagram_feed",
+    "ig": "instagram_feed",
+    "linkedin": "linkedin",
+    "li": "linkedin",
+    "twitter": "twitter",
+    "x": "twitter",
+    "threads": "threads",
+    "newsletter": "newsletter",
+    "blog": "blog",
+}
+
+
+def get_dimensions_for_channel(channel: str) -> tuple[int, int]:
+    """Get image dimensions for a specific channel.
+
+    Args:
+        channel: Channel name (e.g., 'instagram', 'linkedin', 'twitter')
+
+    Returns:
+        Tuple of (width, height) for the channel
+    """
+    normalized = channel.lower().strip()
+    platform_key = CHANNEL_ALIASES.get(normalized, normalized)
+    return PLATFORM_DIMENSIONS.get(platform_key, PLATFORM_DIMENSIONS["default"])
+
 
 async def render_html_to_png(
     html: str,

@@ -128,6 +128,24 @@ python -m scripts.style_extractor --file urls.txt --name "style_name"
 python -m scripts.style_extractor --urls URL1 --name "style_name" --dry-run
 ```
 
+### 🖼️ 이미지 렌더링
+
+```bash
+# 입력 템플릿에서 이미지 렌더링
+python -m scripts.render_media render --input Inbox/Multimedia/mm_xxx.md
+
+# 파이프라인 상태 확인
+python -m scripts.render_media status
+
+# 대기 중인 제안 검토
+python -m scripts.render_media review
+
+# 결과물 검토
+python -m scripts.render_media review --finals
+```
+
+> 💡 이미지 렌더링은 HTML 템플릿(quote, card, list)을 Playwright로 PNG 변환합니다.
+
 ### 검증 및 관리
 
 ```bash
