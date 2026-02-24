@@ -12,5 +12,6 @@
 - `specs/003-auto-collector/canonical/Collectors.md`
 - `specs/003-auto-collector/canonical/Collector_automation.md`
 - `specs/003-auto-collector/canonical/Perplexity_email_setup.md`
+- `specs/003-auto-collector/canonical/Image_Rendering_Pipeline.md`
 
 주의: 루트/`mock_vault/`의 동일 문서들은 포인터로 유지되며, 실제 업데이트는 위 `canonical/`에서 진행합니다.
