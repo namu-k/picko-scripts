@@ -81,3 +81,78 @@ account: socialbuilders
         )
         with pytest.raises(ValueError, match="주제/컨셉"):
             parse_multimedia_input(input_file)
+
+
+class TestReferenceLoader:
+    """Test reference document loading."""
+
+    def test_load_account_config_auto(self, tmp_path: Path, monkeypatch):
+        """Auto-load account config from account_id."""
+        # Create mock account config
+        accounts_dir = tmp_path / "config" / "accounts"
+        accounts_dir.mkdir(parents=True)
+        account_file = accounts_dir / "testaccount.yml"
+        account_file.write_text(
+            """
+account_id: testaccount
+name: "Test Account"
+channels:
+  linkedin:
+    enabled: true
+"""
+        )
+
+        from picko import multimedia_io
+
+        monkeypatch.setattr(multimedia_io, "PROJECT_ROOT", tmp_path)
+
+        from picko.multimedia_io import load_account_config
+
+        config = load_account_config("testaccount")
+        assert config["account_id"] == "testaccount"
+        assert config["name"] == "Test Account"
+
+    def test_load_reference_by_type_and_id(self, tmp_path: Path, monkeypatch):
+        """Load reference document by type and ID."""
+        # Create mock reference
+        ref_dir = tmp_path / "Assets" / "References"
+        ref_dir.mkdir(parents=True)
+        ref_file = ref_dir / "test_style.md"
+        ref_file.write_text("# Test Style\n\nThis is a test style reference.")
+
+        from picko import multimedia_io
+
+        monkeypatch.setattr(multimedia_io, "PROJECT_ROOT", tmp_path)
+
+        from picko.multimedia_io import load_reference
+
+        content = load_reference("reference_style", "test_style")
+        assert "Test Style" in content
+
+    def test_resolve_refs_list(self, tmp_path: Path, monkeypatch):
+        """Resolve list of references."""
+        from picko.multimedia_io import MultimediaInput, resolve_all_refs
+
+        input_data = MultimediaInput(
+            id="test",
+            account="testaccount",
+            source_type="standalone",
+            channels=["linkedin"],
+            content_types=["image"],
+            concept="test concept",
+            created="2026-02-24",
+            refs=[
+                {"type": "reference_style", "id": "style1"},
+                {"type": "exploration", "id": "exp1"},
+            ],
+        )
+
+        # Mock the loader
+        def mock_load(ref_type, ref_id):
+            return f"Content of {ref_type}/{ref_id}"
+
+        monkeypatch.setattr("picko.multimedia_io.load_reference", mock_load)
+
+        resolved = resolve_all_refs(input_data)
+        assert len(resolved) == 2
+        assert "style1" in resolved[0]

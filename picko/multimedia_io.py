@@ -2,12 +2,24 @@
 
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import yaml
 
 from .logger import get_logger
 
 logger = get_logger("multimedia_io")
+
+# Project root directory (two levels up from this file)
+PROJECT_ROOT = Path(__file__).parent.parent
+
+# Reference type to path mapping
+REFERENCE_PATHS = {
+    "longform": "Content/Longform/{id}.md",
+    "reference_style": "Assets/References/{id}.md",
+    "exploration": "Inbox/Explorations/{id}.md",
+    "image_style": "mock_vault/config/Folders_to_operate_social-media_copied_from_Vault/0. 프레임워크/이미지 스타일 프리셋 라이브러리.md",
+}
 
 
 @dataclass
@@ -85,3 +97,71 @@ def _parse_body_sections(body: str) -> dict[str, str]:
         sections[current_header] = "\n".join(current_content).strip()
 
     return sections
+
+
+def load_account_config(account_id: str) -> dict[str, Any]:
+    """Load account configuration by account_id.
+
+    Args:
+        account_id: The account identifier (e.g., 'socialbuilders')
+
+    Returns:
+        Account configuration dictionary, or minimal dict with account_id if not found.
+    """
+    config_path = PROJECT_ROOT / "config" / "accounts" / f"{account_id}.yml"
+
+    if not config_path.exists():
+        logger.warning(f"Account config not found: {config_path}")
+        return {"account_id": account_id}
+
+    with open(config_path, encoding="utf-8") as f:
+        config: dict[str, Any] = yaml.safe_load(f) or {}
+        return config
+
+
+def load_reference(ref_type: str, ref_id: str) -> str:
+    """Load reference document by type and ID.
+
+    Args:
+        ref_type: Type of reference (e.g., 'reference_style', 'exploration', 'longform')
+        ref_id: Identifier for the reference document
+
+    Returns:
+        Content of the reference document, or empty string if not found.
+
+    Raises:
+        ValueError: If ref_type is unknown.
+    """
+    if ref_type not in REFERENCE_PATHS:
+        raise ValueError(f"Unknown reference type: {ref_type}")
+
+    path_pattern = REFERENCE_PATHS[ref_type]
+    ref_path = PROJECT_ROOT / path_pattern.format(id=ref_id)
+
+    if not ref_path.exists():
+        logger.warning(f"Reference not found: {ref_path}")
+        return ""
+
+    return ref_path.read_text(encoding="utf-8")
+
+
+def resolve_all_refs(input_data: MultimediaInput) -> list[str]:
+    """Resolve all references from input data.
+
+    Args:
+        input_data: MultimediaInput containing refs to resolve
+
+    Returns:
+        List of resolved reference contents (empty strings excluded).
+    """
+    resolved = []
+
+    for ref in input_data.refs:
+        ref_type = ref.get("type")
+        ref_id = ref.get("id")
+        if ref_type and ref_id:
+            content = load_reference(ref_type, ref_id)
+            if content:
+                resolved.append(content)
+
+    return resolved
