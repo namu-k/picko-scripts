@@ -42,7 +42,7 @@
 
 ## TODOs
 
-- [ ] 1. Collectors.md conflict map 작성
+- [x] 1. Collectors.md conflict map 작성
 
   **What to do**:
   - `Collectors.md`에서 아래 요소를 “핵심 흐름/옵션”으로 재분류한다:
@@ -60,7 +60,7 @@
     Expected: A short list of conflicting workflows exists
   ```
 
-- [ ] 2. Collectors.md를 Claude-centric 로컬-first 워크플로우로 전면 재작성
+- [x] 2. Collectors.md를 Claude-centric 로컬-first 워크플로우로 전면 재작성
 
   **What to do**:
   - `.sisyphus/drafts/collectors-claude-centric.md`의 “Proposed Collectors.md Replacement”를 기반으로 `Collectors.md` 전체를 교체한다.
@@ -92,7 +92,7 @@
     Expected: Collection -> local files -> Claude Code processing is the primary narrative
   ```
 
-- [ ] 3. 코드/문서 링크 및 실행 명령 검증(문서 QA)
+- [x] 3. 코드/문서 링크 및 실행 명령 검증(문서 QA)
 
   **What to do**:
   - Collectors.md에 아래 참조를 포함(텍스트/경로 정확히):
@@ -113,7 +113,7 @@
     Expected: Each path appears exactly once in the "References" section
   ```
 
-- [ ] 4. Acceptance Criteria 섹션 추가 및 실행가능성 점검
+- [x] 4. Acceptance Criteria 섹션 추가 및 실행가능성 점검
 
   **What to do**:
   - Collectors.md 하단에 acceptance criteria 3개를 추가한다:
@@ -135,8 +135,8 @@
   ```
 
 ## Final Verification Wave
-- [ ] F1. Scope fidelity: only docs updated (no code changes)
-- [ ] F2. Conflict check: no remaining "The Trio" core flow
+- [x] F1. Scope fidelity: only docs updated (no code changes)
+- [x] F2. Conflict check: no remaining "The Trio" core flow
 
 ## Commit Strategy
 - Commit 1: `docs: align Collectors with local-first Claude Code workflow`
