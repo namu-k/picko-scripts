@@ -130,13 +130,26 @@ def load_reference(ref_type: str, ref_id: str) -> str:
         Content of the reference document, or empty string if not found.
 
     Raises:
-        ValueError: If ref_type is unknown.
+        ValueError: If ref_type is unknown or ref_id contains invalid characters.
     """
     if ref_type not in REFERENCE_PATHS:
         raise ValueError(f"Unknown reference type: {ref_type}")
 
+    # Validate ref_id to prevent path traversal
+    if ".." in ref_id or "/" in ref_id or "\\" in ref_id:
+        raise ValueError(f"Invalid reference ID: {ref_id}")
+
     path_pattern = REFERENCE_PATHS[ref_type]
     ref_path = PROJECT_ROOT / path_pattern.format(id=ref_id)
+
+    # Ensure resolved path is within PROJECT_ROOT
+    try:
+        ref_path = ref_path.resolve()
+        if not str(ref_path).startswith(str(PROJECT_ROOT.resolve())):
+            raise ValueError(f"Reference path outside project root: {ref_id}")
+    except (OSError, ValueError) as e:
+        logger.warning(f"Invalid reference path: {e}")
+        return ""
 
     if not ref_path.exists():
         logger.warning(f"Reference not found: {ref_path}")

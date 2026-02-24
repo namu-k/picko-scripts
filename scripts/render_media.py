@@ -62,6 +62,15 @@ def render(ctx: click.Context, input_path: Path):
         click.echo(f"   채널: {', '.join(input_data.channels)}")
         click.echo(f"   주제: {input_data.concept}")
         # TODO: Generate proposal and start pipeline
+    except FileNotFoundError:
+        click.echo(f"❌ 파일을 찾을 수 없습니다: {input_path}", err=True)
+        raise SystemExit(1)
+    except PermissionError:
+        click.echo(f"❌ 파일 읽기 권한이 없습니다: {input_path}", err=True)
+        raise SystemExit(1)
+    except UnicodeDecodeError as e:
+        click.echo(f"❌ 파일 인코딩 오류 (UTF-8 필요): {e}", err=True)
+        raise SystemExit(1)
     except ValueError as e:
         click.echo(f"❌ 오류: {e}", err=True)
         raise SystemExit(1)

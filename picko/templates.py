@@ -421,6 +421,9 @@ created_at: {{ created_at }}
 class ImageRenderer:
     """Render HTML templates for images."""
 
+    # Whitelist of valid template names for security
+    VALID_TEMPLATES = frozenset(["quote", "card", "list", "data", "carousel"])
+
     def __init__(self):
         self.env = Environment(
             loader=FileSystemLoader(str(DEFAULT_TEMPLATES_DIR / "images")),
@@ -428,7 +431,22 @@ class ImageRenderer:
         )
 
     def render_image(self, template: str, context: dict) -> str:
-        """Render image HTML template."""
+        """Render image HTML template.
+
+        Args:
+            template: Template name (must be in VALID_TEMPLATES whitelist)
+            context: Template variables
+
+        Returns:
+            Rendered HTML string
+
+        Raises:
+            ValueError: If template name is not in the whitelist
+        """
+        if template not in self.VALID_TEMPLATES:
+            raise ValueError(
+                f"Invalid template: {template}. " f"Valid templates: {', '.join(sorted(self.VALID_TEMPLATES))}"
+            )
         tmpl = self.env.get_template(f"{template}.html")
         return tmpl.render(**context)
 

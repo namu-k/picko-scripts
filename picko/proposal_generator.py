@@ -67,7 +67,26 @@ def generate_proposal(
     account_config: dict[str, Any],
     references: list[str],
 ) -> Proposal:
-    """Generate proposal for multimedia content."""
+    """Generate proposal for multimedia content.
+
+    Args:
+        input_data: Multimedia input containing content and metadata
+        account_config: Account configuration (currently unused, reserved for
+            future enhancements like style customization from account settings)
+        references: List of reference document contents (currently unused,
+            reserved for future enhancements like style extraction)
+
+    Returns:
+        Proposal with content type, template, and rendering parameters.
+
+    Note:
+        account_config and references are accepted for API compatibility and
+        future enhancement. They are not currently used in proposal generation
+        but may be used for:
+        - Style preset selection based on account preferences
+        - Content tone adjustment from reference documents
+        - Channel-specific customization from account settings
+    """
     content_type = _determine_content_type(input_data)
 
     template_map = {
