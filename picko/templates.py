@@ -413,7 +413,35 @@ created_at: {{ created_at }}
         return self.render_string(template, created_at=datetime.now().isoformat(), **content)
 
 
+# ─────────────────────────────────────────────────────────────
+# 이미지 템플릿 렌더러
+# ─────────────────────────────────────────────────────────────
+
+
+class ImageRenderer:
+    """Render HTML templates for images."""
+
+    def __init__(self):
+        self.env = Environment(
+            loader=FileSystemLoader(str(DEFAULT_TEMPLATES_DIR / "images")),
+            autoescape=select_autoescape(["html"]),
+        )
+
+    def render_image(self, template: str, context: dict) -> str:
+        """Render image HTML template."""
+        tmpl = self.env.get_template(f"{template}.html")
+        return tmpl.render(**context)
+
+
+def get_image_renderer() -> ImageRenderer:
+    """Get image renderer instance."""
+    return ImageRenderer()
+
+
+# ─────────────────────────────────────────────────────────────
 # 편의 함수
+# ─────────────────────────────────────────────────────────────
+
 _default_renderer: TemplateRenderer | None = None
 
 

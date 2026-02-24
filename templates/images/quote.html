@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            width: 1080px;
+            height: 1080px;
+            background-color: {{ background_color }};
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .quote-container {
+            text-align: center;
+            padding: 60px;
+            max-width: 80%;
+        }
+        .quote {
+            font-size: 48px;
+            font-weight: 700;
+            color: #ffffff;
+            line-height: 1.4;
+            margin-bottom: 30px;
+        }
+        .author {
+            font-size: 24px;
+            color: #aaaaaa;
+        }
+    </style>
+</head>
+<body>
+    <div class="quote-container">
+        <div class="quote">{{ quote }}</div>
+        {% if author %}<div class="author">— {{ author }}</div>{% endif %}
+    </div>
+</body>
+</html>

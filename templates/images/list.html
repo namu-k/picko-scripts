@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            width: 1080px;
+            height: 1080px;
+            background-color: {{ background_color }};
+            display: flex;
+            flex-direction: column;
+            padding: 80px;
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .title {
+            font-size: 48px;
+            font-weight: 700;
+            color: #1a1a2e;
+            margin-bottom: 50px;
+        }
+        .items {
+            list-style: none;
+        }
+        .item {
+            font-size: 36px;
+            color: #333333;
+            padding: 20px 0;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+        }
+        .item-number {
+            font-weight: 700;
+            color: #4a90d9;
+            margin-right: 20px;
+            font-size: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="title">{{ title }}</div>
+    <ul class="items">
+        {% for item in items %}
+        <li class="item">
+            <span class="item-number">{{ loop.index }}</span>
+            {{ item }}
+        </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
