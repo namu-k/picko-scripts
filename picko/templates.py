@@ -429,10 +429,7 @@ class ImageRenderer:
     """Render HTML templates for images."""
 
     # Whitelist of valid template names for security
-    VALID_TEMPLATES = frozenset([
-        "quote", "card", "list", "data", "carousel",
-        "social_quote", "modern_card"
-    ])
+    VALID_TEMPLATES = frozenset(["quote", "card", "list", "data", "carousel", "social_quote", "modern_card"])
 
     def __init__(self):
         self.env = Environment(
@@ -497,11 +494,7 @@ class ImageRenderer:
     ) -> dict | None:
         """Get layout configuration as dictionary."""
         # Import here to avoid circular imports
-        from .layout_config import (
-            LayoutConfig,
-            LayoutConfigLoader,
-            get_layout_for_template,
-        )
+        from .layout_config import LayoutConfig, LayoutConfigLoader, get_layout_for_template
 
         if layout_config is not None:
             # Use provided config directly

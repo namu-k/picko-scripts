@@ -6,7 +6,7 @@ Provides YAML-based layout presets and themes for customizable image rendering.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -75,7 +75,9 @@ class LayoutConfig:
             elif "weight" in key:
                 vars_dict[f"--{key.replace('_', '-')}"] = str(value)
             else:
-                vars_dict[f"--{key.replace('_', '-')}"] = f"{value}px" if isinstance(value, (int, float)) else str(value)
+                vars_dict[f"--{key.replace('_', '-')}"] = (
+                    f"{value}px" if isinstance(value, (int, float)) else str(value)
+                )
 
         # Colors (no units)
         for key, value in asdict(self.colors).items():

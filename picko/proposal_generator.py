@@ -49,9 +49,19 @@ def _determine_content_type(input_data: MultimediaInput) -> str:
 
     # List indicators → list (check first for explicit list content)
     list_indicators = [
-        "단계", "가지", "방법", "체크리스트",
-        "실수", "팁", "전략", "원칙", "습관",
-        "things", "steps", "ways", "tips",
+        "단계",
+        "가지",
+        "방법",
+        "체크리스트",
+        "실수",
+        "팁",
+        "전략",
+        "원칙",
+        "습관",
+        "things",
+        "steps",
+        "ways",
+        "tips",
     ]
     if any(ind in concept for ind in list_indicators):
         return "list"
