@@ -8,58 +8,95 @@
             position: relative;
             width: {{ width | default(1080) }}px;
             height: {{ height | default(1080) }}px;
-            background-color: {{ background_color }};
+            background: {{ background_color | default('#0f0f23') }};
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             padding: 80px;
-            font-family: 'Noto Sans KR', sans-serif;
+            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
         }
         .data-container {
             text-align: center;
             max-width: 85%;
         }
+        .label {
+            font-size: 32px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 24px;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            word-break: keep-all;
+        }
+        .value-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
         .main-number {
-            font-size: 120px;
+            font-size: 140px;
             font-weight: 800;
-            color: #4a90d9;
-            line-height: 1.1;
-            margin-bottom: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
         }
         .unit {
-            font-size: 48px;
+            font-size: 56px;
             font-weight: 600;
-            color: #666666;
-            margin-bottom: 30px;
-        }
-        .label {
-            font-size: 36px;
-            color: #333333;
-            margin-bottom: 15px;
+            color: rgba(255, 255, 255, 0.8);
         }
         .description {
-            font-size: 28px;
-            color: #666666;
+            font-size: 32px;
+            color: rgba(255, 255, 255, 0.5);
             line-height: 1.5;
+            margin-bottom: 40px;
+            word-break: keep-all;
+            overflow-wrap: break-word;
         }
         .trend {
-            margin-top: 30px;
-            font-size: 32px;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 16px 32px;
+            border-radius: 50px;
+            font-size: 28px;
             font-weight: 600;
         }
-        .trend-up { color: #27ae60; }
-        .trend-down { color: #e74c3c; }
+        .trend-up {
+            background: rgba(39, 174, 96, 0.2);
+            color: #27ae60;
+        }
+        .trend-down {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+        }
+        .trend-arrow {
+            font-size: 24px;
+        }
     </style>
 </head>
 <body>
     <div class="data-container">
-        <div class="main-number">{{ value }}</div>
-        {% if unit %}<div class="unit">{{ unit }}</div>{% endif %}
         <div class="label">{{ label }}</div>
+        <div class="value-row">
+            <div class="main-number">{{ value }}</div>
+            {% if unit %}<div class="unit">{{ unit }}</div>{% endif %}
+        </div>
         {% if description %}<div class="description">{{ description }}</div>{% endif %}
-        {% if trend == "up" %}<div class="trend trend-up">▲ {{ trend_value }}</div>{% endif %}
-        {% if trend == "down" %}<div class="trend trend-down">▼ {{ trend_value }}</div>{% endif %}
+        {% if trend == "up" %}
+        <div class="trend trend-up">
+            <span class="trend-arrow">▲</span> {{ trend_value }}
+        </div>
+        {% endif %}
+        {% if trend == "down" %}
+        <div class="trend trend-down">
+            <span class="trend-arrow">▼</span> {{ trend_value }}
+        </div>
+        {% endif %}
     </div>
 </body>
 </html>
