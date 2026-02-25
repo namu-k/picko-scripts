@@ -422,7 +422,10 @@ class ImageRenderer:
     """Render HTML templates for images."""
 
     # Whitelist of valid template names for security
-    VALID_TEMPLATES = frozenset(["quote", "card", "list", "data", "carousel"])
+    VALID_TEMPLATES = frozenset([
+        "quote", "card", "list", "data", "carousel",
+        "social_quote", "modern_card"
+    ])
 
     def __init__(self):
         self.env = Environment(
