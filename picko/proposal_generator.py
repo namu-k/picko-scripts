@@ -24,23 +24,35 @@ class Proposal:
 
 
 def _determine_content_type(input_data: MultimediaInput) -> str:
-    """Determine content type based on input characteristics."""
-    overlay = input_data.overlay_text
-    concept = input_data.concept
+    """Determine content type based on input characteristics.
 
-    # Short quote-like text → quote
-    if overlay and len(overlay) < 100:
-        return "quote"
+    Priority order:
+    1. List indicators in concept (e.g., "5가지", "3단계")
+    2. Data indicators in concept or overlay (e.g., "200%", "증가")
+    3. Short quote-like text in overlay (< 100 chars)
+    4. Default to card
+    """
+    overlay = input_data.overlay_text or ""
+    concept = input_data.concept or ""
+    combined = concept + overlay
 
-    # List indicators → list
-    list_indicators = ["단계", "가지", "방법", "체크리스트"]
+    # List indicators → list (check first for explicit list content)
+    list_indicators = [
+        "단계", "가지", "방법", "체크리스트",
+        "실수", "팁", "전략", "원칙", "습관",
+        "things", "steps", "ways", "tips",
+    ]
     if any(ind in concept for ind in list_indicators):
         return "list"
 
     # Number/data indicators → data
-    data_indicators = ["%", "배", "증가", "감소", "수치"]
-    if any(ind in concept + overlay for ind in data_indicators):
+    data_indicators = ["%", "배", "증가", "감소", "수치", "달성", "기록", "突破"]
+    if any(ind in combined for ind in data_indicators):
         return "data"
+
+    # Short quote-like text → quote
+    if overlay and len(overlay) < 100:
+        return "quote"
 
     # Default to card
     return "card"
