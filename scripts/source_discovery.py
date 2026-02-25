@@ -4,12 +4,11 @@
 """
 
 import argparse
-import hashlib
 import os
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -429,9 +428,7 @@ class SourceDiscovery:
 
         return None
 
-    def _dedupe_candidates(
-        self, candidates: list[SourceCandidate], existing_urls: set[str]
-    ) -> list[SourceCandidate]:
+    def _dedupe_candidates(self, candidates: list[SourceCandidate], existing_urls: set[str]) -> list[SourceCandidate]:
         """중복 후보 제거"""
         unique = []
         seen_urls: set[str] = set()
@@ -610,7 +607,7 @@ def main():
     result = discovery.run(dry_run=args.dry_run, keywords=keywords)
 
     print(f"\n{'=' * 50}")
-    print(f"Discovery Results")
+    print("Discovery Results")
     print(f"{'=' * 50}")
     print(f"Account: {result.account}")
     print(f"Keywords: {len(result.keywords_used)}")

@@ -5,7 +5,7 @@
 
 import argparse
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -137,10 +137,7 @@ class SourceCurator:
             return "disable"
 
         # 신호/잡음 비율 체크
-        if (
-            source.signal_noise_ratio is not None
-            and source.signal_noise_ratio < self.rules["min_signal_noise_ratio"]
-        ):
+        if source.signal_noise_ratio is not None and source.signal_noise_ratio < self.rules["min_signal_noise_ratio"]:
             return "disable"
 
         # 관련성 체크
