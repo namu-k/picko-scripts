@@ -23,12 +23,12 @@ class TestProposalGenerator:
         assert proposal.template == "quote.html"
 
     def test_determine_content_type_quote(self):
-        """Determine quote type for short text."""
+        """Determine quote type for short text without social channels."""
         input_data = MultimediaInput(
             id="mm_001",
             account="test",
             source_type="standalone",
-            channels=["linkedin"],
+            channels=[],  # No social channels → pure quote
             content_types=["image"],
             concept="Test",
             overlay_text="짧은 문구 하나",
@@ -78,7 +78,7 @@ class TestProposalGenerator:
             source_type="standalone",
             channels=["linkedin"],
             content_types=["image"],
-            concept="스타트업 소개",  # No list/data/quote indicators
+            concept="스타트업 이야기",  # No list/data/quote/hero indicators
             overlay_text="",  # Empty overlay → no quote detection
             created="2026-02-24",
         )
@@ -100,7 +100,8 @@ class TestProposalGenerator:
         )
 
         proposal = generate_proposal(input_data, account_config={}, references=[])
-        assert proposal.template == "quote.html"
+        # With social channel (twitter) and short text → social_quote
+        assert proposal.template == "social_quote.html"
         assert proposal.channels == ["twitter"]
 
     def test_list_priority_over_quote(self):

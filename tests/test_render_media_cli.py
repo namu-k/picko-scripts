@@ -24,8 +24,8 @@ class TestRenderMediaCLI:
 
         runner = CliRunner()
 
-        # Mock the status function
-        def mock_status():
+        # Mock the status function (accepts vault_path parameter)
+        def mock_status(vault_path=None):
             return "📊 이미지 렌더링 상태\n─────────\n대기 중: 0개"
 
         monkeypatch.setattr("scripts.render_media.get_status", mock_status)
@@ -40,7 +40,8 @@ class TestRenderMediaCLI:
 
         runner = CliRunner()
 
-        def mock_get_pending():
+        # Mock functions accept vault_path parameter
+        def mock_get_pending(vault_path=None):
             return []
 
         monkeypatch.setattr("scripts.render_media.get_pending_proposals", mock_get_pending)
