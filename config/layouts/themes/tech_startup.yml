@@ -1,0 +1,36 @@
+# Tech Startup Theme
+# Modern tech brand with cyan accents
+
+name: tech_startup
+extends: minimal_dark
+
+colors:
+  primary: "#06b6d4"
+  secondary: "#0891b2"
+  background: "#0c0c0c"
+  surface: "#171717"
+  text_primary: "#fafafa"
+  text_secondary: "#a3a3a3"
+  text_muted: "#737373"
+  accent: "#22d3ee"
+  gradient: "linear-gradient(135deg, #06b6d4 0%, #3b82f6 100%)"
+  overlay_color: "rgba(12, 12, 12, 0.8)"
+
+channel_layouts:
+  twitter:
+    spacing:
+      body_padding: 60
+  linkedin:
+    spacing:
+      body_padding: 70
+  instagram:
+    spacing:
+      body_padding: 50
+
+template_overrides:
+  quote:
+    typography:
+      title_size: 54
+  modern_card:
+    colors:
+      gradient: "linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%)"
