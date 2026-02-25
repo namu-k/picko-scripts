@@ -65,10 +65,19 @@ def review(ctx: click.Context, finals: bool, item_id: str | None):
 
 @cli.command()
 @click.option("--input", "input_path", type=Path, required=True, help="Input template path")
-@click.option("--layout", "layout_preset", default=None, help="Layout preset name (e.g., minimal_dark, minimal_light, social_gradient)")
+@click.option(
+    "--layout",
+    "layout_preset",
+    default=None,
+    help="Layout preset name (e.g., minimal_dark, minimal_light, social_gradient)",
+)
 @click.option("--theme", "layout_theme", default=None, help="Layout theme name (e.g., socialbuilders)")
 @click.option("--override", "layout_overrides", multiple=True, help="Override key=value (e.g., colors.primary=#ff0000)")
 @click.option("--output", "output_path", type=Path, default=None, help="Output HTML file path")
+@click.option("--output-png", "png_path", type=Path, default=None, help="Output PNG file path")
+@click.option(
+    "--channel", default="instagram", help="Channel for PNG dimensions (instagram, twitter, linkedin, threads)"
+)
 @click.pass_context
 def render(
     ctx: click.Context,
@@ -77,6 +86,8 @@ def render(
     layout_theme: str | None,
     layout_overrides: tuple[str, ...],
     output_path: Path | None,
+    png_path: Path | None,
+    channel: str,
 ):
     """Render from input template with optional layout configuration."""
     from picko.multimedia_io import parse_multimedia_input
@@ -124,9 +135,25 @@ def render(
         # Output handling
         if output_path:
             output_path.write_text(html, encoding="utf-8")
-            click.echo(f"\n✅ 렌더링 완료: {output_path}")
-        else:
-            click.echo("\n✅ 렌더링 완료 (HTML 출력 생략)")
+            click.echo(f"\n✅ HTML 렌더링 완료: {output_path}")
+
+        # PNG rendering
+        if png_path:
+            try:
+                from picko.html_renderer import get_dimensions_for_channel, render_html_to_png_sync
+            except ImportError as e:
+                click.echo(
+                    "❌ PNG 렌더링을 위해 playwright 설치 필요: pip install playwright && playwright install", err=True
+                )
+                raise SystemExit(1) from e
+
+            width, height = get_dimensions_for_channel(channel)
+            click.echo(f"   PNG 채널: {channel} ({width}x{height})")
+            render_html_to_png_sync(html=html, output_path=png_path, width=width, height=height)
+            click.echo(f"✅ PNG 렌더링 완료: {png_path}")
+
+        if not output_path and not png_path:
+            click.echo("\n✅ 렌더링 완료 (출력 생략)")
 
     except FileNotFoundError:
         click.echo(f"❌ 파일을 찾을 수 없습니다: {input_path}", err=True)
