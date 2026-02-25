@@ -8,34 +8,48 @@
             position: relative;
             width: {{ width | default(1080) }}px;
             height: {{ height | default(1080) }}px;
-            background-color: {{ background_color }};
+            background: {{ background_color | default('#1a1a2e') }};
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Noto Sans KR', sans-serif;
+            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
         }
         .quote-container {
             text-align: center;
-            padding: 60px;
-            max-width: 80%;
+            padding: 80px;
+            max-width: 85%;
+        }
+        .quote-mark {
+            font-size: 120px;
+            font-family: Georgia, serif;
+            color: rgba(255, 255, 255, 0.15);
+            line-height: 0.5;
+            margin-bottom: 20px;
         }
         .quote {
-            font-size: 48px;
+            font-size: 52px;
             font-weight: 700;
             color: #ffffff;
-            line-height: 1.4;
-            margin-bottom: 30px;
+            line-height: 1.5;
+            margin-bottom: 40px;
+            word-break: keep-all;
+            overflow-wrap: break-word;
         }
         .author {
-            font-size: 24px;
-            color: #aaaaaa;
+            font-size: 28px;
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 400;
+        }
+        .author::before {
+            content: "— ";
         }
     </style>
 </head>
 <body>
     <div class="quote-container">
+        <div class="quote-mark">"</div>
         <div class="quote">{{ quote }}</div>
-        {% if author %}<div class="author">— {{ author }}</div>{% endif %}
+        {% if author %}<div class="author">{{ author }}</div>{% endif %}
     </div>
 </body>
 </html>
