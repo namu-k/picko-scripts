@@ -1,0 +1,43 @@
+# 컬렉터 설정
+# 각 수집기별 설정 및 품질 규칙
+
+# Perplexity 컬렉터
+perplexity:
+  enabled: true
+  input_dir: "Inbox/Perplexity"     # Perplexity 결과 드롭 폴더
+  archive_dir: "Archive/Perplexity"  # 처리 완료 보관
+  file_patterns:
+    - "*.md"
+    - "*.html"
+
+# 품질 관리 규칙
+quality_rules:
+  # 최소 임계값
+  min_relevance_score: 0.6
+  min_quality_score: 0.5
+  max_inactive_days: 30
+  min_signal_noise_ratio: 0.2
+
+  # 신뢰 소스 임계값
+  trusted_threshold_quality: 0.9
+  trusted_threshold_count: 50
+
+# 소스 발견 설정
+discovery:
+  # 발견 방법 활성화
+  google_news_rss: true
+  tavily: true
+  substack: true
+
+  # 레이트 리밋
+  tavily_requests_per_second: 1
+  tavily_daily_limit: 1000
+  google_news_timeout_seconds: 10
+  substack_interval_seconds: 5
+
+  # 평가 설정
+  llm_batch_size: 20
+  relevance_threshold: 0.6
+
+  # 로그 보관 기간
+  log_retention_days: 30
