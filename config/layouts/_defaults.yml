@@ -1,0 +1,36 @@
+# Default Layout Configuration
+# These values are used when no preset is specified
+
+name: default
+
+typography:
+  font_family: "'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif"
+  title_size: 52
+  body_size: 28
+  caption_size: 20
+  title_weight: 700
+  body_weight: 400
+  line_height: 1.4
+
+colors:
+  primary: "#667eea"
+  secondary: "#764ba2"
+  background: "#0f0f23"
+  surface: "#1a1a2e"
+  text_primary: "#ffffff"
+  text_secondary: "#a0aec0"
+  text_muted: "#718096"
+  accent: "#f093fb"
+  gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+  overlay_color: "rgba(0, 0, 0, 0.6)"
+
+spacing:
+  body_padding: 80
+  gap: 24
+  section_gap: 40
+  element_gap: 16
+  border_radius: 16
+  card_padding: 32
+
+# Template-specific overrides can be added here
+template_overrides: {}

@@ -1,0 +1,47 @@
+# Corporate Preset
+# Professional, clean theme for business content
+
+name: corporate
+extends: default
+
+typography:
+  font_family: "'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif"
+  title_size: 48
+  body_size: 26
+  caption_size: 18
+  title_weight: 600
+  body_weight: 400
+  line_height: 1.5
+
+colors:
+  primary: "#1a365d"
+  secondary: "#2c5282"
+  background: "#ffffff"
+  surface: "#f7fafc"
+  text_primary: "#1a202c"
+  text_secondary: "#4a5568"
+  text_muted: "#718096"
+  accent: "#3182ce"
+  gradient: "linear-gradient(135deg, #1a365d 0%, #2c5282 100%)"
+  overlay_color: "rgba(255, 255, 255, 0.9)"
+
+spacing:
+  body_padding: 60
+  gap: 20
+  section_gap: 32
+  element_gap: 12
+  border_radius: 8
+  card_padding: 24
+
+template_overrides:
+  quote:
+    typography:
+      title_size: 52
+    colors:
+      background: "#f7fafc"
+  modern_card:
+    colors:
+      gradient: "linear-gradient(135deg, #2c5282 0%, #3182ce 100%)"
+  data:
+    typography:
+      title_size: 40

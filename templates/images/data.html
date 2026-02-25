@@ -3,63 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        {% include '_base_styles.html' %}
+
         body {
-            position: relative;
-            width: {{ width | default(1080) }}px;
-            height: {{ height | default(1080) }}px;
-            background-color: {{ background_color }};
+            background: {{ background_color | default('var(--color-background)') }};
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 80px;
-            font-family: 'Noto Sans KR', sans-serif;
+            padding: var(--body-padding);
         }
         .data-container {
             text-align: center;
             max-width: 85%;
         }
+        .label {
+            font-size: 32px;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--gap);
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            word-break: keep-all;
+        }
+        .value-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: var(--element-gap);
+            margin-bottom: var(--gap);
+        }
         .main-number {
-            font-size: 120px;
+            font-size: 140px;
             font-weight: 800;
-            color: #4a90d9;
-            line-height: 1.1;
-            margin-bottom: 20px;
+            background: var(--color-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
         }
         .unit {
-            font-size: 48px;
+            font-size: 56px;
             font-weight: 600;
-            color: #666666;
-            margin-bottom: 30px;
-        }
-        .label {
-            font-size: 36px;
-            color: #333333;
-            margin-bottom: 15px;
+            color: var(--color-text-secondary);
         }
         .description {
-            font-size: 28px;
-            color: #666666;
+            font-size: 32px;
+            color: var(--color-text-muted);
             line-height: 1.5;
+            margin-bottom: var(--section-gap);
+            word-break: keep-all;
+            overflow-wrap: break-word;
         }
         .trend {
-            margin-top: 30px;
-            font-size: 32px;
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: var(--element-gap) var(--card-padding);
+            border-radius: 50px;
+            font-size: var(--body-size);
             font-weight: 600;
         }
-        .trend-up { color: #27ae60; }
-        .trend-down { color: #e74c3c; }
+        .trend-up {
+            background: rgba(39, 174, 96, 0.2);
+            color: #27ae60;
+        }
+        .trend-down {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+        }
+        .trend-arrow {
+            font-size: 24px;
+        }
     </style>
 </head>
 <body>
     <div class="data-container">
-        <div class="main-number">{{ value }}</div>
-        {% if unit %}<div class="unit">{{ unit }}</div>{% endif %}
         <div class="label">{{ label }}</div>
+        <div class="value-row">
+            <div class="main-number">{{ value }}</div>
+            {% if unit %}<div class="unit">{{ unit }}</div>{% endif %}
+        </div>
         {% if description %}<div class="description">{{ description }}</div>{% endif %}
-        {% if trend == "up" %}<div class="trend trend-up">▲ {{ trend_value }}</div>{% endif %}
-        {% if trend == "down" %}<div class="trend trend-down">▼ {{ trend_value }}</div>{% endif %}
+        {% if trend == "up" %}
+        <div class="trend trend-up">
+            <span class="trend-arrow">▲</span> {{ trend_value }}
+        </div>
+        {% endif %}
+        {% if trend == "down" %}
+        <div class="trend trend-down">
+            <span class="trend-arrow">▼</span> {{ trend_value }}
+        </div>
+        {% endif %}
     </div>
 </body>
 </html>

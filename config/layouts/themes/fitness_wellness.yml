@@ -1,0 +1,38 @@
+# Fitness & Wellness Theme
+# Energetic green theme for health/fitness content
+
+name: fitness_wellness
+extends: vibrant
+
+colors:
+  primary: "#10b981"
+  secondary: "#059669"
+  background: "#022c22"
+  surface: "#064e3b"
+  text_primary: "#ecfdf5"
+  text_secondary: "#6ee7b7"
+  text_muted: "#34d399"
+  accent: "#fbbf24"
+  gradient: "linear-gradient(135deg, #10b981 0%, #059669 100%)"
+  overlay_color: "rgba(2, 44, 34, 0.7)"
+
+channel_layouts:
+  instagram:
+    spacing:
+      body_padding: 50
+      border_radius: 24
+  youtube:
+    spacing:
+      body_padding: 60
+
+template_overrides:
+  quote:
+    typography:
+      title_size: 60
+      title_weight: 800
+  modern_card:
+    colors:
+      gradient: "linear-gradient(135deg, #10b981 0%, #14b8a6 100%)"
+  data:
+    colors:
+      accent: "#fbbf24"

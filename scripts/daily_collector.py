@@ -23,7 +23,7 @@ from picko.embedding import get_embedding_manager
 from picko.llm_client import get_summary_client
 from picko.logger import setup_logger
 from picko.scoring import ContentScore, ContentScorer
-from picko.source_manager import SourceManager, SourceMeta
+from picko.source_manager import SourceManager
 from picko.templates import get_renderer
 from picko.vault_io import VaultIO
 

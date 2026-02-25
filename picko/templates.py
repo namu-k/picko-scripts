@@ -3,12 +3,19 @@
 Jinja2 기반 콘텐츠 템플릿 처리
 """
 
+from __future__ import annotations
+
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from .logger import get_logger
+
+if TYPE_CHECKING:
+    from .layout_config import LayoutConfig
 
 logger = get_logger("templates")
 
@@ -422,7 +429,10 @@ class ImageRenderer:
     """Render HTML templates for images."""
 
     # Whitelist of valid template names for security
-    VALID_TEMPLATES = frozenset(["quote", "card", "list", "data", "carousel"])
+    VALID_TEMPLATES = frozenset([
+        "quote", "card", "list", "data", "carousel",
+        "social_quote", "modern_card"
+    ])
 
     def __init__(self):
         self.env = Environment(
@@ -430,12 +440,24 @@ class ImageRenderer:
             autoescape=select_autoescape(["html"]),
         )
 
-    def render_image(self, template: str, context: dict) -> str:
-        """Render image HTML template.
+    def render_image(
+        self,
+        template: str,
+        context: dict,
+        layout_config: LayoutConfig | None = None,
+        layout_preset: str | None = None,
+        layout_theme: str | None = None,
+        layout_overrides: list[str] | None = None,
+    ) -> str:
+        """Render image HTML template with optional layout configuration.
 
         Args:
             template: Template name (must be in VALID_TEMPLATES whitelist)
             context: Template variables
+            layout_config: Pre-loaded LayoutConfig instance (takes priority)
+            layout_preset: Preset name to load (e.g., "minimal_dark")
+            layout_theme: Theme name to load (e.g., "socialbuilders")
+            layout_overrides: CLI-style override strings (e.g., ["colors.primary=#ff0000"])
 
         Returns:
             Rendered HTML string
@@ -447,8 +469,56 @@ class ImageRenderer:
             raise ValueError(
                 f"Invalid template: {template}. " f"Valid templates: {', '.join(sorted(self.VALID_TEMPLATES))}"
             )
+
+        # Prepare layout configuration
+        layout_dict = self._get_layout_config(
+            layout_config=layout_config,
+            layout_preset=layout_preset,
+            layout_theme=layout_theme,
+            layout_overrides=layout_overrides,
+            template_name=template,
+        )
+
+        # Merge layout into context
+        merged_context = {**context}
+        if layout_dict:
+            merged_context["layout"] = layout_dict
+
         tmpl = self.env.get_template(f"{template}.html")
-        return tmpl.render(**context)
+        return tmpl.render(**merged_context)
+
+    def _get_layout_config(
+        self,
+        layout_config: LayoutConfig | None,
+        layout_preset: str | None,
+        layout_theme: str | None,
+        layout_overrides: list[str] | None,
+        template_name: str,
+    ) -> dict | None:
+        """Get layout configuration as dictionary."""
+        # Import here to avoid circular imports
+        from .layout_config import (
+            LayoutConfig,
+            LayoutConfigLoader,
+            get_layout_for_template,
+        )
+
+        if layout_config is not None:
+            # Use provided config directly
+            config = layout_config
+        elif layout_preset or layout_theme or layout_overrides:
+            # Load from preset/theme/overrides
+            config = get_layout_for_template(
+                preset=layout_preset,
+                theme=layout_theme,
+                template_name=template_name,
+                overrides=layout_overrides,
+            )
+        else:
+            # No layout specified - use defaults
+            return None
+
+        return asdict(config)
 
 
 def get_image_renderer() -> ImageRenderer:

@@ -1,0 +1,53 @@
+# Minimal Light Preset
+# Clean, light theme with subtle gradients
+
+name: minimal_light
+extends: default
+
+typography:
+  font_family: "'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif"
+  title_size: 52
+  body_size: 28
+  caption_size: 20
+  title_weight: 700
+  body_weight: 400
+  line_height: 1.4
+
+colors:
+  primary: "#4f46e5"
+  secondary: "#7c3aed"
+  background: "#ffffff"
+  surface: "#f8fafc"
+  text_primary: "#1e293b"
+  text_secondary: "#64748b"
+  text_muted: "#94a3b8"
+  accent: "#8b5cf6"
+  gradient: "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)"
+  overlay_color: "rgba(255, 255, 255, 0.8)"
+
+spacing:
+  body_padding: 80
+  gap: 24
+  section_gap: 40
+  element_gap: 16
+  border_radius: 16
+  card_padding: 32
+
+# Template-specific overrides
+template_overrides:
+  quote:
+    typography:
+      title_size: 56
+  social_quote:
+    colors:
+      background: "#f1f5f9"
+  modern_card:
+    colors:
+      background: "#f8fafc"
+      surface: "#ffffff"
+  data:
+    typography:
+      title_size: 44
+      body_size: 24
+    colors:
+      text_primary: "#0f172a"

@@ -93,3 +93,19 @@ content_settings:
   generate_packs: true
   # 이미지 프롬프트 생성
   generate_image_prompts: true
+
+# 비주얼/레이아웃 설정
+visual_settings:
+  # 기본 레이아웃 프리셋 (config/layouts/presets/ 하위)
+  default_layout_preset: minimal_dark
+  # 채널별 레이아웃 오버라이드
+  channel_layouts:
+    twitter:
+      spacing:
+        body_padding: 70
+    linkedin:
+      spacing:
+        body_padding: 80
+    instagram:
+      spacing:
+        body_padding: 60

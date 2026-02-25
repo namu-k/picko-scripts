@@ -1,0 +1,51 @@
+# Vibrant Preset
+# Colorful, energetic theme for creative content
+
+name: vibrant
+extends: default
+
+typography:
+  font_family: "'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif"
+  title_size: 56
+  body_size: 30
+  caption_size: 22
+  title_weight: 800
+  body_weight: 500
+  line_height: 1.3
+
+colors:
+  primary: "#f56565"
+  secondary: "#ed64a6"
+  background: "#1a1a2e"
+  surface: "#16213e"
+  text_primary: "#ffffff"
+  text_secondary: "#fbd38d"
+  text_muted: "#63b3ed"
+  accent: "#68d391"
+  gradient: "linear-gradient(135deg, #f56565 0%, #ed64a6 50%, #9f7aea 100%)"
+  overlay_color: "rgba(26, 26, 46, 0.7)"
+
+spacing:
+  body_padding: 50
+  gap: 16
+  section_gap: 28
+  element_gap: 10
+  border_radius: 20
+  card_padding: 28
+
+template_overrides:
+  quote:
+    typography:
+      title_size: 64
+      title_weight: 900
+  social_quote:
+    spacing:
+      border_radius: 24
+  modern_card:
+    typography:
+      title_size: 52
+    colors:
+      gradient: "linear-gradient(135deg, #ed64a6 0%, #9f7aea 100%)"
+  data:
+    colors:
+      accent: "#fbd38d"

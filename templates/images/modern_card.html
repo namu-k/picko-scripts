@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        {% include '_base_styles.html' %}
+
+        body {
+            background: {{ gradient | default('var(--color-gradient)') }};
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: var(--body-padding);
+        }
+        .header {
+            display: flex;
+            align-items: center;
+            gap: var(--gap);
+        }
+        .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--color-overlay);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: var(--title-weight);
+            color: var(--color-text-primary);
+        }
+        .profile-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .name {
+            font-size: var(--body-size);
+            font-weight: var(--title-weight);
+            color: var(--color-text-primary);
+        }
+        .handle {
+            font-size: var(--caption-size);
+            color: var(--color-text-secondary);
+        }
+        .quote-section {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .quote {
+            font-size: var(--title-size);
+            font-weight: var(--title-weight);
+            color: var(--color-text-primary);
+            line-height: var(--line-height);
+            text-align: center;
+            word-break: keep-all;
+            overflow-wrap: break-word;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        }
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        .brand {
+            font-size: 24px;
+            font-weight: var(--title-weight);
+            color: var(--color-text-primary);
+        }
+        .date {
+            font-size: var(--caption-size);
+            color: var(--color-text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="avatar">{{ avatar_text | default('S') }}</div>
+        <div class="profile-info">
+            <div class="name">{{ profile_name | default('SocialBuilders') }}</div>
+            <div class="handle">{{ profile_handle | default('@socialbuilders') }}</div>
+        </div>
+    </div>
+    <div class="quote-section">
+        <div class="quote">{{ quote }}</div>
+    </div>
+    <div class="footer">
+        <div class="brand">{{ brand | default('SocialBuilders') }}</div>
+        <div class="date">{{ date | default('2026') }}</div>
+    </div>
+</body>
+</html>
