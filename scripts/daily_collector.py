@@ -12,13 +12,18 @@ from urllib.parse import urlparse
 
 import feedparser
 import httpx
+import yaml
 from bs4 import BeautifulSoup
 
+from picko.collectors import BaseCollector
+from picko.collectors.perplexity import PerplexityCollector
+from picko.collectors.rss import RSSCollector
 from picko.config import get_config
 from picko.embedding import get_embedding_manager
 from picko.llm_client import get_summary_client
 from picko.logger import setup_logger
 from picko.scoring import ContentScore, ContentScorer
+from picko.source_manager import SourceManager
 from picko.templates import get_renderer
 from picko.vault_io import VaultIO
 
@@ -47,7 +52,59 @@ class DailyCollector:
         # 기존 임베딩 (novelty 계산용)
         self._existing_embeddings = None
 
+        # V2: 컬렉터 로딩
+        self.collectors = self._load_collectors()
+        self._collectors_config = self._load_collectors_config()
+
         logger.info(f"DailyCollector initialized for account: {self.account_id}")
+
+    # ─────────────────────────────────────────────────────────────
+    # 컬렉터 관리 (V2)
+    # ─────────────────────────────────────────────────────────────
+
+    def _load_collectors_config(self) -> dict[str, Any]:
+        """collectors.yml 설정 로드"""
+        collectors_path = Path("config/collectors.yml")
+        if collectors_path.exists():
+            try:
+                with open(collectors_path, "r", encoding="utf-8") as f:
+                    return yaml.safe_load(f) or {}
+            except Exception as e:
+                logger.warning(f"Failed to load collectors config: {e}")
+        return {}
+
+    def _is_enabled(self, collector_name: str) -> bool:
+        """컬렉터 활성화 여부 확인"""
+        config = self._collectors_config.get(collector_name, {})
+        return config.get("enabled", False)
+
+    def _load_collectors(self) -> list[BaseCollector]:
+        """활성 컬렉터 로드"""
+        collectors: list[BaseCollector] = []
+
+        # 소스 매니저로 RSS 소스 로드
+        sources_path = Path(self.config.sources_file)
+        source_manager = SourceManager(sources_path)
+        sources = source_manager.get_active()
+
+        # RSS 컬렉터 (항상 포함 - 하위호환)
+        rss_sources = [s for s in sources if s.type == "rss"]
+        if rss_sources:
+            collectors.append(RSSCollector(sources=rss_sources))
+            logger.debug(f"Loaded RSSCollector with {len(rss_sources)} sources")
+
+        # Perplexity 컬렉터 (설정에서 활성화된 경우)
+        collectors_config = self._load_collectors_config()
+        perplexity_config = collectors_config.get("perplexity", {})
+        if perplexity_config.get("enabled", False):
+            try:
+                perplexity_collector = PerplexityCollector.from_config(perplexity_config)
+                collectors.append(perplexity_collector)
+                logger.debug("Loaded PerplexityCollector")
+            except Exception as e:
+                logger.warning(f"Failed to load PerplexityCollector: {e}")
+
+        return collectors
 
     def run(
         self,
@@ -132,28 +189,32 @@ class DailyCollector:
     # ─────────────────────────────────────────────────────────────
 
     def _ingest(self, source_filter: list[str] | None = None) -> list[dict[str, Any]]:
-        """소스에서 URL 수집"""
-        items = []
-        sources_config = self.config.sources.get("sources", [])
+        """
+        소스에서 URL 수집 (V2: 다중 컬렉터 지원)
 
-        for source in sources_config:
-            if not source.get("enabled", True):
-                continue
+        V2: 모든 컬렉터 실행 후 통합.
+        한 컬렉터 실패해도 나머지 계속 실행.
+        """
+        all_items = []
 
-            if source_filter and source["id"] not in source_filter:
-                continue
-
-            source_type = source.get("type", "rss")
-
+        # V2: 컬렉터 기반 수집
+        for collector in self.collectors:
             try:
-                if source_type == "rss":
-                    source_items = self._fetch_rss(source)
-                    items.extend(source_items)
-                # elif source_type == "crawler":
-                #     source_items = self._crawl(source)
-                #     items.extend(source_items)
+                items = collector.collect(self.account_id)
+                # CollectedItem을 dict로 변환
+                for item in items:
+                    all_items.append(item.to_dict())
+                logger.info(f"[{collector.name()}] {len(items)}개 수집")
             except Exception as e:
-                logger.warning(f"Failed to fetch source {source['id']}: {e}")
+                logger.error(f"[{collector.name()}] 수집 실패: {e}")
+                # 한 컬렉터 실패해도 나머지 계속 실행
+                continue
+
+        # source_filter 적용
+        if source_filter:
+            all_items = [item for item in all_items if item.get("source_id") in source_filter]
+
+        return all_items
 
         return items
 
@@ -326,13 +387,27 @@ class DailyCollector:
         return items
 
     def _load_existing_embeddings(self) -> list[list[float]]:
-        """기존 콘텐츠 임베딩 로드"""
+        """기존 콘텐츠 임베딩 로드 (cache/embeddings/에서 .npy 파일 로드)"""
         if self._existing_embeddings is not None:
             return self._existing_embeddings
 
         embeddings = []
-        # TODO: 실제로는 캐시된 임베딩을 로드하거나 DB에서 조회
-        # 현재는 빈 리스트 반환 (모든 콘텐츠가 새로운 것으로 간주)
+        cache_dir = self.embedder.cache_dir
+
+        if cache_dir.exists():
+            try:
+                import numpy as np
+
+                for cache_file in cache_dir.glob("*.npy"):
+                    try:
+                        emb = np.load(cache_file).tolist()
+                        embeddings.append(emb)
+                    except Exception as e:
+                        logger.debug(f"Failed to load cache file {cache_file}: {e}")
+
+                logger.info(f"Loaded {len(embeddings)} existing embeddings from cache")
+            except Exception as e:
+                logger.warning(f"Failed to load existing embeddings: {e}")
 
         self._existing_embeddings = embeddings
         return embeddings

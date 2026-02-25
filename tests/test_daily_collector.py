@@ -129,8 +129,10 @@ class TestDailyCollectorInit:
     @patch("scripts.daily_collector.get_summary_client")
     @patch("scripts.daily_collector.get_embedding_manager")
     @patch("scripts.daily_collector.get_renderer")
+    @patch("scripts.daily_collector.DailyCollector._load_collectors")
     def test_init_default(
         self,
+        mock_load_collectors,
         mock_renderer,
         mock_embedder,
         mock_llm_client,
@@ -140,6 +142,7 @@ class TestDailyCollectorInit:
     ):
         """Test default initialization"""
         mock_get_config.return_value = mock_config
+        mock_load_collectors.return_value = []
         from scripts.daily_collector import DailyCollector
 
         collector = DailyCollector()
@@ -153,8 +156,10 @@ class TestDailyCollectorInit:
     @patch("scripts.daily_collector.get_summary_client")
     @patch("scripts.daily_collector.get_embedding_manager")
     @patch("scripts.daily_collector.get_renderer")
+    @patch("scripts.daily_collector.DailyCollector._load_collectors")
     def test_init_with_account(
         self,
+        mock_load_collectors,
         mock_renderer,
         mock_embedder,
         mock_llm_client,
@@ -164,6 +169,7 @@ class TestDailyCollectorInit:
     ):
         """Test initialization with specific account"""
         mock_get_config.return_value = mock_config
+        mock_load_collectors.return_value = []
         from scripts.daily_collector import DailyCollector
 
         collector = DailyCollector(account_id="custom_account")
@@ -175,8 +181,10 @@ class TestDailyCollectorInit:
     @patch("scripts.daily_collector.get_summary_client")
     @patch("scripts.daily_collector.get_embedding_manager")
     @patch("scripts.daily_collector.get_renderer")
+    @patch("scripts.daily_collector.DailyCollector._load_collectors")
     def test_init_dry_run(
         self,
+        mock_load_collectors,
         mock_renderer,
         mock_embedder,
         mock_llm_client,
@@ -186,6 +194,7 @@ class TestDailyCollectorInit:
     ):
         """Test dry run mode"""
         mock_get_config.return_value = mock_config
+        mock_load_collectors.return_value = []
         from scripts.daily_collector import DailyCollector
 
         collector = DailyCollector(dry_run=True)
@@ -294,9 +303,7 @@ class TestDeduplication:
         from scripts.daily_collector import DailyCollector
 
         # Existing note with url_hash
-        existing_hash = hashlib.md5(
-            "https://example.com/existing".encode()
-        ).hexdigest()[:12]
+        existing_hash = hashlib.md5("https://example.com/existing".encode()).hexdigest()[:12]
 
         items = [
             {"source_url": "https://example.com/existing", "title": "Existing Article"},
@@ -322,9 +329,7 @@ class TestRSSFetch:
 
     @patch("scripts.daily_collector.get_config")
     @patch("scripts.daily_collector.feedparser")
-    def test_fetch_rss_parses_entries(
-        self, mock_feedparser, mock_get_config, mock_config, sample_rss_entry
-    ):
+    def test_fetch_rss_parses_entries(self, mock_feedparser, mock_get_config, mock_config, sample_rss_entry):
         """Test RSS feed parsing"""
         mock_get_config.return_value = mock_config
 
@@ -353,9 +358,7 @@ class TestRSSFetch:
 
     @patch("scripts.daily_collector.get_config")
     @patch("scripts.daily_collector.feedparser")
-    def test_fetch_rss_limits_to_20(
-        self, mock_feedparser, mock_get_config, mock_config
-    ):
+    def test_fetch_rss_limits_to_20(self, mock_feedparser, mock_get_config, mock_config):
         """Test that RSS fetch limits to 20 entries"""
         mock_get_config.return_value = mock_config
 
@@ -363,10 +366,7 @@ class TestRSSFetch:
 
         # Create 30 mock entries
         mock_feed = MagicMock()
-        mock_feed.entries = [
-            {"title": f"Article {i}", "link": f"https://example.com/{i}"}
-            for i in range(30)
-        ]
+        mock_feed.entries = [{"title": f"Article {i}", "link": f"https://example.com/{i}"} for i in range(30)]
         mock_feedparser.parse.return_value = mock_feed
 
         source = {"id": "test_source", "url": "https://example.com/feed"}
@@ -384,17 +384,13 @@ class TestNLPProcessing:
     """Tests for NLP processing"""
 
     @patch("scripts.daily_collector.get_config")
-    def test_nlp_process_adds_summary_and_tags(
-        self, mock_get_config, mock_config, mock_llm
-    ):
+    def test_nlp_process_adds_summary_and_tags(self, mock_get_config, mock_config, mock_llm):
         """Test that NLP processing adds summary and tags"""
         mock_get_config.return_value = mock_config
 
         from scripts.daily_collector import DailyCollector
 
-        items = [
-            {"title": "Test Article", "full_text": "Test content for NLP processing."}
-        ]
+        items = [{"title": "Test Article", "full_text": "Test content for NLP processing."}]
 
         with patch.object(DailyCollector, "__init__", lambda x, **kwargs: None):
             collector = DailyCollector.__new__(DailyCollector)
@@ -409,9 +405,7 @@ class TestNLPProcessing:
         assert "key_points" in result[0]
 
     @patch("scripts.daily_collector.get_config")
-    def test_nlp_process_skips_empty_items(
-        self, mock_get_config, mock_config, mock_llm
-    ):
+    def test_nlp_process_skips_empty_items(self, mock_get_config, mock_config, mock_llm):
         """Test that empty items are skipped"""
         mock_get_config.return_value = mock_config
 
@@ -487,9 +481,7 @@ class TestScoring:
         from scripts.daily_collector import DailyCollector
 
         mock_scorer = MagicMock()
-        mock_scorer.score.return_value = ContentScore(
-            novelty=0.8, relevance=0.7, quality=0.6, total=0.7
-        )
+        mock_scorer.score.return_value = ContentScore(novelty=0.8, relevance=0.7, quality=0.6, total=0.7)
 
         items = [sample_item.copy()]
 
@@ -597,6 +589,7 @@ class TestIngest:
         with patch.object(DailyCollector, "__init__", lambda x, **kwargs: None):
             collector = DailyCollector.__new__(DailyCollector)
             collector.config = mock_config
+            collector.collectors = []  # V2: mock collectors list
             collector._fetch_rss = MagicMock(return_value=[{"title": "Test"}])
 
             result = collector._ingest()
@@ -610,14 +603,31 @@ class TestIngest:
         """Test that source filter works"""
         mock_get_config.return_value = mock_config
 
+        from dataclasses import dataclass
+
         from scripts.daily_collector import DailyCollector
+
+        # Create a mock collector that returns test items
+        @dataclass
+        class MockCollectedItem:
+            title: str
+            source_id: str
+
+            def to_dict(self):
+                return {"title": self.title, "source_id": self.source_id}
+
+        mock_collector = MagicMock()
+        mock_collector.collect.return_value = [
+            MockCollectedItem(title="Test", source_id="test_source"),
+            MockCollectedItem(title="Other", source_id="other_source"),
+        ]
+        mock_collector.name.return_value = "mock_collector"
 
         with patch.object(DailyCollector, "__init__", lambda x, **kwargs: None):
             collector = DailyCollector.__new__(DailyCollector)
             collector.config = mock_config
-            collector._fetch_rss = MagicMock(
-                return_value=[{"title": "Test", "source_id": "test_source"}]
-            )
+            collector.account_id = "test_account"  # Required for collector.collect()
+            collector.collectors = [mock_collector]  # V2: mock collectors list
 
             result = collector._ingest(source_filter=["test_source"])
 
