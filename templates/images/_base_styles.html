@@ -1,0 +1,96 @@
+{#
+  Base CSS Variables Template
+  Include this at the beginning of your template's <style> tag.
+
+  Usage:
+    <style>
+      {% include '_base_styles.html' %}
+      /* Your custom styles here */
+    </style>
+
+  The 'layout' variable should be a dict with:
+    - typography: font settings
+    - colors: color palette
+    - spacing: spacing values
+
+  If 'layout' is not provided, default values are used.
+#}
+{%- if not layout -%}
+{%- set layout = {
+    "typography": {
+        "font_family": "'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif",
+        "title_size": 52,
+        "body_size": 28,
+        "caption_size": 20,
+        "title_weight": 700,
+        "body_weight": 400,
+        "line_height": 1.4
+    },
+    "colors": {
+        "primary": "#667eea",
+        "secondary": "#764ba2",
+        "background": "#0f0f23",
+        "surface": "#1a1a2e",
+        "text_primary": "#ffffff",
+        "text_secondary": "#a0aec0",
+        "text_muted": "#718096",
+        "accent": "#f093fb",
+        "gradient": "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+        "overlay_color": "rgba(0, 0, 0, 0.6)"
+    },
+    "spacing": {
+        "body_padding": 80,
+        "gap": 24,
+        "section_gap": 40,
+        "element_gap": 16,
+        "border_radius": 16,
+        "card_padding": 32
+    }
+} -%}
+{%- endif -%}
+:root {
+    /* Typography */
+    --font-family: {{ layout.typography.font_family | default("'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif") }};
+    --title-size: {{ layout.typography.title_size | default(52) }}px;
+    --body-size: {{ layout.typography.body_size | default(28) }}px;
+    --caption-size: {{ layout.typography.caption_size | default(20) }}px;
+    --title-weight: {{ layout.typography.title_weight | default(700) }};
+    --body-weight: {{ layout.typography.body_weight | default(400) }};
+    --line-height: {{ layout.typography.line_height | default(1.4) }};
+
+    /* Colors */
+    --color-primary: {{ layout.colors.primary | default('#667eea') }};
+    --color-secondary: {{ layout.colors.secondary | default('#764ba2') }};
+    --color-background: {{ layout.colors.background | default('#0f0f23') }};
+    --color-surface: {{ layout.colors.surface | default('#1a1a2e') }};
+    --color-text-primary: {{ layout.colors.text_primary | default('#ffffff') }};
+    --color-text-secondary: {{ layout.colors.text_secondary | default('#a0aec0') }};
+    --color-text-muted: {{ layout.colors.text_muted | default('#718096') }};
+    --color-accent: {{ layout.colors.accent | default('#f093fb') }};
+    --color-gradient: {{ layout.colors.gradient | default('linear-gradient(135deg, #667eea 0%, #764ba2 100%)') }};
+    --color-overlay: {{ layout.colors.overlay_color | default('rgba(0, 0, 0, 0.6)') }};
+
+    /* Spacing */
+    --body-padding: {{ layout.spacing.body_padding | default(80) }}px;
+    --gap: {{ layout.spacing.gap | default(24) }}px;
+    --section-gap: {{ layout.spacing.section_gap | default(40) }}px;
+    --element-gap: {{ layout.spacing.element_gap | default(16) }}px;
+    --border-radius: {{ layout.spacing.border_radius | default(16) }}px;
+    --card-padding: {{ layout.spacing.card_padding | default(32) }}px;
+
+    /* Dimensions (can be overridden by template variables) */
+    --width: {{ width | default(1080) }}px;
+    --height: {{ height | default(1080) }}px;
+}
+
+/* Reset */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+/* Base body styles */
+body {
+    position: relative;
+    width: var(--width);
+    height: var(--height);
+    background: var(--color-background);
+    font-family: var(--font-family);
+}

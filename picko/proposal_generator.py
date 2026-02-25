@@ -1,5 +1,7 @@
 """Proposal generator for multimedia content."""
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -21,6 +23,9 @@ class Proposal:
     style_preset: str
     channels: list[str]
     layout_hints: list[str] = field(default_factory=list)
+    # Layout configuration fields
+    layout_preset: str | None = None  # e.g., "minimal_dark", "minimal_light"
+    layout_overrides: dict[str, Any] = field(default_factory=dict)  # e.g., {"colors": {"primary": "#ff0000"}}
 
 
 def _determine_content_type(input_data: MultimediaInput) -> str:
@@ -101,8 +106,7 @@ def generate_proposal(
 
     Args:
         input_data: Multimedia input containing content and metadata
-        account_config: Account configuration (currently unused, reserved for
-            future enhancements like style customization from account settings)
+        account_config: Account configuration with optional visual_settings
         references: List of reference document contents (currently unused,
             reserved for future enhancements like style extraction)
 
@@ -110,12 +114,9 @@ def generate_proposal(
         Proposal with content type, template, and rendering parameters.
 
     Note:
-        account_config and references are accepted for API compatibility and
-        future enhancement. They are not currently used in proposal generation
-        but may be used for:
-        - Style preset selection based on account preferences
-        - Content tone adjustment from reference documents
-        - Channel-specific customization from account settings
+        account_config may contain visual_settings for layout customization:
+        - default_layout_preset: Default preset name (e.g., "minimal_dark")
+        - channel_layouts: Per-channel layout overrides
     """
     content_type = _determine_content_type(input_data)
 
@@ -145,6 +146,23 @@ def generate_proposal(
         style_presets.get(content_type, "minimal_infographic"),
     )
 
+    # Extract layout settings from account config
+    visual_settings = account_config.get("visual_settings", {})
+    layout_preset = visual_settings.get("default_layout_preset")
+
+    # Apply channel-specific layout overrides if available
+    layout_overrides: dict[str, Any] = {}
+    if input_data.channels:
+        channel_layouts = visual_settings.get("channel_layouts", {})
+        for channel in input_data.channels:
+            channel_lower = channel.lower()
+            if channel_lower in channel_layouts:
+                # Merge channel-specific settings
+                channel_settings = channel_layouts[channel_lower]
+                for key, value in channel_settings.items():
+                    if key not in layout_overrides:
+                        layout_overrides[key] = value
+
     return Proposal(
         input_id=input_data.id,
         content_type=content_type,
@@ -154,4 +172,6 @@ def generate_proposal(
         style_preset=style_presets.get(content_type, "minimal_infographic"),
         channels=input_data.channels,
         layout_hints=[],
+        layout_preset=layout_preset,
+        layout_overrides=layout_overrides,
     )

@@ -3,103 +3,92 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        {% include '_base_styles.html' %}
+
         body {
-            position: relative;
-            width: {{ width | default(1080) }}px;
-            height: {{ height | default(1080) }}px;
-            background: #0f0f23;
+            background: {{ gradient | default('var(--color-gradient)') }};
             display: flex;
             flex-direction: column;
-            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+            justify-content: space-between;
+            padding: var(--body-padding);
         }
-        .hero {
-            height: 45%;
-            background: linear-gradient(135deg, {{ gradient_start | default('#667eea') }} 0%, {{ gradient_end | default('#764ba2') }} 100%);
+        .header {
+            display: flex;
+            align-items: center;
+            gap: var(--gap);
+        }
+        .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--color-overlay);
             display: flex;
             align-items: center;
             justify-content: center;
-            position: relative;
+            font-size: 32px;
+            font-weight: var(--title-weight);
+            color: var(--color-text-primary);
         }
-        .hero::after {
-            content: "";
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 60px;
-            background: linear-gradient(to top, #0f0f23, transparent);
-        }
-        .hero-text {
-            font-size: 80px;
-            font-weight: 800;
-            color: white;
-            text-align: center;
-            text-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
-        }
-        .content {
-            flex: 1;
-            padding: 60px 80px;
+        .profile-info {
             display: flex;
             flex-direction: column;
+            gap: 4px;
+        }
+        .name {
+            font-size: var(--body-size);
+            font-weight: var(--title-weight);
+            color: var(--color-text-primary);
+        }
+        .handle {
+            font-size: var(--caption-size);
+            color: var(--color-text-secondary);
+        }
+        .quote-section {
+            flex: 1;
+            display: flex;
+            align-items: center;
             justify-content: center;
         }
-        .tag {
-            display: inline-block;
-            padding: 8px 20px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 20px;
-            font-size: 18px;
-            color: #a0a0ff;
-            margin-bottom: 30px;
-            width: fit-content;
-        }
-        .title {
-            font-size: 48px;
-            font-weight: 700;
-            color: #ffffff;
-            line-height: 1.3;
-            margin-bottom: 30px;
+        .quote {
+            font-size: var(--title-size);
+            font-weight: var(--title-weight);
+            color: var(--color-text-primary);
+            line-height: var(--line-height);
+            text-align: center;
             word-break: keep-all;
             overflow-wrap: break-word;
-        }
-        .summary {
-            font-size: 28px;
-            color: rgba(255, 255, 255, 0.6);
-            line-height: 1.6;
-            word-break: keep-all;
-            overflow-wrap: break-word;
+            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
         }
         .footer {
-            padding: 40px 80px;
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            align-items: flex-end;
         }
         .brand {
             font-size: 24px;
-            font-weight: 700;
-            color: #ffffff;
+            font-weight: var(--title-weight);
+            color: var(--color-text-primary);
         }
-        .cta {
-            font-size: 20px;
-            color: #a0a0ff;
+        .date {
+            font-size: var(--caption-size);
+            color: var(--color-text-muted);
         }
     </style>
 </head>
 <body>
-    <div class="hero">
-        <div class="hero-text">{{ hero_text | default('💡') }}</div>
+    <div class="header">
+        <div class="avatar">{{ avatar_text | default('S') }}</div>
+        <div class="profile-info">
+            <div class="name">{{ profile_name | default('SocialBuilders') }}</div>
+            <div class="handle">{{ profile_handle | default('@socialbuilders') }}</div>
+        </div>
     </div>
-    <div class="content">
-        {% if tag %}<div class="tag">{{ tag }}</div>{% endif %}
-        <div class="title">{{ title }}</div>
-        {% if summary %}<div class="summary">{{ summary }}</div>{% endif %}
+    <div class="quote-section">
+        <div class="quote">{{ quote }}</div>
     </div>
     <div class="footer">
         <div class="brand">{{ brand | default('SocialBuilders') }}</div>
-        <div class="cta">{{ cta | default('자세히 보기 →') }}</div>
+        <div class="date">{{ date | default('2026') }}</div>
     </div>
 </body>
 </html>

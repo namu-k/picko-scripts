@@ -3,95 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        {% include '_base_styles.html' %}
+
         body {
-            position: relative;
-            width: {{ width | default(1080) }}px;
-            height: {{ height | default(1080) }}px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: {{ background_color | default('var(--color-background)') }};
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
-            padding: 80px;
-            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
-        }
-        .header {
-            display: flex;
-            align-items: center;
-            gap: 24px;
-        }
-        .avatar {
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
-            display: flex;
-            align-items: center;
             justify-content: center;
-            font-size: 32px;
-            font-weight: 700;
-            color: white;
-        }
-        .profile-info {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-        .name {
-            font-size: 28px;
-            font-weight: 700;
-            color: #ffffff;
-        }
-        .handle {
-            font-size: 20px;
-            color: rgba(255, 255, 255, 0.7);
-        }
-        .quote-section {
-            flex: 1;
-            display: flex;
             align-items: center;
-            justify-content: center;
+            padding: var(--body-padding);
         }
-        .quote {
-            font-size: 56px;
-            font-weight: 700;
-            color: #ffffff;
-            line-height: 1.4;
+        .data-container {
             text-align: center;
+            max-width: 85%;
+        }
+        .label {
+            font-size: 32px;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--gap);
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            word-break: keep-all;
+        }
+        .value-row {
+            display: flex;
+            align-items: baseline;
+            justify-content: center;
+            gap: var(--element-gap);
+            margin-bottom: var(--gap);
+        }
+        .main-number {
+            font-size: 140px;
+            font-weight: 800;
+            background: {{ gradient | default('var(--color-gradient)') }};
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+        }
+        .unit {
+            font-size: 56px;
+            font-weight: 600;
+            color: var(--color-text-secondary);
+        }
+        .description {
+            font-size: 32px;
+            color: var(--color-text-muted);
+            line-height: 1.5;
+            margin-bottom: var(--section-gap);
             word-break: keep-all;
             overflow-wrap: break-word;
-            text-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
         }
-        .footer {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-end;
+        .trend {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: var(--element-gap) var(--card-padding);
+            border-radius: 50px;
+            font-size: var(--body-size);
+            font-weight: 600;
         }
-        .brand {
+        .trend-up {
+            background: rgba(39, 174, 96, 0.2);
+            color: #27ae60;
+        }
+        .trend-down {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+        }
+        .trend-arrow {
             font-size: 24px;
-            font-weight: 700;
-            color: rgba(255, 255, 255, 0.9);
-        }
-        .date {
-            font-size: 20px;
-            color: rgba(255, 255, 255, 0.5);
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <div class="avatar">{{ avatar_text | default('S') }}</div>
-        <div class="profile-info">
-            <div class="name">{{ profile_name | default('SocialBuilders') }}</div>
-            <div class="handle">{{ profile_handle | default('@socialbuilders') }}</div>
+    <div class="data-container">
+        <div class="label">{{ label }}</div>
+        <div class="value-row">
+            <div class="main-number">{{ value }}</div>
+            {% if unit %}<div class="unit">{{ unit }}</div>{% endif %}
         </div>
-    </div>
-    <div class="quote-section">
-        <div class="quote">{{ quote }}</div>
-    </div>
-    <div class="footer">
-        <div class="brand">{{ brand | default('SocialBuilders') }}</div>
-        <div class="date">{{ date | default('2026') }}</div>
+        {% if description %}<div class="description">{{ description }}</div>{% endif %}
+        {% if trend == "up" %}
+        <div class="trend trend-up">
+            <span class="trend-arrow">▲</span> {{ trend_value }}
+        </div>
+        {% endif %}
+        {% if trend == "down" %}
+        <div class="trend trend-down">
+            <span class="trend-arrow">▼</span> {{ trend_value }}
+        </div>
+        {% endif %}
     </div>
 </body>
 </html>

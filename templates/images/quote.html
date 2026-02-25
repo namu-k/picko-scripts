@@ -3,42 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        {% include '_base_styles.html' %}
+
         body {
-            position: relative;
-            width: {{ width | default(1080) }}px;
-            height: {{ height | default(1080) }}px;
-            background: {{ background_color | default('#1a1a2e') }};
+            background: {{ background_color | default('var(--color-background)') }};
             display: flex;
             align-items: center;
             justify-content: center;
-            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
         }
         .quote-container {
             text-align: center;
-            padding: 80px;
+            padding: var(--body-padding);
             max-width: 85%;
         }
         .quote-mark {
             font-size: 120px;
             font-family: Georgia, serif;
-            color: rgba(255, 255, 255, 0.15);
+            color: var(--color-overlay);
             line-height: 0.5;
             margin-bottom: 20px;
         }
         .quote {
-            font-size: 52px;
-            font-weight: 700;
-            color: #ffffff;
+            font-size: var(--title-size);
+            font-weight: var(--title-weight);
+            color: var(--color-text-primary);
             line-height: 1.5;
-            margin-bottom: 40px;
+            margin-bottom: var(--section-gap);
             word-break: keep-all;
             overflow-wrap: break-word;
         }
         .author {
-            font-size: 28px;
-            color: rgba(255, 255, 255, 0.6);
-            font-weight: 400;
+            font-size: var(--body-size);
+            color: var(--color-text-secondary);
+            font-weight: var(--body-weight);
         }
         .author::before {
             content: "— ";

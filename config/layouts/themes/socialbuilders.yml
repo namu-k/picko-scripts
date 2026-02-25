@@ -1,0 +1,47 @@
+# SocialBuilders Theme
+# Brand theme extending minimal_dark with custom colors
+
+name: socialbuilders
+extends: minimal_dark
+
+# Override colors for brand
+colors:
+  primary: "#3b82f6"
+  secondary: "#1d4ed8"
+  background: "#0f172a"
+  surface: "#1e293b"
+  text_primary: "#f8fafc"
+  text_secondary: "#94a3b8"
+  text_muted: "#64748b"
+  accent: "#06b6d4"
+  gradient: "linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)"
+  overlay_color: "rgba(15, 23, 42, 0.7)"
+
+# Channel-specific layout preferences
+channel_layouts:
+  twitter:
+    alignment: left
+    spacing:
+      body_padding: 70
+  linkedin:
+    alignment: center
+    spacing:
+      body_padding: 80
+  instagram:
+    alignment: center
+    spacing:
+      body_padding: 60
+
+# Template-specific overrides
+template_overrides:
+  quote:
+    typography:
+      title_size: 58
+  social_quote:
+    colors:
+      primary: "#06b6d4"
+  modern_card:
+    typography:
+      title_size: 50
+    colors:
+      gradient: "linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%)"

@@ -3,18 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        {% include '_base_styles.html' %}
+
         body {
-            position: relative;
-            width: {{ width | default(1080) }}px;
-            height: {{ height | default(1080) }}px;
-            background: {{ background_color | default('#0f0f23') }};
+            background: {{ background_color | default('var(--color-background)') }};
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 80px;
-            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+            padding: var(--body-padding);
         }
         .data-container {
             text-align: center;
@@ -22,8 +19,8 @@
         }
         .label {
             font-size: 32px;
-            color: rgba(255, 255, 255, 0.6);
-            margin-bottom: 24px;
+            color: var(--color-text-secondary);
+            margin-bottom: var(--gap);
             text-transform: uppercase;
             letter-spacing: 4px;
             word-break: keep-all;
@@ -32,13 +29,13 @@
             display: flex;
             align-items: baseline;
             justify-content: center;
-            gap: 16px;
-            margin-bottom: 24px;
+            gap: var(--element-gap);
+            margin-bottom: var(--gap);
         }
         .main-number {
             font-size: 140px;
             font-weight: 800;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--color-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -47,13 +44,13 @@
         .unit {
             font-size: 56px;
             font-weight: 600;
-            color: rgba(255, 255, 255, 0.8);
+            color: var(--color-text-secondary);
         }
         .description {
             font-size: 32px;
-            color: rgba(255, 255, 255, 0.5);
+            color: var(--color-text-muted);
             line-height: 1.5;
-            margin-bottom: 40px;
+            margin-bottom: var(--section-gap);
             word-break: keep-all;
             overflow-wrap: break-word;
         }
@@ -61,9 +58,9 @@
             display: inline-flex;
             align-items: center;
             gap: 12px;
-            padding: 16px 32px;
+            padding: var(--element-gap) var(--card-padding);
             border-radius: 50px;
-            font-size: 28px;
+            font-size: var(--body-size);
             font-weight: 600;
         }
         .trend-up {

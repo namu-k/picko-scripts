@@ -65,10 +65,22 @@ def review(ctx: click.Context, finals: bool, item_id: str | None):
 
 @cli.command()
 @click.option("--input", "input_path", type=Path, required=True, help="Input template path")
+@click.option("--layout", "layout_preset", default=None, help="Layout preset name (e.g., minimal_dark, minimal_light, social_gradient)")
+@click.option("--theme", "layout_theme", default=None, help="Layout theme name (e.g., socialbuilders)")
+@click.option("--override", "layout_overrides", multiple=True, help="Override key=value (e.g., colors.primary=#ff0000)")
+@click.option("--output", "output_path", type=Path, default=None, help="Output HTML file path")
 @click.pass_context
-def render(ctx: click.Context, input_path: Path):
-    """Render from input template."""
+def render(
+    ctx: click.Context,
+    input_path: Path,
+    layout_preset: str | None,
+    layout_theme: str | None,
+    layout_overrides: tuple[str, ...],
+    output_path: Path | None,
+):
+    """Render from input template with optional layout configuration."""
     from picko.multimedia_io import parse_multimedia_input
+    from picko.templates import ImageRenderer
 
     try:
         input_data = parse_multimedia_input(input_path)
@@ -76,7 +88,46 @@ def render(ctx: click.Context, input_path: Path):
         click.echo(f"   계정: {input_data.account}")
         click.echo(f"   채널: {', '.join(input_data.channels)}")
         click.echo(f"   주제: {input_data.concept}")
-        # TODO: Generate proposal and start pipeline
+
+        # Display layout configuration
+        if layout_preset:
+            click.echo(f"   레이아웃 프리셋: {layout_preset}")
+        if layout_theme:
+            click.echo(f"   레이아웃 테마: {layout_theme}")
+        if layout_overrides:
+            click.echo(f"   레이아웃 오버라이드: {', '.join(layout_overrides)}")
+
+        # Use quote template as default for short overlay text
+        # For longer content, use card template
+        template = "quote" if input_data.overlay_text and len(input_data.overlay_text) < 100 else "card"
+        click.echo(f"   템플릿: {template}")
+
+        # Build context from input
+        context = {
+            "quote": input_data.overlay_text or input_data.concept,
+            "title": input_data.concept,
+            "width": 1080,
+            "height": 1080,
+            "channels": input_data.channels,
+        }
+
+        # Render with layout support
+        renderer = ImageRenderer()
+        html = renderer.render_image(
+            template=template,
+            context=context,
+            layout_preset=layout_preset,
+            layout_theme=layout_theme,
+            layout_overrides=list(layout_overrides) if layout_overrides else None,
+        )
+
+        # Output handling
+        if output_path:
+            output_path.write_text(html, encoding="utf-8")
+            click.echo(f"\n✅ 렌더링 완료: {output_path}")
+        else:
+            click.echo("\n✅ 렌더링 완료 (HTML 출력 생략)")
+
     except FileNotFoundError:
         click.echo(f"❌ 파일을 찾을 수 없습니다: {input_path}", err=True)
         raise SystemExit(1)
