@@ -3,7 +3,7 @@
 sources.yml CRUD + V2 확장 필드 지원
 """
 
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -160,7 +160,7 @@ class SourceManager:
             return
 
         # 기존 파일 읽어서 categories 등 다른 섹션 보존
-        existing_data = {}
+        existing_data: dict[str, Any] = {}
         if self.path.exists():
             try:
                 with open(self.path, "r", encoding="utf-8") as f:
