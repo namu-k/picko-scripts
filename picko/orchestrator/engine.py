@@ -227,14 +227,15 @@ class WorkflowEngine:
 
         delay_str = delay_str.strip().lower()
 
-        if delay_str.endswith("ms"):
-            return float(delay_str[:-2]) / 1000
-        elif delay_str.endswith("s"):
-            return float(delay_str[:-1])
-        elif delay_str.endswith("m"):
-            return float(delay_str[:-1]) * 60
-        else:
-            try:
+        try:
+            if delay_str.endswith("ms"):
+                return float(delay_str[:-2]) / 1000
+            elif delay_str.endswith("s"):
+                return float(delay_str[:-1])
+            elif delay_str.endswith("m"):
+                return float(delay_str[:-1]) * 60
+            else:
                 return float(delay_str)
-            except ValueError:
-                return 0.0
+        except (ValueError, TypeError) as e:
+            logger.warning(f"Invalid delay format '{delay_str}': {e}")
+            return 0.0

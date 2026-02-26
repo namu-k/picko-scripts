@@ -170,13 +170,16 @@ class DailyCollector:
             if not self.dry_run:
                 exported = self._export(scored_items, date)
                 results["exported"] = len(exported)
+                # 수집된 항목 ID 리스트 추가 (워크플로우 연동용)
+                results["items"] = [item.get("id") for item in scored_items if item.get("id")]
 
                 # 8. Digest 생성
                 self._create_digest(scored_items, date)
                 logger.info(f"Created digest for {date}")
             else:
+                # dry_run 모드에서도 items 반환
+                results["items"] = [item.get("id") for item in scored_items if item.get("id")]
                 logger.info("[DRY RUN] Skipping export and digest creation")
-
         except Exception as e:
             logger.error(f"Collection failed: {e}")
             results["errors"].append(str(e))

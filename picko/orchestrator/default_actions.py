@@ -25,7 +25,14 @@ def _run_collector(account: str = "socialbuilders", dry_run: bool = False, **kwa
     try:
         collector = DailyCollector(account_id=account, dry_run=dry_run)
         result = collector.run()
-        return ActionResult(success=True, outputs={"result": result})
+        # items를 직접 접근 가능하도록 outputs에 추가
+        return ActionResult(
+            success=True,
+            outputs={
+                "result": result,
+                "items": result.get("items", []),
+            },
+        )
     except Exception as e:
         logger.error(f"collector.run failed: {e}")
         return ActionResult(success=False, error=str(e))
@@ -357,9 +364,14 @@ def _check_duplicate(
 
             for seen in seen_embeddings:
                 # 코사인 유사도 계산
-                similarity = np.dot(entry["embedding"], seen["embedding"]) / (
-                    np.linalg.norm(entry["embedding"]) * np.linalg.norm(seen["embedding"])
-                )
+                norm_entry = np.linalg.norm(entry["embedding"])
+                norm_seen = np.linalg.norm(seen["embedding"])
+
+                # zero-norm 가드: 둘 중 하나라도 0이면 유사도 0
+                if norm_entry == 0 or norm_seen == 0:
+                    similarity = 0.0
+                else:
+                    similarity = np.dot(entry["embedding"], seen["embedding"]) / (norm_entry * norm_seen)
 
                 if similarity >= threshold:
                     is_duplicate = True

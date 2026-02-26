@@ -13,9 +13,8 @@ steps:
   - name: dedup
     action: embedding.check_duplicate
     args:
-      source: "${{ steps.collect.outputs.result.items }}"
+      source: "${{ steps.collect.outputs.items }}"
       threshold: 0.9
-
   # 3. auto_ready 항목 longform 생성 (배치 처리)
   - name: generate_longform
     action: generator.run

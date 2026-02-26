@@ -32,6 +32,9 @@ _COMPARE_PATTERN = re.compile(r"(.+?)\s*(>=|<=|>|<|==|!=)\s*(\S+)\s*$")
 # steps.name.outputs.key 패턴
 _STEPS_PATTERN = re.compile(r"steps\.(\w+)\.outputs\.(\w+)")
 
+# steps.name.outputs 전체 참조 패턴 (Phase 2)
+_STEPS_OUTPUTS_PATTERN = re.compile(r"steps\.(\w+)\.outputs$")
+
 
 class ExprEvaluator:
     """${{ }} 표현식을 안전하게 평가"""
@@ -73,13 +76,18 @@ class ExprEvaluator:
             arg2 = vault_match.group(3) or ""
             return self._call_vault(method, arg1, arg2)
 
+        # steps.name.outputs 전체 참조 (Phase 2)
+        steps_outputs_match = _STEPS_OUTPUTS_PATTERN.match(inner)
+        if steps_outputs_match:
+            step_name = steps_outputs_match.group(1)
+            return self._steps.get(step_name, {}).get("outputs", {})
+
         # steps.name.outputs.key 참조
         steps_match = _STEPS_PATTERN.match(inner)
         if steps_match:
             step_name = steps_match.group(1)
             output_key = steps_match.group(2)
             return self._steps.get(step_name, {}).get(output_key)
-
         logger.warning(f"Unrecognized expression: {inner}")
         return None
 
