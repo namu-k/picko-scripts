@@ -8,6 +8,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Source Management**:
+  - `source_manager.py`: Source quality management and curation
+  - `source_curator.py`: CLI for source quality evaluation with threshold-based filtering
+  - `source_discovery.py`: Automatic source discovery based on account profiles and keywords
+  - `simple_rss_collector.py`: Standalone RSS collector for quick testing and ad-hoc collection
+- **Layout System**:
+  - `layout_config.py`: Layout preset and theme configuration loader
+  - `config/layouts/`: Layout presets (corporate, minimal_dark, minimal_light, social_gradient, vibrant)
+  - `config/layouts/themes/`: Account-specific themes (fitness_wellness, socialbuilders, tech_startup)
+- **Configuration**:
+  - `config/collectors.yml`: Collector-specific configuration
+  - `config/reference_styles/`: Style profiles for content personalization
 - **Image Rendering Pipeline**:
   - `multimedia_io.py`: Multimedia input template parser with YAML frontmatter support
   - `proposal_generator.py`: Content type detection (quote, card, list, data, carousel) and proposal generation
@@ -55,6 +67,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `scoring.py`: Enhanced relevance calculation with `AccountIdentity` integration
 - `generate_content.py`: Weekly slot context injection for content generation
+- Documentation updated:
+  - `CLAUDE.md`: Added new modules (html_renderer, multimedia_io, source_manager, proposal_generator, layout_config), new scripts (source_curator, source_discovery, simple_rss_collector, render_media), and expanded configuration structure
+  - `README.md`: Added source management and simple RSS collection commands
+  - `USER_GUIDE.md`: Added multimedia rendering, source management, and layout system documentation
 
 ## [0.3.0] - 2026-02-16
 
