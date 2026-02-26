@@ -4,6 +4,7 @@ novelty, relevance, quality, total 점수 계산
 """
 
 from dataclasses import dataclass
+from datetime import UTC, date, datetime
 
 from .account_context import AccountIdentity, get_identity
 from .config import ScoringConfig, get_config
@@ -20,6 +21,7 @@ class ContentScore:
     novelty: float = 0.0
     relevance: float = 0.0
     quality: float = 0.0
+    freshness: float = 0.0
     total: float = 0.0
 
     def to_dict(self) -> dict:
@@ -27,6 +29,7 @@ class ContentScore:
             "novelty": round(self.novelty, 3),
             "relevance": round(self.relevance, 3),
             "quality": round(self.quality, 3),
+            "freshness": round(self.freshness, 3),
             "total": round(self.total, 3),
         }
 
@@ -66,14 +69,31 @@ class ContentScorer:
         novelty = self._calculate_novelty(content, existing_embeddings)
         relevance = self._calculate_relevance(content)
         quality = self._calculate_quality(content)
+        freshness = self._calculate_freshness(content)
 
-        total = (
-            novelty * self.weights.get("novelty", 0.3)
-            + relevance * self.weights.get("relevance", 0.4)
-            + quality * self.weights.get("quality", 0.3)
+        novelty_weight = self.weights.get("novelty", 0.3)
+        relevance_weight = self.weights.get("relevance", 0.4)
+        quality_weight = self.weights.get("quality", 0.3)
+        freshness_weight = self.weights.get("freshness", 0.15)
+
+        total_weight = novelty_weight + relevance_weight + quality_weight + freshness_weight
+
+        total = 0.0
+        if total_weight > 0:
+            total = (
+                novelty * novelty_weight
+                + relevance * relevance_weight
+                + quality * quality_weight
+                + freshness * freshness_weight
+            ) / total_weight
+
+        score = ContentScore(
+            novelty=novelty,
+            relevance=relevance,
+            quality=quality,
+            freshness=freshness,
+            total=total,
         )
-
-        score = ContentScore(novelty=novelty, relevance=relevance, quality=quality, total=total)
 
         logger.debug(f"Scored content: {score.to_dict()}")
         return score
@@ -290,6 +310,48 @@ class ContentScorer:
         # if publish_date: 날짜 계산 로직...
 
         return max(0.0, min(1.0, score))
+
+    def _calculate_freshness(self, content: dict) -> float:
+        publish_date = content.get("publish_date")
+        if not publish_date:
+            return 0.5
+
+        parsed_publish_date = self._parse_publish_date(publish_date)
+        if parsed_publish_date is None:
+            return 0.5
+
+        now = datetime.now(UTC)
+        age_days = max((now - parsed_publish_date).days, 0)
+        half_life_days = self.config.freshness_half_life_days if self.config.freshness_half_life_days > 0 else 7.0
+
+        freshness = 2 ** (-(age_days / half_life_days))
+        return max(0.0, min(1.0, freshness))
+
+    def _parse_publish_date(self, publish_date: object) -> datetime | None:
+        if isinstance(publish_date, datetime):
+            if publish_date.tzinfo is None:
+                return publish_date.replace(tzinfo=UTC)
+            return publish_date.astimezone(UTC)
+
+        if isinstance(publish_date, date):
+            return datetime.combine(publish_date, datetime.min.time(), tzinfo=UTC)
+
+        if isinstance(publish_date, str):
+            normalized = publish_date.strip().replace("Z", "+00:00")
+            try:
+                parsed = datetime.fromisoformat(normalized)
+                if parsed.tzinfo is None:
+                    return parsed.replace(tzinfo=UTC)
+                return parsed.astimezone(UTC)
+            except ValueError:
+                try:
+                    parsed_date = date.fromisoformat(normalized)
+                    return datetime.combine(parsed_date, datetime.min.time(), tzinfo=UTC)
+                except ValueError:
+                    logger.debug(f"Could not parse publish_date: {publish_date}")
+                    return None
+
+        return None
 
     def should_auto_approve(self, score: ContentScore) -> bool:
         """자동 승인 여부"""

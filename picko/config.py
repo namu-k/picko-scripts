@@ -133,6 +133,7 @@ class ScoringConfig:
     """점수 계산 설정"""
 
     weights: dict = field(default_factory=lambda: {"novelty": 0.3, "relevance": 0.4, "quality": 0.3})
+    freshness_half_life_days: float = 7.0
     thresholds: dict = field(
         default_factory=lambda: {
             "auto_approve": 0.85,

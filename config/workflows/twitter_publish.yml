@@ -1,0 +1,27 @@
+name: twitter_publish
+description: 승인된 Twitter pack 발행 -> 상태/로그 업데이트 -> (옵션) 성과 동기화
+
+steps:
+  - name: publish_twitter_packs
+    action: publisher.run
+    args:
+      account: socialbuilders
+      source_path: Content/Packs/twitter
+      filter: derivative_status=approved,type=twitter_pack
+      text_field: tweet_text
+      publish_platform: twitter
+      update_content_status_to: published
+      publish_log_path: Logs/Publish
+      publish_log_status: published
+      dry_run: false
+    condition: "${{ vault.count('Content/Packs/twitter', 'derivative_status=approved,type=twitter_pack') > 0 }}"
+
+  - name: sync_twitter_engagement
+    action: engagement.sync
+    args:
+      platforms: twitter
+      days: 1
+      delay_minutes: 30
+      only_recently_published: true
+      dry_run: false
+    condition: "${{ steps.publish_twitter_packs.outputs.published_count > 0 }}"

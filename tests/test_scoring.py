@@ -2,6 +2,10 @@
 Unit tests for picko.scoring module
 """
 
+from datetime import UTC, datetime, timedelta
+from math import isclose
+
+from picko.config import ScoringConfig, load_config
 from picko.scoring import ContentScore, ContentScorer, score_content
 
 
@@ -37,7 +41,11 @@ class TestContentScorer:
     def test_novelty_no_existing_embeddings(self):
         """기존 임베딩 없으면 참신도 1.0"""
         scorer = ContentScorer()
-        content = {"title": "Test", "text": "Test content", "embedding": [0.1, 0.2, 0.3]}
+        content = {
+            "title": "Test",
+            "text": "Test content",
+            "embedding": [0.1, 0.2, 0.3],
+        }
         score = scorer.score(content, existing_embeddings=None)
         assert score.novelty == 1.0
 
@@ -51,14 +59,21 @@ class TestContentScorer:
     def test_relevance_no_account_profile(self):
         """계정 프로필 없으면 관련도 기본값 0.5"""
         scorer = ContentScorer(account_profile=None)
-        content = {"title": "AI and machine learning", "text": "Article about AI", "keywords": ["AI"]}
+        content = {
+            "title": "AI and machine learning",
+            "text": "Article about AI",
+            "keywords": ["AI"],
+        }
         score = scorer.score(content)
         assert score.relevance == 0.5
 
     def test_relevance_with_profile(self):
         """계정 프로필 기반 관련도 계산"""
         account = {
-            "interests": {"primary": ["AI", "machine learning"], "secondary": ["design"]},
+            "interests": {
+                "primary": ["AI", "machine learning"],
+                "secondary": ["design"],
+            },
             "keywords": {
                 "high_relevance": ["ChatGPT", "Claude"],
                 "medium_relevance": ["productivity"],
@@ -91,7 +106,11 @@ class TestContentScorer:
     def test_quality_poor_content(self):
         """낮은 품질 콘텐츠 점수"""
         scorer = ContentScorer()
-        content = {"title": "short", "text": "A" * 30, "source": "unknown.com"}  # Too short
+        content = {
+            "title": "short",
+            "text": "A" * 30,
+            "source": "unknown.com",
+        }  # Too short
         score = scorer.score(content)
         assert score.quality < 0.5
 
@@ -99,7 +118,11 @@ class TestContentScorer:
         """신뢰할 수 있는 소스 높은 점수"""
         account = {"trusted_sources": ["techcrunch.com", "arxiv.org"]}
         scorer = ContentScorer(account_profile=account)
-        content = {"title": "Good Title with Proper Length", "text": "A" * 800, "source": "techcrunch.com"}
+        content = {
+            "title": "Good Title with Proper Length",
+            "text": "A" * 800,
+            "source": "techcrunch.com",
+        }
         score = scorer.score(content)
         assert score.quality > 0.5
 
@@ -151,7 +174,12 @@ class TestScoreContentConvenience:
 
     def test_score_content_with_account(self):
         """계정 프로필과 함께 점수 계산"""
-        content = {"title": "AI Technology", "text": "About AI", "keywords": ["AI"], "source": "test.com"}
+        content = {
+            "title": "AI Technology",
+            "text": "About AI",
+            "keywords": ["AI"],
+            "source": "test.com",
+        }
         score = score_content(content, account_id="socialbuilders")
         assert isinstance(score, ContentScore)
 
@@ -167,8 +195,79 @@ class TestScoringWeights:
         scorer = ContentScorer(config=config.scoring)
 
         # Create content that would give 1.0 for each component
-        content = {"title": "A Good Title", "text": "A" * 600, "embedding": [0.1, 0.2], "source": "test.com"}
+        content = {
+            "title": "A Good Title",
+            "text": "A" * 600,
+            "embedding": [0.1, 0.2],
+            "source": "test.com",
+        }
 
         score = scorer.score(content, existing_embeddings=None)
         # With default weights (0.3, 0.4, 0.3), should be close to expected
         assert 0 <= score.total <= 1
+
+
+class TestFreshnessScoring:
+    def test_freshness_decay_curve(self):
+        scorer = ContentScorer(config=ScoringConfig())
+        now = datetime.now(UTC)
+
+        fresh_score = scorer.score({"publish_date": now})
+        week_old_score = scorer.score({"publish_date": now - timedelta(days=7)})
+        month_old_score = scorer.score({"publish_date": now - timedelta(days=30)})
+
+        assert fresh_score.freshness == 1.0
+        assert isclose(week_old_score.freshness, 0.5, rel_tol=0.05)
+        assert isclose(month_old_score.freshness, 0.06, rel_tol=0.25)
+
+    def test_freshness_defaults_when_publish_date_missing(self):
+        scorer = ContentScorer(config=ScoringConfig())
+        score = scorer.score({"title": "No date"})
+        assert score.freshness == 0.5
+
+    def test_total_includes_freshness_weight(self):
+        config = ScoringConfig(
+            weights={
+                "novelty": 0.3,
+                "relevance": 0.4,
+                "quality": 0.3,
+                "freshness": 0.15,
+            }
+        )
+        scorer = ContentScorer(config=config)
+
+        scorer._calculate_novelty = lambda *_args, **_kwargs: 0.4  # type: ignore[method-assign]
+        scorer._calculate_relevance = lambda *_args, **_kwargs: 0.6  # type: ignore[method-assign]
+        scorer._calculate_quality = lambda *_args, **_kwargs: 0.8  # type: ignore[method-assign]
+        scorer._calculate_freshness = lambda *_args, **_kwargs: 0.2  # type: ignore[method-assign]
+
+        score = scorer.score({"title": "Any"})
+        expected = ((0.4 * 0.3) + (0.6 * 0.4) + (0.8 * 0.3) + (0.2 * 0.15)) / (0.3 + 0.4 + 0.3 + 0.15)
+        assert isclose(score.total, expected, rel_tol=1e-9)
+
+    def test_scoring_config_has_freshness_half_life(self, tmp_path):
+        default_config = ScoringConfig()
+        custom_config = ScoringConfig(freshness_half_life_days=14.0)
+
+        assert default_config.freshness_half_life_days == 7.0
+        assert custom_config.freshness_half_life_days == 14.0
+
+        config_file = tmp_path / "config.yml"
+        config_file.write_text(
+            "\n".join(
+                [
+                    "vault:",
+                    f'  root: "{tmp_path.as_posix()}"',
+                    "scoring:",
+                    "  freshness_half_life_days: 10.5",
+                    "  weights:",
+                    "    novelty: 0.3",
+                    "    relevance: 0.4",
+                    "    quality: 0.3",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        loaded = load_config(config_file)
+        assert loaded.scoring.freshness_half_life_days == 10.5
