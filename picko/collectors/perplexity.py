@@ -77,7 +77,7 @@ class PerplexityCollector(BaseCollector):
 
     def _scan_files(self) -> list[Path]:
         """입력 폴더에서 미처리 파일 스캔"""
-        files = []
+        files: list[Path] = []
         for pattern in self.file_patterns:
             files.extend(self.input_dir.glob(pattern))
         return sorted(files)
@@ -142,7 +142,7 @@ class PerplexityCollector(BaseCollector):
             },
         )
 
-    def _parse_perplexity_html(self, file_path: Path, account_id: str) -> CollectedItem:
+    def _parse_perplexity_html(self, file_path: Path, account_id: str) -> CollectedItem | None:
         """Perplexity 결과 HTML 파싱"""
         try:
             from bs4 import BeautifulSoup

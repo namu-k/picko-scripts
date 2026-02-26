@@ -78,12 +78,12 @@ class RSSCollector(BaseCollector):
 
         try:
             dt = parsedate_to_datetime(date_str)
-            return dt.strftime("%Y-%m-%d")
+            return str(dt.strftime("%Y-%m-%d"))
         except Exception:
             try:
                 # ISO 형식 시도
                 dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-                return dt.strftime("%Y-%m-%d")
+                return str(dt.strftime("%Y-%m-%d"))
             except Exception:
                 return None
 
