@@ -412,40 +412,40 @@ python -c "import yaml; yaml.safe_load(open('.github/workflows/auto_collect.yml'
 ## 체크리스트
 
 ### 구현 전
-- [ ] 현재 브랜치가 `004-auto-collector-v2`인지 확인
-- [ ] 기존 `config/sources.yml` 백업
-- [ ] 기존 테스트 통과 확인 (`pytest`)
+- [x] 현재 브랜치가 `004-auto-collector-v2`인지 확인
+- [x] 기존 `config/sources.yml` 백업
+- [x] 기존 테스트 통과 확인 (`pytest`)
 
 ### Phase 0 완료 후
-- [ ] SourceManager로 기존 sources.yml 로드/저장 확인
-- [ ] RSSCollector 단독 실행 확인
+- [x] SourceManager로 기존 sources.yml 로드/저장 확인
+- [x] RSSCollector 단독 실행 확인
 - [ ] _load_existing_embeddings 수정 확인
-- [ ] 하위호환: 기존 daily_collector 정상 동작 확인
+- [x] 하위호환: 기존 daily_collector 정상 동작 확인
 
 ### Phase 1 완료 후
-- [ ] dry-run으로 소스 발견 실행
-- [ ] pending 후보가 sources.yml에 추가되는지 확인
-- [ ] 승인/거부 CLI 동작 확인
-- [ ] 30일 로그 자동 삭제 동작 확인
+- [x] dry-run으로 소스 발견 실행
+- [x] pending 후보가 sources.yml에 추가되는지 확인
+- [x] 승인/거부 CLI 동작 확인
+- [x] 30일 로그 자동 삭제 동작 확인
 
 ### Phase 2 완료 후
-- [ ] Perplexity 폴더에 테스트 파일 넣고 수집 확인
-- [ ] 처리 완료 파일이 archive로 이동하는지 확인
+- [x] Perplexity 폴더에 테스트 파일 넣고 수집 확인
+- [x] 처리 완료 파일이 archive로 이동하는지 확인
 
 ### Phase 3 완료 후
-- [ ] 품질 리포트 생성 확인
-- [ ] cleanup --dry-run으로 저품질 소스 식별
+- [x] 품질 리포트 생성 확인
+- [x] cleanup --dry-run으로 저품질 소스 식별
 
 ### Phase 4 완료 후
-- [ ] 통합 daily_collector 실행
-- [ ] 기존 동작과 동일한지 확인 (하위호환)
-- [ ] 컬렉터 1개 실패 시 나머지 정상 동작 확인
+- [x] 통합 daily_collector 실행
+- [x] 기존 동작과 동일한지 확인 (하위호환)
+- [x] 컬렉터 1개 실패 시 나머지 정상 동작 확인
 
 ### Phase 5 완료 후
-- [ ] 전체 테스트 통과
+- [x] 전체 테스트 통과
 - [ ] 테스트 커버리지 85% 이상
 
 ### Phase 6 완료 후
-- [ ] GitHub Actions 워크플로우 YAML 문법 유효성 확인
+- [x] GitHub Actions 워크플로우 YAML 문법 유효성 확인
 - [ ] workflow_dispatch 수동 실행 테스트
 - [ ] Secrets 설정 문서화

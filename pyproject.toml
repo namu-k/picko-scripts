@@ -1,6 +1,6 @@
 [project]
 name = "picko-scripts"
-version = "0.2.0"
+version = "0.4.0"
 description = "Content pipeline automation system for RSS feeds and AI-generated content"
 requires-python = ">=3.13"
 dependencies = [

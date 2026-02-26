@@ -5,6 +5,50 @@ All notable changes to Picko will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-02-26
+
+### Added
+- **Auto Collector V2 (004)**:
+  - `picko/source_manager.py`: Source metadata CRUD with V2 extension fields support
+  - `picko/collectors/`: Modular collector architecture
+    - `BaseCollector`: Abstract base class for all collectors
+    - `CollectedItem`: Unified data structure for collected content
+    - `RSSCollector`: RSS feed collector extracted from daily_collector
+    - `PerplexityCollector`: Perplexity Tasks result collector with file watching
+  - `scripts/source_discovery.py`: Automatic source discovery with Google News, Tavily, Substack integration
+  - `scripts/source_curator.py`: Source quality evaluation and curation CLI
+  - `config/collectors.yml`: Collector configuration with quality rules
+  - `.github/workflows/auto_collect.yml`: Daily collection + weekly discovery automation
+- **Orchestration Layer (005)**:
+  - `picko/orchestrator/`: Workflow automation layer
+    - `VaultAdapter`: Vault frontmatter query interface (count, list, field)
+    - `WorkflowEngine`: YAML workflow loader and executor
+    - `ActionRegistry`: Action name → function mapping
+    - `ExprEvaluator`: Safe expression evaluation for workflow conditions
+  - `scripts/run_workflow.py`: CLI for running YAML-defined workflows
+  - `config/workflows/`: Workflow definitions
+    - `daily_pipeline.yml`: Daily collection → generation pipeline
+    - `approved_packs.yml`: Approved longform → packs generation
+    - `image_generation.yml`: Image rendering workflow
+    - `twitter_publish.yml`: Twitter publishing workflow
+- **Publisher Module**:
+  - `picko/publisher.py`: Social media publishing abstraction
+  - Twitter API integration with OAuth 1.0a support
+  - Workflow scheduler for automated publishing
+- **Tests**:
+  - `test_collectors.py`: RSSCollector and PerplexityCollector tests
+  - `test_source_manager.py`: SourceManager CRUD tests
+  - `test_source_discovery.py`: Source discovery engine tests
+  - `test_source_curator.py`: Source curation tests
+  - `test_orchestrator_*.py`: Orchestration layer tests (5 test files)
+
+### Changed
+- `daily_collector.py`: Integrated RSSCollector and PerplexityCollector
+- Documentation updated for new modules and workflows
+
+### Security
+- Tavily API key support via environment variable
+
 ## [Unreleased]
 
 ### Added
@@ -71,7 +115,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `CLAUDE.md`: Added new modules (html_renderer, multimedia_io, source_manager, proposal_generator, layout_config), new scripts (source_curator, source_discovery, simple_rss_collector, render_media), and expanded configuration structure
   - `README.md`: Added source management and simple RSS collection commands
   - `USER_GUIDE.md`: Added multimedia rendering, source management, and layout system documentation
-
 ## [0.3.0] - 2026-02-16
 
 ### Added
@@ -168,6 +211,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CLAUDE.md for developer guidance
 - implementation_plan.md with technical design
 
+[0.4.0]: https://github.com/namu-k/picko-scripts/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/namu-k/picko-scripts/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/namu-k/picko-scripts/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/namu-k/picko-scripts/releases/tag/v0.1.0
