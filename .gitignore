@@ -61,4 +61,7 @@ mock_vault/config/
 .cache/
 .cursor/
 .sisyphus/
+# Docs (evaluation and market analysis kept local)
 docs/
+docs/evaluation_0226.md
+docs/market_analysis.md
