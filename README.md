@@ -162,6 +162,26 @@ python -m scripts.archive_manager --days 30
 python -m scripts.retry_failed --date 2026-02-09
 ```
 
+### 소스 관리
+
+```bash
+# 소스 품질 평가
+python -m scripts.source_curator --account socialbuilders --threshold 0.6
+
+# 새 소스 자동 발견
+python -m scripts.source_discovery --account socialbuilders --keywords "AI, startup"
+```
+
+### 간단 RSS 수집
+
+```bash
+# 빠른 RSS 수집
+python -m scripts.simple_rss_collector -o ./output -c config/sources.yml
+
+# 최근 24시간만 수집
+python -m scripts.simple_rss_collector --hours 24 --max-items 50
+```
+
 ### Phase 3: 성과 분석 (선택)
 
 ```bash
@@ -182,8 +202,10 @@ picko-scripts/
 ├── config/              # 설정 파일
 │   ├── config.yml      # 메인 설정
 │   ├── sources.yml     # RSS 소스
+│   ├── collectors.yml  # 수집기 설정
 │   ├── prompts/        # LLM 프롬프트 템플릿
 │   ├── accounts/       # 계정 프로필
+│   ├── layouts/        # 레이아웃 프리셋 및 테마
 │   └── reference_styles/  # 레퍼런스 스타일 분석
 ├── picko/              # 핵심 모듈
 ├── scripts/            # 실행 스크립트

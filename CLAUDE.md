@@ -48,6 +48,45 @@ python -m scripts.health_check
 python -m scripts.health_check --json
 ```
 
+### Source Management
+```bash
+# Evaluate source quality for an account
+python -m scripts.source_curator --account socialbuilders --threshold 0.6
+
+# Export source report as CSV
+python -m scripts.source_curator --account socialbuilders --export-csv
+
+# Discover new sources based on account profile
+python -m scripts.source_discovery --account socialbuilders --keywords "AI, startup" --max-results 10
+```
+
+### Multimedia Rendering
+```bash
+# Render media from template
+python -m scripts.render_media render --input Inbox/Multimedia/mm_xxx.md
+
+# Check pipeline status
+python -m scripts.render_media status
+
+# Review pending proposals
+python -m scripts.render_media review
+
+# Review final renders
+python -m scripts.render_media review --finals
+```
+
+### Simple RSS Collection
+```bash
+# Quick RSS collection with custom output
+python -m scripts.simple_rss_collector -o ./output -c config/sources.yml
+
+# Collect only recent 24 hours
+python -m scripts.simple_rss_collector --hours 24 --max-items 50
+
+# Dry-run mode
+python -m scripts.simple_rss_collector --dry-run
+```
+
 ### Environment Setup
 
 **Requirements**: Python 3.13+
@@ -87,6 +126,11 @@ export OPENAI_API_KEY=your_api_key_here  # macOS/Linux
 - **prompt_composer.py**: Multi-layer prompt composition system (base + style + identity + context)
 - **templates.py**: Jinja2-based template rendering for different content formats
 - **logger.py**: Unified logging setup using loguru with daily rotation
+- **html_renderer.py**: HTML-to-image rendering using Playwright for multimedia content
+- **multimedia_io.py**: Multimedia content I/O (images, videos) with proposal and render management
+- **source_manager.py**: RSS source quality management and curation
+- **proposal_generator.py**: Media proposal generation from content templates
+- **layout_config.py**: Layout preset and theme configuration for multimedia rendering
 
 ### LLM Architecture (Task-Specific)
 
@@ -115,6 +159,26 @@ The system uses different LLMs for different tasks via `picko/llm_client.py`:
 - OpenRouter provider defaults to `OPENROUTER_API_KEY` if `api_key_env` is omitted
 - `.env` file is automatically loaded when `picko.config` module is imported
 
+### Multimedia Rendering Architecture
+
+The multimedia rendering system converts content templates into images/videos:
+
+**Components:**
+- **html_renderer.py**: Renders HTML templates to PNG using Playwright
+- **multimedia_io.py**: Manages media proposals, renders, and vault I/O
+- **proposal_generator.py**: Generates media proposals from content templates
+- **layout_config.py**: Loads layout presets and themes from `config/layouts/`
+
+**Workflow:**
+1. **Proposal Generation**: Content template → HTML template → Media proposal
+2. **Review**: Human reviews proposals in Obsidian vault
+3. **Rendering**: Approved proposals → Playwright → Final images/videos
+
+**Layout System:**
+- **Presets**: `corporate`, `minimal_dark`, `minimal_light`, `social_gradient`, `vibrant`
+- **Themes**: Account-specific color schemes and typography
+- **Defaults**: Base configuration in `_defaults.yml`
+
 ### Scripts (`scripts/`)
 
 #### Phase 1: Core Scripts
@@ -129,11 +193,17 @@ The system uses different LLMs for different tasks via `picko/llm_client.py`:
 - **publish_log.py**: Creates and manages publication logs with platform tracking
 - **explore_topic.py**: Topic exploration script for thought expansion before longform writing
 - **style_extractor.py**: Extracts writing style from reference URLs and generates style prompts
+- **source_curator.py**: Source quality evaluation and curation with threshold-based filtering
+- **source_discovery.py**: Automatic source discovery based on account profiles and keywords
+- **simple_rss_collector.py**: Standalone RSS collector for quick testing and ad-hoc collection
 
 #### Phase 3: Analytics Scripts (Placeholder Implementations)
 - **engagement_sync.py**: Syncs platform metrics (views, likes, etc.) to publish logs - requires API integration
 - **score_calibrator.py**: Analyzes performance vs predicted scores, suggests weight adjustments
 - **duplicate_checker.py**: Finds duplicate/similar content using embedding similarity
+
+#### Phase 4: Multimedia Scripts
+- **render_media.py**: Multimedia rendering pipeline - renders HTML templates to images/videos using Playwright
 
 ### Configuration Structure
 
@@ -141,17 +211,45 @@ The system uses different LLMs for different tasks via `picko/llm_client.py`:
 config/
 ├── config.yml          # Main configuration
 ├── sources.yml         # RSS feed sources and categories
-├── prompts/            # Externalized LLM prompts (BCP-001)
+├── collectors.yml      # Collector-specific configuration
+├── prompts/            # Externalized LLM prompts
 │   ├── longform/
-│   │   └── default.md
+│   │   ├── default.md
+│   │   ├── with_exploration.md
+│   │   └── with_reference.md
 │   ├── packs/
 │   │   ├── twitter.md
 │   │   ├── linkedin.md
 │   │   └── newsletter.md
-│   └── image/
-│       └── default.md
-└── accounts/           # Account-specific profiles
-    └── socialbuilders.yml  # Target audience, interests, channel settings
+│   ├── image/
+│   │   ├── default.md
+│   │   ├── twitter.md
+│   │   ├── linkedin.md
+│   │   └── newsletter.md
+│   ├── exploration/
+│   │   └── default.md
+│   └── reference/
+│       └── analyze.md
+├── accounts/           # Account-specific profiles
+│   └── socialbuilders.yml
+├── layouts/            # Layout presets and themes
+│   ├── _defaults.yml
+│   ├── presets/
+│   │   ├── corporate.yml
+│   │   ├── minimal_dark.yml
+│   │   ├── minimal_light.yml
+│   │   ├── social_gradient.yml
+│   │   └── vibrant.yml
+│   └── themes/
+│       ├── fitness_wellness.yml
+│       ├── socialbuilders.yml
+│       └── tech_startup.yml
+└── reference_styles/   # Style profiles for content personalization
+    └── founder_tech_brief/
+        ├── profile.yml
+        ├── writing_prompt.md
+        ├── image_prompt.md
+        └── video_prompt.md
 ```
 
 **Configuration Architecture:**
@@ -201,6 +299,8 @@ pre-commit run --all-files
 - **Template-Based**: Consistent output format using Jinja2 templates
 - **Scoring System**: Multi-factor scoring to prioritize high-quality content
 - **Account Profiles**: Different audiences with customized relevance scoring
+- **Layout System**: Preset-based layouts with theme support for multimedia rendering
+- **Proposal-Review Workflow**: Media proposals require review before final rendering
 
 ## Important File Locations
 
@@ -209,7 +309,9 @@ pre-commit run --all-files
 - **Logs**: `logs/YYYY-MM-DD/` (rotated daily, retention configurable)
 - **Cache**: `cache/embeddings/` (cached embeddings for cost savings)
 - **Templates**: Embedded in `picko/templates.py` as Jinja2 strings (no physical template files)
-- **Prompts**: External prompts in `config/prompts/` (longform, packs, image)
+- **Prompts**: External prompts in `config/prompts/` (longform, packs, image, exploration, reference)
+- **Layouts**: Layout presets and themes in `config/layouts/` (presets/, themes/)
+- **Reference Styles**: Style profiles in `config/reference_styles/`
 - **Project Root**: Auto-detected via `PROJECT_ROOT` in `picko/config.py`
 
 ## Project Structure
@@ -227,7 +329,12 @@ picko-scripts/
 │   ├── prompt_loader.py     # External prompt loader with Jinja2 template support
 │   ├── prompt_composer.py   # Multi-layer prompt composition system
 │   ├── templates.py         # Jinja2 template definitions (embedded)
-│   └── logger.py            # Loguru-based logging setup
+│   ├── logger.py            # Loguru-based logging setup
+│   ├── html_renderer.py     # HTML-to-image rendering with Playwright
+│   ├── multimedia_io.py     # Multimedia content I/O management
+│   ├── source_manager.py    # Source quality management
+│   ├── proposal_generator.py # Media proposal generation
+│   └── layout_config.py     # Layout preset and theme configuration
 ├── scripts/                 # Executable CLI scripts
 │   ├── daily_collector.py   # Main ingestion pipeline
 │   ├── generate_content.py  # Content generation from digests
@@ -238,6 +345,10 @@ picko-scripts/
 │   ├── publish_log.py       # Publication logging
 │   ├── explore_topic.py     # Topic exploration for longform writing
 │   ├── style_extractor.py   # Style extraction from reference URLs
+│   ├── source_curator.py    # Source quality evaluation
+│   ├── source_discovery.py  # Automatic source discovery
+│   ├── simple_rss_collector.py  # Standalone RSS collector
+│   ├── render_media.py      # Multimedia rendering pipeline
 │   ├── engagement_sync.py   # Platform metrics sync (Phase 3)
 │   ├── score_calibrator.py  # Score weight analysis (Phase 3)
 │   ├── duplicate_checker.py # Duplicate detection (Phase 3)
