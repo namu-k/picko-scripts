@@ -223,3 +223,75 @@ class TestWorkflowEngineBatch:
         assert result.name == "test_batch"
         assert result.success
         assert "batch_results" in result.outputs
+
+    def test_execute_step_with_batch_failure(self):
+        """배치 step 실패 시 success=False"""
+        from picko.orchestrator.engine import WorkflowEngine
+
+        # Mock setup - 실패하는 액션
+        mock_registry = MagicMock()
+        mock_registry.execute.return_value = ActionResult(success=False, error="Action failed")
+
+        mock_vault = MagicMock()
+
+        engine = WorkflowEngine(vault_adapter=mock_vault, action_registry=mock_registry)
+
+        step_def = {
+            "name": "failing_batch",
+            "action": "test.failing_action",
+            "args": {},
+            "batch": {
+                "source": [1, 2, 3],
+                "size": 2,
+                "delay": "0s",
+            },
+        }
+
+        result = engine._execute_step_with_batch(step_def)
+
+        # 배치 액션이 실패하면 success=False여야 함
+        assert result.name == "failing_batch"
+        assert not result.success
+        assert result.error != ""
+
+    def test_execute_step_with_batch_exception(self):
+        """BatchProcessor에서 예외 발생 시 success=False"""
+        from picko.orchestrator.engine import WorkflowEngine
+
+        mock_registry = MagicMock()
+        mock_vault = MagicMock()
+
+        engine = WorkflowEngine(vault_adapter=mock_vault, action_registry=mock_registry)
+
+        # 존재하지 않는 액션 -> KeyError
+        step_def = {
+            "name": "unknown_action_batch",
+            "action": "nonexistent.action",
+            "args": {},
+            "batch": {
+                "source": [1, 2],
+                "size": 1,
+                "delay": "0s",
+            },
+        }
+
+        result = engine._execute_step_with_batch(step_def)
+
+        # 존재하지 않는 액션은 실패해야 함
+        assert not result.success
+
+    def test_batch_processor_errors_included_in_success(self):
+        """BatchProcessor.errors가 success 판정에 포함되는지 확인"""
+        processor = BatchProcessor(size=2)
+
+        def failing_action(batch):
+            if sum(batch) > 3:
+                raise ValueError("Batch failed")
+            return sum(batch)
+
+        items = [1, 2, 3, 4]  # [1,2]=3 ok, [3,4]=7 fail
+        result = processor.run(items, failing_action)
+
+        # 에러가 있어야 함
+        assert len(result.errors) > 0
+        assert not result.success

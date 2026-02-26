@@ -88,6 +88,7 @@ class ContentGenerator:
         content_types: list[str] | None = None,
         force: bool = False,
         auto_all: bool = False,
+        items: list[str] | None = None,
     ) -> dict[str, Any]:
         """
         콘텐츠 생성 파이프라인 실행
@@ -96,6 +97,8 @@ class ContentGenerator:
             date: Digest 날짜 (YYYY-MM-DD)
             content_types: 생성할 타입 (longform, packs, images)
             force: 이미 생성된 항목도 재생성
+            auto_all: auto_ready 상태 항목 모두 처리
+            items: 처리할 항목 ID 목록 (배치 처리용, 없으면 전체)
 
         Returns:
             실행 결과 요약
@@ -118,16 +121,23 @@ class ContentGenerator:
         }
 
         try:
-            # 1. Digest에서 승인된 항목 파싱
-            approved_items = self._parse_digest(date, auto_all=auto_all)
+            # 1. 처리할 항목 결정
+            if items:
+                # 배치 모드: 지정된 항목만 처리
+                approved_items = self._get_items_by_ids(items)
+                logger.info(f"Batch mode: processing {len(approved_items)} specified items")
+            else:
+                # 일반 모드: Digest에서 승인된 항목 파싱
+                approved_items = self._parse_digest(date, auto_all=auto_all)
+
             results["approved_items"] = len(approved_items)
-            logger.info(f"Found {len(approved_items)} approved items")
+            logger.info(f"Found {len(approved_items)} items to process")
 
             if not approved_items:
-                logger.info("No approved items found")
+                logger.info("No items found")
                 return results
 
-            # 2. 각 승인 항목에 대해 콘텐츠 생성
+            # 2. 각 항목에 대해 콘텐츠 생성
             for item in approved_items:
                 self._process_item(item, content_types, force, date, results)
 
@@ -137,6 +147,35 @@ class ContentGenerator:
 
         logger.info(f"Content generation complete: {results}")
         return results
+
+    def _get_items_by_ids(self, item_ids: list[str]) -> list[dict[str, Any]]:
+        """
+        ID 목록으로 항목 정보 조회
+
+        Args:
+            item_ids: 항목 ID 목록
+
+        Returns:
+            항목 정보 목록
+        """
+        items = []
+        for item_id in item_ids:
+            # Input 파일에서 항목 정보 로드
+            input_path = f"Inbox/Inputs/{item_id}.md"
+            try:
+                meta, content = self.vault.read_note(input_path)
+                items.append(
+                    {
+                        "input_id": item_id,
+                        "title": meta.get("title", ""),
+                        "source_url": meta.get("source_url", ""),
+                        "writing_status": meta.get("writing_status", "pending"),
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Failed to load item {item_id}: {e}")
+
+        return items
 
     def _process_item(
         self,

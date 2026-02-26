@@ -35,15 +35,48 @@ def _run_generator(
     account: str = "socialbuilders",
     type: str = "longform",
     dry_run: bool = False,
+    items: list | None = None,
     **kwargs,
 ) -> ActionResult:
-    """scripts/generate_content.py의 ContentGenerator를 래핑"""
+    """scripts/generate_content.py의 ContentGenerator를 래핑
+
+    Args:
+        account: 계정 ID
+        type: 콘텐츠 타입 (longform, packs, image)
+        dry_run: 실제 생성 없이 시뮬레이션
+        items: 처리할 항목 목록 (배치 처리용, 없으면 전체 처리)
+    """
     from scripts.generate_content import ContentGenerator
 
     try:
         generator = ContentGenerator(dry_run=dry_run)
-        result = generator.run()
-        return ActionResult(success=True, outputs={"result": result})
+
+        # items가 있으면 해당 항목만 처리 (배치 모드)
+        if items:
+            # item ID 추출 (문자열이면 그대로, dict면 id/path 추출)
+            item_ids = []
+            for item in items:
+                if isinstance(item, str):
+                    item_ids.append(item)
+                elif isinstance(item, dict):
+                    item_ids.append(item.get("id") or item.get("path", ""))
+
+            # 유효한 ID만 필터링
+            item_ids = [iid for iid in item_ids if iid]
+
+            result = generator.run(
+                content_types=[type],
+                items=item_ids,
+            )
+            return ActionResult(
+                success=True,
+                outputs={"result": result, "processed_count": result.get("approved_items", 0)},
+            )
+        else:
+            # 기존 동작: 전체 처리
+            result = generator.run(content_types=[type])
+            return ActionResult(success=True, outputs={"result": result})
+
     except Exception as e:
         logger.error(f"generator.run failed: {e}")
         return ActionResult(success=False, error=str(e))

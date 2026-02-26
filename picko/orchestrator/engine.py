@@ -187,25 +187,37 @@ class WorkflowEngine:
 
         batch_result = processor.run(items, process_batch)
 
-        # 결과 집계
+        # 결과 집계 - 배치 처리 결과와 개별 배치 결과 모두 확인
         for result in batch_result.results:
             if result and result.get("outputs"):
                 all_outputs.append(result["outputs"])
             if result and result.get("error"):
                 errors.append(result["error"])
 
-        logger.info(f"Step '{name}' batch complete: " f"{batch_result.total_batches} batches, " f"{len(errors)} errors")
+        # BatchProcessor에서 발생한 예외도 errors에 추가
+        errors.extend(batch_result.errors)
+
+        # 성공 여부: 에러가 없고, 모든 배치가 성공해야 함
+        all_batches_success = all(result.get("success", False) if result else False for result in batch_result.results)
+        success = len(errors) == 0 and all_batches_success
+
+        logger.info(
+            f"Step '{name}' batch complete: "
+            f"{batch_result.total_batches} batches, "
+            f"{len(errors)} errors, "
+            f"success={success}"
+        )
 
         return StepResult(
             name=name,
-            success=len(errors) == 0,
+            success=success,
             outputs={
                 "batch_results": all_outputs,
                 "total_batches": batch_result.total_batches,
                 "total_items": batch_result.total_items,
                 "errors": errors if errors else None,
             },
-            error="; ".join(errors) if errors else "",
+            error="; ".join(str(e) for e in errors) if errors else "",
         )
 
     def _parse_delay(self, delay_str: str) -> float:
