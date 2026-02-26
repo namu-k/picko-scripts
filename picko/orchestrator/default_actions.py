@@ -15,6 +15,7 @@ def register_default_actions(registry: ActionRegistry):
     registry.register("generator.run", _run_generator)
     registry.register("renderer.run", _run_renderer)
     registry.register("publisher.run", _run_publisher)
+    registry.register("embedding.check_duplicate", _check_duplicate)
 
 
 def _run_collector(account: str = "socialbuilders", dry_run: bool = False, **kwargs) -> ActionResult:
@@ -253,4 +254,110 @@ def _run_publisher(
 
     except Exception as e:
         logger.error(f"publisher.run failed: {e}")
+        return ActionResult(success=False, error=str(e))
+
+
+def _check_duplicate(
+    source: list[str] | list[dict],
+    threshold: float = 0.9,
+    embedding_field: str = "text",
+    **kwargs,
+) -> ActionResult:
+    """임베딩 기반 중복 검사 액션
+
+    Args:
+        source: 검사할 아이템 목록 (경로 리스트 또는 딕셔너리 리스트)
+        threshold: 중복 판정 임계값 (0-1, 코사인 유사도)
+        embedding_field: 텍스트를 추출할 필드명 (딕셔너리인 경우)
+
+    Returns:
+        ActionResult with duplicates and unique items
+    """
+    from pathlib import Path
+
+    import numpy as np
+
+    from picko.embedding import get_embedding_manager
+    from picko.vault_io import VaultIO
+
+    try:
+        embedder = get_embedding_manager()
+        vault = VaultIO()
+
+        # 텍스트 추출
+        items_with_embeddings = []
+
+        for item in source:
+            if isinstance(item, str):
+                # 경로인 경우 파일에서 텍스트 읽기
+                try:
+                    path = Path(item)
+                    if path.exists():
+                        text = path.read_text(encoding="utf-8")[:2000]
+                    else:
+                        # Vault 내 경로로 가정
+                        _, content = vault.read_note(item)
+                        text = content[:2000]
+                except Exception:
+                    text = item  # 텍스트 자체로 처리
+            elif isinstance(item, dict):
+                text = item.get(embedding_field, "")
+            else:
+                text = str(item)  # type: ignore[unreachable]
+            if text:
+                embedding = embedder.embed(text)
+                items_with_embeddings.append(
+                    {
+                        "item": item,
+                        "embedding": np.array(embedding),
+                    }
+                )
+
+        # 중복 검사
+        duplicates = []
+        unique = []
+        seen_embeddings: list[dict] = []
+
+        for entry in items_with_embeddings:
+            is_duplicate = False
+            duplicate_of = None
+
+            for seen in seen_embeddings:
+                # 코사인 유사도 계산
+                similarity = np.dot(entry["embedding"], seen["embedding"]) / (
+                    np.linalg.norm(entry["embedding"]) * np.linalg.norm(seen["embedding"])
+                )
+
+                if similarity >= threshold:
+                    is_duplicate = True
+                    duplicate_of = seen["item"]
+                    break
+
+            if is_duplicate:
+                duplicates.append(
+                    {
+                        "item": entry["item"],
+                        "duplicate_of": duplicate_of,
+                        "similarity": float(similarity),
+                    }
+                )
+            else:
+                unique.append(entry["item"])
+                seen_embeddings.append(entry)
+
+        logger.info(f"Duplicate check: {len(duplicates)} duplicates, {len(unique)} unique")
+
+        return ActionResult(
+            success=True,
+            outputs={
+                "duplicates": duplicates,
+                "unique": unique,
+                "total": len(source),
+                "duplicate_count": len(duplicates),
+                "unique_count": len(unique),
+            },
+        )
+
+    except Exception as e:
+        logger.error(f"embedding.check_duplicate failed: {e}")
         return ActionResult(success=False, error=str(e))
