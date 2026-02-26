@@ -1,0 +1,11 @@
+# config/workflows/approved_packs.yml
+name: approved_packs
+description: 승인된 longform → packs 생성
+
+steps:
+  - name: generate_packs
+    action: generator.run
+    args:
+      account: socialbuilders
+      type: packs
+    condition: "${{ vault.count('Content/Longform', 'derivative_status=approved') > 0 }}"

@@ -1,0 +1,16 @@
+# config/workflows/daily_pipeline.yml
+name: daily_pipeline
+description: 일일 콘텐츠 수집 → auto_ready 항목 longform 생성
+
+steps:
+  - name: collect
+    action: collector.run
+    args:
+      account: socialbuilders
+
+  - name: generate_longform
+    action: generator.run
+    args:
+      account: socialbuilders
+      type: longform
+    condition: "${{ vault.count('Inbox/Inputs', 'writing_status=auto_ready') > 0 }}"

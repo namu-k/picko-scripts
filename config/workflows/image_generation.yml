@@ -1,0 +1,17 @@
+# config/workflows/image_generation.yml
+name: image_generation
+description: 승인된 콘텐츠 → 이미지 프롬프트 생성 → 렌더링
+
+steps:
+  - name: generate_image_prompts
+    action: generator.run
+    args:
+      account: socialbuilders
+      type: image
+    condition: "${{ vault.count('Content/Longform', 'image_status=approved') > 0 }}"
+
+  - name: render_media
+    action: renderer.run
+    args:
+      status: pending
+    condition: "${{ vault.count('Inbox/Multimedia', 'render_status=pending') > 0 }}"

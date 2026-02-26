@@ -1243,6 +1243,7 @@ git commit -m "feat(orchestrator): add run_workflow CLI entry point"
 **Files:**
 - Create: `config/workflows/daily_pipeline.yml`
 - Create: `config/workflows/approved_packs.yml`
+- Create: `config/workflows/image_generation.yml`
 - Test: `tests/test_orchestrator_integration.py`
 
 ### Step 1: Write sample workflow files
@@ -1278,6 +1279,26 @@ steps:
       account: socialbuilders
       type: packs
     condition: "${{ vault.count('Content/Longform', 'derivative_status=approved') > 0 }}"
+```
+
+```yaml
+# config/workflows/image_generation.yml
+name: image_generation
+description: 승인된 콘텐츠 → 이미지 프롬프트 생성 → 렌더링
+
+steps:
+  - name: generate_image_prompts
+    action: generator.run
+    args:
+      account: socialbuilders
+      type: image
+    condition: "${{ vault.count('Content/Longform', 'image_status=approved') > 0 }}"
+
+  - name: render_media
+    action: renderer.run
+    args:
+      status: pending
+    condition: "${{ vault.count('Inbox/Multimedia', 'render_status=pending') > 0 }}"
 ```
 
 ### Step 2: Write integration test
@@ -1400,7 +1421,7 @@ Expected: PASS (2 tests)
 ### Step 4: Commit
 
 ```bash
-git add config/workflows/daily_pipeline.yml config/workflows/approved_packs.yml tests/test_orchestrator_integration.py
+git add config/workflows/daily_pipeline.yml config/workflows/approved_packs.yml config/workflows/image_generation.yml tests/test_orchestrator_integration.py
 git commit -m "feat(orchestrator): add sample workflows and integration tests"
 ```
 
@@ -1447,6 +1468,7 @@ git commit -m "style: format orchestrator module"
 | 스크립트 | `scripts/run_workflow.py` |
 | 설정 | `config/workflows/daily_pipeline.yml` |
 | 설정 | `config/workflows/approved_packs.yml` |
+| 설정 | `config/workflows/image_generation.yml` |
 | 테스트 | `tests/test_vault_adapter.py` |
 | 테스트 | `tests/test_orchestrator_actions.py` |
 | 테스트 | `tests/test_orchestrator_expr.py` |
