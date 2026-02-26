@@ -26,7 +26,7 @@ logger = get_logger("run_workflow")
 def main(argv: list[str] | None = None):
     parser = argparse.ArgumentParser(description="워크플로우 실행")
     parser.add_argument("--workflow", required=True, help="워크플로우 YAML 파일 경로")
-    parser.add_argument("--dry-run", action="store_true", help="실제 실행 없이 조건만 평가")
+    parser.add_argument("--dry-run", action="store_true", help="실제 실행 없이 조건만 평가 (TODO: Phase 2 구현 예정)")
 
     args = parser.parse_args(argv)
     workflow_path = Path(args.workflow)
