@@ -1,16 +1,29 @@
 # config/workflows/daily_pipeline.yml
 name: daily_pipeline
-description: 일일 콘텐츠 수집 → auto_ready 항목 longform 생성
+description: 일일 콘텐츠 수집 → 중복 제거 → auto_ready 항목 longform 생성
 
 steps:
+  # 1. 수집
   - name: collect
     action: collector.run
     args:
       account: socialbuilders
 
+  # 2. 중복 제거 (Phase 2)
+  - name: dedup
+    action: embedding.check_duplicate
+    args:
+      source: "${{ steps.collect.outputs.result.items }}"
+      threshold: 0.9
+
+  # 3. auto_ready 항목 longform 생성 (배치 처리)
   - name: generate_longform
     action: generator.run
     args:
       account: socialbuilders
       type: longform
     condition: "${{ vault.count('Inbox/Inputs', 'writing_status=auto_ready') > 0 }}"
+    batch:
+      source: "${{ vault.list('Inbox/Inputs', 'writing_status=auto_ready') }}"
+      size: 5
+      delay: 10s

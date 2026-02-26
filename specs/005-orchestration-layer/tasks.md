@@ -168,7 +168,7 @@ pytest tests/test_orchestrator_batch.py -v
 ### Phase 2 완료 후
 - [x] BatchProcessor 단위 테스트 통과
 - [x] embedding.check_duplicate 액션 등록 확인
-- [ ] daily_pipeline.yml 배치 처리 동작
+- [x] daily_pipeline.yml 배치 처리 동작
 - [x] 전체 테스트 통과
 ---
 
