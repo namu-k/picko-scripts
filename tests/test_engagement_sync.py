@@ -11,6 +11,7 @@ Unit tests for the EngagementSyncer class covering:
 
 from datetime import datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -470,6 +471,446 @@ class TestUpdateLogMetrics:
         assert call_args[0][0] == "/test/log.md"
         assert "metrics" in call_args[0][1]
         assert "metrics_synced_at" in call_args[0][1]
+
+
+class TestTwitterClientAuthentication:
+    """Tests for Twitter client auth and initialization paths"""
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_get_twitter_client_returns_none_when_tweepy_missing(self, mock_get_config, mock_config):
+        """Twitter client is unavailable when tweepy is not installed"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.engagement_sync import EngagementSyncer
+
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer._twitter_client = None
+
+            with patch("scripts.engagement_sync.tweepy", None):
+                result = syncer._get_twitter_client()
+
+        assert result is None
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_get_twitter_client_returns_none_without_bearer_token(self, mock_get_config, mock_config):
+        """Bearer token is required for Twitter API authentication"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.engagement_sync import EngagementSyncer
+
+        tweepy_module = SimpleNamespace(Client=MagicMock())
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer._twitter_client = None
+
+            with patch.dict("os.environ", {}, clear=True):
+                with patch("scripts.engagement_sync.tweepy", tweepy_module):
+                    result = syncer._get_twitter_client()
+
+        assert result is None
+        tweepy_module.Client.assert_not_called()
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_get_twitter_client_initializes_with_env_credentials(self, mock_get_config, mock_config):
+        """Twitter client is created using environment credentials"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.engagement_sync import EngagementSyncer
+
+        client_instance = MagicMock()
+        client_ctor = MagicMock(return_value=client_instance)
+        tweepy_module = SimpleNamespace(Client=client_ctor)
+
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer._twitter_client = None
+
+            env = {
+                "TWITTER_BEARER_TOKEN": "bearer",
+                "TWITTER_API_KEY": "api-key",
+                "TWITTER_API_SECRET": "api-secret",
+                "TWITTER_ACCESS_TOKEN": "access-token",
+                "TWITTER_ACCESS_TOKEN_SECRET": "access-secret",
+            }
+
+            with patch.dict("os.environ", env, clear=True):
+                with patch("scripts.engagement_sync.tweepy", tweepy_module):
+                    result = syncer._get_twitter_client()
+
+        assert result is client_instance
+        client_ctor.assert_called_once_with(
+            bearer_token="bearer",
+            consumer_key="api-key",
+            consumer_secret="api-secret",
+            access_token="access-token",
+            access_token_secret="access-secret",
+        )
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_get_twitter_client_returns_cached_instance(self, mock_get_config, mock_config):
+        """Cached client should be returned without re-initialization"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.engagement_sync import EngagementSyncer
+
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer._twitter_client = MagicMock()
+
+            with patch("scripts.engagement_sync.tweepy", SimpleNamespace(Client=MagicMock())):
+                result = syncer._get_twitter_client()
+
+        assert result is syncer._twitter_client
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_get_twitter_client_handles_constructor_error(self, mock_get_config, mock_config):
+        """Initialization errors should be handled and return None"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.engagement_sync import EngagementSyncer
+
+        ctor = MagicMock(side_effect=RuntimeError("auth failed"))
+        tweepy_module = SimpleNamespace(Client=ctor)
+
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer._twitter_client = None
+
+            with patch.dict("os.environ", {"TWITTER_BEARER_TOKEN": "bearer"}, clear=True):
+                with patch("scripts.engagement_sync.tweepy", tweepy_module):
+                    result = syncer._get_twitter_client()
+
+        assert result is None
+
+
+class TestTwitterMetricsFetch:
+    """Tests for detailed Twitter metric sync behavior"""
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_fetch_twitter_metrics_uses_content_id_when_url_has_no_id(self, mock_get_config, mock_config):
+        """Fallback to content_id when URL parsing fails"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.engagement_sync import EngagementSyncer
+
+        metric_obj = SimpleNamespace(
+            impression_count=120,
+            like_count=20,
+            reply_count=3,
+            retweet_count=4,
+            quote_count=1,
+        )
+        response = SimpleNamespace(data=SimpleNamespace(public_metrics=metric_obj))
+        client = MagicMock()
+        client.get_tweet.return_value = response
+
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer._get_twitter_client = MagicMock(return_value=client)
+            syncer._extract_tweet_id = MagicMock(return_value=None)
+
+            metrics = syncer._fetch_twitter_metrics("fallback-id", "https://example.com/no-status")
+
+        assert metrics.views == 120
+        assert metrics.shares == 5
+        client.get_tweet.assert_called_once_with("fallback-id", tweet_fields=["public_metrics", "non_public_metrics"])
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_fetch_twitter_metrics_returns_empty_without_tweet_identifier(self, mock_get_config, mock_config):
+        """Returns empty metrics when both URL and content_id are missing"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.engagement_sync import EngagementSyncer
+
+        client = MagicMock()
+
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer._get_twitter_client = MagicMock(return_value=client)
+            syncer._extract_tweet_id = MagicMock(return_value=None)
+
+            metrics = syncer._fetch_twitter_metrics("", "")
+
+        assert metrics.to_dict() == {
+            "views": 0,
+            "likes": 0,
+            "comments": 0,
+            "shares": 0,
+            "clicks": 0,
+            "impressions": 0,
+        }
+        client.get_tweet.assert_not_called()
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_fetch_twitter_metrics_returns_empty_on_missing_response_data(self, mock_get_config, mock_config):
+        """Handles API success response without data payload"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.engagement_sync import EngagementSyncer
+
+        client = MagicMock()
+        client.get_tweet.return_value = SimpleNamespace(data=None)
+
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer._get_twitter_client = MagicMock(return_value=client)
+            syncer._extract_tweet_id = MagicMock(return_value="123")
+
+            metrics = syncer._fetch_twitter_metrics("123", "https://x.com/user/status/123")
+
+        assert metrics.views == 0
+        assert metrics.likes == 0
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_fetch_twitter_metrics_handles_rate_limit_error(self, mock_get_config, mock_config):
+        """Rate-limit style API errors return empty metrics"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.engagement_sync import EngagementSyncer
+
+        client = MagicMock()
+        client.get_tweet.side_effect = RuntimeError("429 Too Many Requests")
+
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer._get_twitter_client = MagicMock(return_value=client)
+            syncer._extract_tweet_id = MagicMock(return_value="123")
+
+            metrics = syncer._fetch_twitter_metrics("123", "https://x.com/user/status/123")
+
+        assert metrics.views == 0
+        assert metrics.impressions == 0
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_fetch_twitter_metrics_handles_timeout_error(self, mock_get_config, mock_config):
+        """Timeout-like API errors return empty metrics without raising"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.engagement_sync import EngagementSyncer
+
+        client = MagicMock()
+        client.get_tweet.side_effect = TimeoutError("request timed out")
+
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer._get_twitter_client = MagicMock(return_value=client)
+            syncer._extract_tweet_id = MagicMock(return_value="123")
+
+            metrics = syncer._fetch_twitter_metrics("123", "https://x.com/user/status/123")
+
+        assert metrics.to_dict()["views"] == 0
+
+
+class TestSyncBehaviorAndErrors:
+    """Tests for batch sync flows and error handling"""
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_sync_all_processes_multiple_items_in_batch(self, mock_get_config, mock_config, mock_vault):
+        """Batch sync processes multiple published logs"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.engagement_sync import EngagementMetrics, EngagementSyncer
+
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer.vault = mock_vault
+            syncer.logs_path = "Logs/Publish"
+            syncer._twitter_client = None
+            syncer._get_published_logs = MagicMock(
+                return_value=[
+                    {
+                        "path": "/log1.md",
+                        "platform": "twitter",
+                        "content_id": "111",
+                        "published_url": "",
+                    },
+                    {
+                        "path": "/log2.md",
+                        "platform": "linkedin",
+                        "content_id": "222",
+                        "published_url": "",
+                    },
+                ]
+            )
+            syncer._fetch_metrics = MagicMock(side_effect=[EngagementMetrics(views=10), EngagementMetrics(views=20)])
+
+            results = syncer.sync_all(days=7)
+
+        assert len(results) == 2
+        assert results[0].success is True
+        assert results[1].success is True
+        assert mock_vault.update_frontmatter.call_count == 2
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_sync_all_marks_partial_failures_and_continues(self, mock_get_config, mock_config, mock_vault):
+        """One failing item should not block the rest of batch sync"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.engagement_sync import EngagementMetrics, EngagementSyncer
+
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer.vault = mock_vault
+            syncer.logs_path = "Logs/Publish"
+            syncer._twitter_client = None
+            syncer._get_published_logs = MagicMock(
+                return_value=[
+                    {"path": "/ok.md", "platform": "twitter"},
+                    {"path": "/bad.md", "platform": "twitter"},
+                    {"path": "/ok2.md", "platform": "twitter"},
+                ]
+            )
+            syncer._fetch_metrics = MagicMock(
+                side_effect=[
+                    EngagementMetrics(views=1),
+                    RuntimeError("rate limited"),
+                    EngagementMetrics(views=2),
+                ]
+            )
+
+            results = syncer.sync_all(days=7)
+
+        assert len(results) == 3
+        assert [r.success for r in results] == [True, False, True]
+        assert "rate limited" in results[1].error
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_sync_all_records_write_error_as_failure(self, mock_get_config, mock_config, mock_vault):
+        """Vault write failures are captured as failed sync results"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.engagement_sync import EngagementMetrics, EngagementSyncer
+
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer.vault = mock_vault
+            syncer.logs_path = "Logs/Publish"
+            syncer._twitter_client = None
+            syncer._get_published_logs = MagicMock(return_value=[{"path": "/log1.md", "platform": "twitter"}])
+            syncer._fetch_metrics = MagicMock(return_value=EngagementMetrics(views=100))
+            mock_vault.update_frontmatter.side_effect = OSError("disk write error")
+
+            results = syncer.sync_all(days=7)
+
+        assert len(results) == 1
+        assert results[0].success is False
+        assert "disk write error" in results[0].error
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_sync_all_filters_invalid_platforms_from_request(self, mock_get_config, mock_config, mock_vault):
+        """Only supported requested platforms should be synced"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.engagement_sync import EngagementMetrics, EngagementSyncer
+
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer.vault = mock_vault
+            syncer.logs_path = "Logs/Publish"
+            syncer._twitter_client = None
+            syncer._get_published_logs = MagicMock(
+                return_value=[
+                    {"path": "/twitter.md", "platform": "twitter"},
+                    {"path": "/linkedin.md", "platform": "linkedin"},
+                ]
+            )
+            syncer._fetch_metrics = MagicMock(return_value=EngagementMetrics(views=1))
+
+            results = syncer.sync_all(days=7, platforms=["twitter", "not-a-platform"])
+
+        assert len(results) == 1
+        assert results[0].platform == "twitter"
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_sync_single_returns_failure_on_vault_read_error(self, mock_get_config, mock_config, mock_vault):
+        """sync_single returns failed result when vault read raises"""
+        mock_get_config.return_value = mock_config
+        mock_vault.read_note.side_effect = FileNotFoundError("missing note")
+
+        from scripts.engagement_sync import EngagementSyncer
+
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer.vault = mock_vault
+
+            result = syncer.sync_single("/missing.md")
+
+        assert result.success is False
+        assert result.platform == "unknown"
+        assert "missing note" in result.error
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_sync_single_returns_failure_on_vault_write_error(self, mock_get_config, mock_config, mock_vault):
+        """sync_single captures write failures when updating metrics"""
+        mock_get_config.return_value = mock_config
+        mock_vault.read_note.return_value = ({"platform": "twitter"}, "content")
+        mock_vault.update_frontmatter.side_effect = PermissionError("write denied")
+
+        from scripts.engagement_sync import EngagementMetrics, EngagementSyncer
+
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer.vault = mock_vault
+            syncer._fetch_metrics = MagicMock(return_value=EngagementMetrics(views=3))
+
+            result = syncer.sync_single("/test/log.md", dry_run=False)
+
+        assert result.success is False
+        assert "write denied" in result.error
+
+
+class TestPublishedStatusTransitions:
+    """Tests for status filtering in published log retrieval"""
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_get_published_logs_only_includes_published_status(self, mock_get_config, mock_config, mock_vault):
+        """Draft and archived logs are excluded from sync targets"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.engagement_sync import EngagementSyncer
+
+        recent = datetime.now().isoformat()
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer.vault = mock_vault
+            syncer.logs_path = "Logs/Publish"
+            mock_vault.list_notes.return_value = [
+                Path("/draft.md"),
+                Path("/published.md"),
+                Path("/archived.md"),
+            ]
+            mock_vault.read_frontmatter.side_effect = [
+                {"status": "draft", "published_at": recent},
+                {"status": "published", "published_at": recent, "platform": "twitter"},
+                {"status": "archived", "published_at": recent},
+            ]
+
+            logs = syncer._get_published_logs(datetime.now() - timedelta(days=2))
+
+        assert len(logs) == 1
+        assert logs[0]["status"] == "published"
+
+    @patch("scripts.engagement_sync.get_config")
+    def test_get_published_logs_skips_notes_with_frontmatter_read_error(self, mock_get_config, mock_config, mock_vault):
+        """Frontmatter read errors are skipped without stopping list processing"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.engagement_sync import EngagementSyncer
+
+        with patch.object(EngagementSyncer, "__init__", lambda x: None):
+            syncer = EngagementSyncer.__new__(EngagementSyncer)
+            syncer.vault = mock_vault
+            syncer.logs_path = "Logs/Publish"
+            mock_vault.list_notes.return_value = [Path("/bad.md"), Path("/good.md")]
+            mock_vault.read_frontmatter.side_effect = [
+                ValueError("invalid frontmatter"),
+                {"status": "published", "published_at": datetime.now().isoformat()},
+            ]
+
+            logs = syncer._get_published_logs(datetime.now() - timedelta(days=3))
+
+        assert len(logs) == 1
 
 
 class TestSupportedPlatforms:
