@@ -52,69 +52,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Source Management**:
-  - `source_manager.py`: Source quality management and curation
-  - `source_curator.py`: CLI for source quality evaluation with threshold-based filtering
-  - `source_discovery.py`: Automatic source discovery based on account profiles and keywords
-  - `simple_rss_collector.py`: Standalone RSS collector for quick testing and ad-hoc collection
-- **Layout System**:
-  - `layout_config.py`: Layout preset and theme configuration loader
-  - `config/layouts/`: Layout presets (corporate, minimal_dark, minimal_light, social_gradient, vibrant)
-  - `config/layouts/themes/`: Account-specific themes (fitness_wellness, socialbuilders, tech_startup)
-- **Configuration**:
-  - `config/collectors.yml`: Collector-specific configuration
-  - `config/reference_styles/`: Style profiles for content personalization
-- **Image Rendering Pipeline**:
-  - `multimedia_io.py`: Multimedia input template parser with YAML frontmatter support
-  - `proposal_generator.py`: Content type detection (quote, card, list, data, carousel) and proposal generation
-  - `html_renderer.py`: Playwright-based HTML-to-PNG rendering with background overlay support
-  - `render_media.py`: CLI for image rendering with status, review, and render commands
-  - HTML templates: `quote.html`, `card.html`, `list.html` for social media images
-  - Reference document loader with path traversal protection
-  - Platform-specific dimension support (configurable)
-  - 2-stage interactive review workflow (proposal → render → final)
-- **Security**:
-  - Path traversal validation in `load_reference()`
-  - Template whitelist validation in `ImageRenderer`
-  - Comprehensive error handling in CLI (FileNotFoundError, PermissionError, UnicodeDecodeError)
-- **Tests**:
-  - `test_multimedia_io.py`: Input parser and reference loader tests (6 tests)
-  - `test_proposal_generator.py`: Content type detection tests (6 tests)
-  - `test_html_renderer.py`: Playwright rendering tests (3 tests)
-  - `test_image_templates.py`: HTML template tests (4 tests)
-  - `test_render_media_cli.py`: CLI command tests (4 tests)
-  - `test_render_media_integration.py`: End-to-end pipeline tests (4 tests)
-- **Account Context System**:
-  - `account_context.py`: Account identity, weekly slot, and style profile loader
-  - `AccountIdentity`: Dataclass for account persona (one_liner, target_audience, pillars, tone_voice, boundaries)
-  - `WeeklySlot`: Dataclass for weekly content preset (pillar_distribution, customer_outcome, CTA)
-  - `StyleProfile`: Dataclass for writing style characteristics from reference analysis
-  - `AccountContextLoader`: Loader class with caching for account context files
-  - `get_identity()`, `get_weekly_slot()`, `get_style_for_account()`: Convenience functions
-- **Prompt Composer**:
-  - `prompt_composer.py`: Multi-layer prompt composition system
-  - `PromptComposer`: Class for composing prompts from multiple sources
-  - Layers: base_prompt + style + identity + context
-  - `get_effective_prompt()`: Convenience function for composed prompts
-  - Integration with `generate_content.py` for automatic prompt composition
-- **Scoring Integration**:
-  - `ContentScorer` now accepts `account_identity` parameter for persona-based relevance scoring
-  - Target audience and pillar matching in relevance calculation
-  - `score_content()` function supports `account_identity` parameter
-- **Tests**:
-  - `test_account_context.py`: Comprehensive tests for account context module
-  - `test_prompt_composer.py`: Tests for prompt composition system
-  - Parser tests for identity and weekly slot markdown files
-  - Loader tests with caching verification
-  - Real file integration tests (marked as slow)
+- **Tests** (Phase 2 utility scripts):
+  - `test_archive_manager.py`: Archive operations and cleanup tests
+  - `test_duplicate_checker.py`: Embedding-based duplicate detection tests
+  - `test_health_check.py`: System health verification tests
+  - `test_publish_log.py`: Publication logging tests
+  - `test_retry_failed.py`: Failed item retry mechanism tests
+  - `test_simple_rss_collector.py`: Standalone RSS collection tests
+  - `test_style_extractor.py`: Style extraction from URLs tests
+- **Specs**:
+  - `specs/006-multimedia-styles/`: Multimedia styles system specification and tasks
 
 ### Changed
-- `scoring.py`: Enhanced relevance calculation with `AccountIdentity` integration
-- `generate_content.py`: Weekly slot context injection for content generation
-- Documentation updated:
-  - `CLAUDE.md`: Added new modules (html_renderer, multimedia_io, source_manager, proposal_generator, layout_config), new scripts (source_curator, source_discovery, simple_rss_collector, render_media), and expanded configuration structure
-  - `README.md`: Added source management and simple RSS collection commands
-  - `USER_GUIDE.md`: Added multimedia rendering, source management, and layout system documentation
+- Extended test coverage for collectors, daily_collector, embedding, engagement_sync, generate_content, publisher, render_media, scheduler, source_discovery, validate_output
+- Hardened `.gitignore` to exclude local artifacts (`NUL`, `C*picko-scripts.sisyphus*`, `.ruff_cache/`)
+
+### Fixed
+- Aligned `specs/006-multimedia-styles/tasks.md` with plan.md (path references, cache metadata, mock annotations)
+
 ## [0.3.0] - 2026-02-16
 
 ### Added
