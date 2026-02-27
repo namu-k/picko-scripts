@@ -9,6 +9,12 @@
 
 ## Phase 1: Foundation (P0)
 
+### Repo Divergences (FYI)
+> **Note**: The following are current repo realities that differ from the plan. These notes are for executor awareness only and do not change plan scope.
+> - Current renderer loads image templates from `templates/images/` via `picko/templates.py:ImageRenderer` (whitelist: quote, card, list, data, carousel, social_quote, modern_card), while plan introduces `templates/images/styles/`.
+> - Current CLI uses `scripts/render_media.py` flags `--layout/--theme/--override`; plan requires new `--style/--image-keywords/--image-source`.
+
+
 ### 1.1 Layer System
 - ⬜ HTML 레이어 구조 정의 (background, overlay, decoration, content)
 - ⬜ `templates/images/styles/_layer_base.html` 공통 베이스 템플릿
@@ -18,7 +24,7 @@
 - ⬜ `picko/image_source.py` 모듈 생성
 - ⬜ `ImageSourceManager` 클래스 구현
 - ⬜ Unsplash API 연동 (`search_unsplash()`)
-- ⬜ 이미지 캐시 시스템 (`cache/images/unsplash/`, `meta.json`)
+- ⬜ 이미지 캐시 시스템 (`cache/images/unsplash/`, `cache/images/unsplash/meta.json`)
 - ⬜ 캐시 TTL 설정 (7일)
 - ⬜ 환경 변수 로드 (`UNSPLASH_ACCESS_KEY`)
 - ⬜ `config/image_sources.yml` 설정 파일
@@ -29,10 +35,10 @@
 - ⬜ `quote_photo.html` 템플릿
 - ⬜ `card_photo.html` 템플릿
 - ⬜ `hero_photo.html` 템플릿 (풀 스크린)
-- ⬜ `html_renderer.py` 스타일 파라미터 확장
+- ⬜ `picko/html_renderer.py` 스타일 파라미터 확장
 
 ### 1.4 Input Schema Extension
-- ⬜ `multimedia_io.py`: `style`, `template`, `image_keywords` 필드 추가
+- ⬜ `picko/multimedia_io.py`: `style`, `template`, `image_keywords` 필드 추가
 - ⬜ `MultimediaInput` dataclass 확장
 - ⬜ 파싱 로직 업데이트
 
@@ -43,7 +49,7 @@
 - ⬜ `styles` 서브커맨드 (사용 가능한 스타일 목록)
 
 ### 1.6 Tests
-- ⬜ `test_image_source.py`: Unsplash 검색, 캐시 적중
+- ⬜ `test_image_source.py`: Unsplash 검색(HTTP mock), 캐시 적중
 - ⬜ `test_photogram_templates.py`: 템플릿 렌더링 → PNG 생성
 - ⬜ E2E: 입력 → 렌더링 완료
 
@@ -100,7 +106,7 @@
 - ✅ `.env.example` 업데이트 (UNSPLASH_ACCESS_KEY)
 - ✅ `FOLLOWUPS.md` 업데이트 (006 작업 추가)
 - ✅ `DEPLOYMENT.md` 업데이트 (Unsplash/Pexels API)
-- ✅ `specs/006/plan.md` 구현 계획 작성
+- ✅ `specs/006-multimedia-styles/plan.md` 구현 계획 작성
 
 ---
 
