@@ -105,7 +105,11 @@ For other LLM providers, you may want to add these secrets as well:
 |-------------|-------------|----------|
 | `OPENAI_API_KEY` | OpenAI API key | Yes |
 | `ANTHROPIC_API_KEY` | Anthropic API key (for Claude) | Optional |
-|| `RELAY_API_KEY` | Relay provider API key | Optional |
+| `RELAY_API_KEY` | Relay provider API key | Optional |
+| `TAVILY_API_KEY` | Tavily API key (for web search) | Optional |
+| `UNSPLASH_ACCESS_KEY` | Unsplash API key (for images) | Optional |
+| `UNSPLASH_SECRET_KEY` | Unsplash API secret | Optional |
+| `PEXELS_API_KEY` | Pexels API key (for images) | Optional |
 ---
 
 ### 3. Tavily API Key
@@ -131,6 +135,32 @@ For other LLM providers, you may want to add these secrets as well:
 3. Navigate to **API Keys** section
 4. Create a new API key
 5. Copy the key
+
+### 5. Unsplash API Key (Optional)
+
+**Unsplash** provides high-quality stock photos for multimedia templates.
+
+**Required for**: Photogram style background images
+
+1. Go to [https://unsplash.com/developers](https://unsplash.com/developers)
+2. Sign in or create an account
+3. Create a new application
+4. Copy the **Access Key** and **Secret Key**
+
+**Rate Limits**: 50 requests/hour (free tier)
+
+### 6. Pexels API Key (Optional)
+
+**Pexels** provides free stock photos and videos.
+
+**Required for**: Alternative image source for Photogram style
+
+1. Go to [https://www.pexels.com/api/](https://www.pexels.com/api/)
+2. Sign in or create an account
+3. Create a new application
+4. Copy the **API Key**
+
+**Rate Limits**: 200 requests/hour (free tier)
 
 ---
 
