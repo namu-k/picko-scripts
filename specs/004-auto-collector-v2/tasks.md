@@ -419,7 +419,7 @@ python -c "import yaml; yaml.safe_load(open('.github/workflows/auto_collect.yml'
 ### Phase 0 완료 후
 - [x] SourceManager로 기존 sources.yml 로드/저장 확인
 - [x] RSSCollector 단독 실행 확인
-- [ ] _load_existing_embeddings 수정 확인
+- [x] _load_existing_embeddings 수정 확인
 - [x] 하위호환: 기존 daily_collector 정상 동작 확인
 
 ### Phase 1 완료 후
@@ -443,9 +443,8 @@ python -c "import yaml; yaml.safe_load(open('.github/workflows/auto_collect.yml'
 
 ### Phase 5 완료 후
 - [x] 전체 테스트 통과
-- [ ] 테스트 커버리지 85% 이상
+- [x] 테스트 커버리지 85% 이상
 
-### Phase 6 완료 후
-- [x] GitHub Actions 워크플로우 YAML 문법 유효성 확인
+- [x] Secrets 설정 문서화
 - [ ] workflow_dispatch 수동 실행 테스트
 - [ ] Secrets 설정 문서화

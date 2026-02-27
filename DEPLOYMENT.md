@@ -104,10 +104,34 @@ For other LLM providers, you may want to add these secrets as well:
 |-------------|-------------|----------|
 | `OPENAI_API_KEY` | OpenAI API key | Yes |
 | `ANTHROPIC_API_KEY` | Anthropic API key (for Claude) | Optional |
-| `OLLAMA_BASE_URL` | Ollama instance URL | Optional (if using self-hosted) |
-
+|| `RELAY_API_KEY` | Relay provider API key | Optional |
 ---
 
+### 3. Tavily API Key
+
+**Tavily** provides web search capabilities for content discovery and source discovery.
+
+**Required for**: Source discovery and web-based content collection
+
+1. Go to [https://tavily.com](https://tavily.com)
+2. Sign in or create an account
+3. Navigate to **API Keys** section
+4. Create a new API key
+5. Copy the key
+
+### 4. Relay API Key (Optional)
+
+**Relay** is an LLM provider that can be used as a fallback or alternative to OpenAI/Anthropic.
+
+**Required for**: Using Relay provider for LLM requests
+
+1. Go to [https://relay.app](https://relay.app)
+2. Sign in or create an account
+3. Navigate to **API Keys** section
+4. Create a new API key
+5. Copy the key
+
+---
 ## Environment Variables Reference
 
 ### Required Variables
@@ -122,7 +146,7 @@ For other LLM providers, you may want to add these secrets as well:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `ANTHROPIC_API_KEY` | Anthropic API key for Claude | - |
-| `OLLAMA_HOST` | Ollama host URL | `http://localhost:11434` |
+|| `TAVILY_API_KEY` | Tavily API key for web search | - |
 
 ### Configuration Override Pattern
 
@@ -202,12 +226,14 @@ Error: Incorrect API key provided
 
 **Local:**
 ```bash
-# Verify API key is set
-python -c "import os; print('API Key found' if os.getenv('OPENAI_API_KEY') else 'API Key NOT found')"
+|| Verify all API keys are set
+python -c "import os; print('OpenAI:', os.getenv('OPENAI_API_KEY') or 'NOT FOUND')"
+python -c "import os; print('Tavily:', os.getenv('TAVILY_API_KEY') or 'NOT FOUND')"
+python -c "import os; print('Relay:', os.getenv('RELAY_API_KEY') or 'NOT FOUND')"
 
-# Test health check
+|# Test health check
 python -m scripts.health_check
-```
+||
 
 **GitHub Actions:**
 1. Go to Actions tab in your repository
