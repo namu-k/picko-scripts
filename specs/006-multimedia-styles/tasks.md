@@ -11,14 +11,15 @@
 
 ### 1.1 Layer System
 - ⬜ HTML 레이어 구조 정의 (background, overlay, decoration, content)
-- ⬜ `_layer_base.html` 공통 베이스 템플릿
-- ⬜ CSS 레이어 스타일 (z-index, positioning)
+- ⬜ `templates/images/styles/_layer_base.html` 공통 베이스 템플릿
+- ⬜ `templates/images/styles/_layer.css` 레이어 CSS
 
 ### 1.2 Image Source Module ⬅️ **START HERE**
 - ⬜ `picko/image_source.py` 모듈 생성
 - ⬜ `ImageSourceManager` 클래스 구현
 - ⬜ Unsplash API 연동 (`search_unsplash()`)
-- ⬜ 이미지 캐시 시스템 (`cache/images/`)
+- ⬜ 이미지 캐시 시스템 (`cache/images/unsplash/`, `meta.json`)
+- ⬜ 캐시 TTL 설정 (7일)
 - ⬜ 환경 변수 로드 (`UNSPLASH_ACCESS_KEY`)
 - ⬜ `config/image_sources.yml` 설정 파일
 
@@ -28,6 +29,7 @@
 - ⬜ `quote_photo.html` 템플릿
 - ⬜ `card_photo.html` 템플릿
 - ⬜ `hero_photo.html` 템플릿 (풀 스크린)
+- ⬜ `html_renderer.py` 스타일 파라미터 확장
 
 ### 1.4 Input Schema Extension
 - ⬜ `multimedia_io.py`: `style`, `template`, `image_keywords` 필드 추가
@@ -41,9 +43,9 @@
 - ⬜ `styles` 서브커맨드 (사용 가능한 스타일 목록)
 
 ### 1.6 Tests
-- ⬜ `test_image_source.py`: Unsplash 검색, 캐시
-- ⬜ `test_photogram_templates.py`: 렌더링 테스트
-- ⬜ E2E: 전체 파이프라인 테스트
+- ⬜ `test_image_source.py`: Unsplash 검색, 캐시 적중
+- ⬜ `test_photogram_templates.py`: 템플릿 렌더링 → PNG 생성
+- ⬜ E2E: 입력 → 렌더링 완료
 
 ---
 
@@ -107,7 +109,7 @@
 ### New Python Packages
 ```
 # requirements.txt 추가
-requests  # Unsplash API 호출
+requests  # Unsplash/Pexels API 호출
 ```
 
 ### External APIs
