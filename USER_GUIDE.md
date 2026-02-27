@@ -4,6 +4,12 @@ Picko는 RSS 피드와 웹 소스에서 콘텐츠를 자동으로 수집하고, 
 
 이 가이드에서는 Picko를 처음 사용하는 분들을 위해 시스템의 개념, 설치 방법, 설정, 그리고 일일 작업 흐름을 상세히 설명합니다.
 
+> **참고**: CLI 코딩 에이전트를 위한 가이드는 [AGENT_GUIDE.md](AGENT_GUIDE.md)를 참조하세요.
+
+Picko는 RSS 피드와 웹 소스에서 콘텐츠를 자동으로 수집하고, AI를 활용해 다양한 형태의 콘텐츠(블로그 포스트, 소셜 미디어 게시물 등)를 생성하는 콘텐츠 파이프라인 시스템입니다.
+
+이 가이드에서는 Picko를 처음 사용하는 분들을 위해 시스템의 개념, 설치 방법, 설정, 그리고 일일 작업 흐름을 상세히 설명합니다.
+
 ## 목차
 
 1. [시스템 개요](#시스템-개요)
@@ -1159,7 +1165,55 @@ config/reference_styles/
 
 ---
 
-버전: 0.5.0 (unreleased)
-최종 업데이트: 2026-02-25
+## 추가 도움말
+
+- **클래스 및 함수 레퍼런스**: 각 모듈의 docstring 참조
+- **예시 설정**: `config/` 디렉토리의 예시 파일들
+- **로그**: `logs/` 디렉토리의 상세 실행 로그
+- **Ollama 공식 문서**: [https://ollama.ai](https://ollama.ai)
+- **Sentence Transformers 문서**: [https://sbert.net](https://sbert.net)
+- **에이전트 가이드**: [AGENT_GUIDE.md](AGENT_GUIDE.md) - CLI 코딩 에이전트용 가이드
+
+---
+
+## 최근 변경사항 (v0.4.0+)
+
+### Orchestration Layer (005)
+YAML 기반 워크플로우 자동화 시스템이 추가되었습니다.
+
+```bash
+# 워크플로우 실행
+python -m scripts.run_workflow --workflow config/workflows/daily_pipeline.yml
+
+# 사용 가능한 워크플로우
+# - daily_pipeline.yml: 일일 수집 → 생성 파이프라인
+# - approved_packs.yml: 승인된 롱폼 → 팩 생성
+# - image_generation.yml: 이미지 렌더링
+# - twitter_publish.yml: Twitter 발행
+```
+
+### Auto Collector V2 (004)
+모듈형 수집기 아키텍처가 도입되었습니다.
+
+```bash
+# 소스 발견
+python -m scripts.source_discovery --account socialbuilders --keywords "AI, startup"
+
+# 소스 품질 평가
+python -m scripts.source_curator --account socialbuilders --threshold 0.6
+```
+
+### Publisher Module
+소셜 미디어 발행 기능이 추가되었습니다.
+
+```bash
+# Twitter 발행 (워크플로우)
+python -m scripts.run_workflow --workflow config/workflows/twitter_publish.yml
+```
+
+---
+
+버전: 0.4.0
+최종 업데이트: 2026-02-28
 모델 아키텍처: 요약/태깅(로컬) + 임베딩(로컬) + 글쓰기(클라우드)
-주요 변경사항: 멀티미디어 렌더링, 소스 관리, 레이아웃 시스템 추가
+주요 변경사항: Orchestration Layer, Auto Collector V2, Publisher Module, 멀티미디어 렌더링

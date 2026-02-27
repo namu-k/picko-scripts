@@ -62,7 +62,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `test_style_extractor.py`: Style extraction from URLs tests
 - **Specs**:
   - `specs/006-multimedia-styles/`: Multimedia styles system specification and tasks
-
+- **Docs**:
+  - `AGENT_GUIDE.md`: CLI coding agent guide for pipeline replication
 ### Changed
 - Extended test coverage for collectors, daily_collector, embedding, engagement_sync, generate_content, publisher, render_media, scheduler, source_discovery, validate_output
 - Hardened `.gitignore` to exclude local artifacts (`NUL`, `C*picko-scripts.sisyphus*`, `.ruff_cache/`)
