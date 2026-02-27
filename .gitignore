@@ -28,6 +28,10 @@ logs/
 Thumbs.db
 
 # Project-specific
+# Ruff cache and Windows artifacts
+.ruff_cache/
+/NUL
+/C*picko-scripts.sisyphus*
 cache/
 .pytest_cache/
 pytest.ini
