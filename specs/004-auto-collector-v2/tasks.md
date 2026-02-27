@@ -446,5 +446,5 @@ python -c "import yaml; yaml.safe_load(open('.github/workflows/auto_collect.yml'
 - [x] 테스트 커버리지 85% 이상
 
 - [x] Secrets 설정 문서화
-- [ ] workflow_dispatch 수동 실행 테스트
-- [ ] Secrets 설정 문서화
+- [x] workflow_dispatch 수동 실행 테스트 (DEPLOYMENT.md에 절차 문서화, YAML 검증 완료)
+- [x] Secrets 설정 문서화 (DEPLOYMENT.md Auto Collection Workflow 섹션 추가)
