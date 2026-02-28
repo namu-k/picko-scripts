@@ -870,6 +870,8 @@ class ContentGenerator:
                     except Exception as e:
                         logger.warning(f"Pack validation error: {e}")
 
+                created_count += 1  # Increment count after successful creation
+
             except Exception as e:
                 logger.warning(f"Failed to create {channel} pack: {e}")
 
