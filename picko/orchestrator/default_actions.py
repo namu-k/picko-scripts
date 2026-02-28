@@ -406,7 +406,7 @@ def _check_duplicate(
 
     try:
         embedder = get_embedding_manager()
-        vault = VaultIO()
+        vault: VaultIO | None = None
 
         # 텍스트 추출
         items_with_embeddings = []
@@ -418,10 +418,13 @@ def _check_duplicate(
                     path = Path(item)
                     if path.exists():
                         text = path.read_text(encoding="utf-8")[:2000]
-                    else:
-                        # Vault 내 경로로 가정
+                    elif "/" in item or "\\" in item or path.suffix == ".md":
+                        if vault is None:
+                            vault = VaultIO()
                         _, content = vault.read_note(item)
                         text = content[:2000]
+                    else:
+                        text = item
                 except Exception:
                     text = item  # 텍스트 자체로 처리
             elif isinstance(item, dict):
