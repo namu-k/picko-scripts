@@ -9,6 +9,7 @@ Unit tests for the ContentGenerator class covering:
 """
 
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -698,3 +699,466 @@ class TestWritingStatusCheck:
 
         # Should not create longform for completed status
         assert results["longform_created"] == 0
+
+
+class TestHelpersAndMain:
+    @patch("scripts.generate_content.ContentGenerator")
+    @patch("scripts.generate_content.get_weekly_slot")
+    def test_main_parses_all_types_and_weekly_slot(self, mock_get_weekly_slot, mock_generator_cls):
+        from scripts.generate_content import main
+
+        mock_get_weekly_slot.return_value = SimpleNamespace(
+            cta="Join now",
+            customer_outcome="Better growth",
+            operator_kpi="kpi",
+            pillar_distribution={"P1": 1},
+        )
+        mock_generator = MagicMock()
+        mock_generator.run.return_value = {
+            "date": "2026-02-20",
+            "approved_items": 1,
+            "longform_created": 1,
+            "packs_created": 1,
+            "image_prompts_created": 1,
+            "errors": [],
+        }
+        mock_generator_cls.return_value = mock_generator
+
+        with (
+            patch(
+                "sys.argv",
+                ["generate_content.py", "--type", "all", "--week-of", "2026-02-17"],
+            ),
+            patch("builtins.print"),
+        ):
+            main()
+
+        call_kwargs = mock_generator.run.call_args.kwargs
+        assert call_kwargs["content_types"] == ["longform", "packs", "images"]
+        assert call_kwargs["auto_all"] is False
+
+    @patch("scripts.generate_content.ContentGenerator")
+    @patch("scripts.generate_content.get_weekly_slot")
+    def test_main_handles_weekly_slot_error(self, mock_get_weekly_slot, mock_generator_cls):
+        from scripts.generate_content import main
+
+        mock_get_weekly_slot.side_effect = RuntimeError("broken weekly slot")
+        mock_generator = MagicMock()
+        mock_generator.run.return_value = {
+            "date": "2026-02-20",
+            "approved_items": 0,
+            "longform_created": 0,
+            "packs_created": 0,
+            "image_prompts_created": 0,
+            "errors": ["err"],
+        }
+        mock_generator_cls.return_value = mock_generator
+
+        with (
+            patch(
+                "sys.argv",
+                ["generate_content.py", "--week-of", "2026-02-17", "--auto-all"],
+            ),
+            patch("builtins.print"),
+        ):
+            main()
+
+        assert mock_generator.run.call_args.kwargs["auto_all"] is True
+
+    def test_smart_truncate_keeps_short_text(self):
+        from scripts.generate_content import smart_truncate
+
+        assert smart_truncate("hello", 10) == "hello"
+
+    def test_smart_truncate_truncates_and_keeps_hashtag_tail(self):
+        from scripts.generate_content import smart_truncate
+
+        text = "one two three four five six seven\n#tag1\n#tag2"
+        result = smart_truncate(text, 28)
+
+        assert len(result) <= 28
+        assert "#tag1" in result or "#tag2" in result
+
+
+class TestRunAndProcessingBranches:
+    @patch("scripts.generate_content.get_config")
+    def test_run_batch_mode_uses_item_ids(self, mock_get_config, mock_config):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator.dry_run = True
+        generator._get_items_by_ids = MagicMock(return_value=[{"input_id": "a"}])
+        generator._process_item = MagicMock()
+
+        result = generator.run(items=["a"], content_types=["longform"])
+
+        assert result["approved_items"] == 1
+        generator._get_items_by_ids.assert_called_once_with(["a"])
+
+    @patch("scripts.generate_content.get_config")
+    def test_run_collects_top_level_exception(self, mock_get_config, mock_config):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator.dry_run = True
+        generator._parse_digest = MagicMock(side_effect=RuntimeError("digest crash"))
+
+        result = generator.run(date="2026-02-20")
+
+        assert result["errors"] == ["digest crash"]
+
+    @patch("scripts.generate_content.get_config")
+    def test_get_items_by_ids_handles_missing_item(self, mock_get_config, mock_config, mock_vault):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator.config = mock_config
+        generator.vault = mock_vault
+        mock_vault.read_note.side_effect = [
+            ({"title": "A"}, "ok"),
+            FileNotFoundError("missing"),
+        ]
+
+        items = generator._get_items_by_ids(["a", "b"])
+
+        assert len(items) == 1
+        assert items[0]["input_id"] == "a"
+
+    @patch("scripts.generate_content.get_config")
+    def test_process_item_updates_digest_when_not_dry_run(self, mock_get_config, mock_config):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator.dry_run = False
+        generator._should_process_item = MagicMock(return_value=True)
+        generator._load_input = MagicMock(return_value={"writing_status": "auto_ready"})
+        generator._generate_content_types = MagicMock()
+        generator._update_digest_status = MagicMock()
+
+        results = {"errors": []}
+        generator._process_item({"input_id": "x"}, ["longform"], False, "2026-02-20", results)
+
+        generator._update_digest_status.assert_called_once_with("2026-02-20", "x")
+
+    @patch("scripts.generate_content.get_config")
+    def test_process_item_appends_error(self, mock_get_config, mock_config):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator._should_process_item = MagicMock(side_effect=RuntimeError("boom"))
+
+        results = {"errors": []}
+        generator._process_item({"input_id": "x"}, ["longform"], False, "2026-02-20", results)
+
+        assert results["errors"] == ["boom"]
+
+
+class TestGenerationAndApprovalPaths:
+    @patch("scripts.generate_content.get_config")
+    def test_generate_content_types_updates_counts(self, mock_get_config, mock_config):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator._generate_longform = MagicMock(return_value=True)
+        generator._generate_packs_with_approval = MagicMock(return_value=2)
+        generator._generate_image_with_approval = MagicMock(return_value=True)
+
+        results = {
+            "longform_created": 0,
+            "packs_created": 0,
+            "image_prompts_created": 0,
+        }
+        generator._generate_content_types(
+            {"input_id": "x"},
+            {"writing_status": "auto_ready"},
+            ["longform", "packs", "images"],
+            results,
+        )
+
+        assert results == {
+            "longform_created": 1,
+            "packs_created": 2,
+            "image_prompts_created": 1,
+        }
+
+    @patch("scripts.generate_content.get_config")
+    def test_generate_content_types_force_overrides_manual_status(self, mock_get_config, mock_config):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator._generate_longform = MagicMock(return_value=True)
+        generator._generate_packs_with_approval = MagicMock(return_value=0)
+        generator._generate_image_with_approval = MagicMock(return_value=False)
+
+        results = {
+            "longform_created": 0,
+            "packs_created": 0,
+            "image_prompts_created": 0,
+        }
+        generator._generate_content_types(
+            {"input_id": "x"},
+            {"writing_status": "manual"},
+            ["longform"],
+            results,
+            force=True,
+        )
+        assert results["longform_created"] == 1
+
+    @patch("scripts.generate_content.get_effective_prompt")
+    @patch("scripts.generate_content.get_config")
+    def test_generate_longform_writes_output(self, mock_get_config, mock_get_effective_prompt, mock_config, mock_vault):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        mock_get_effective_prompt.return_value = "prompt"
+
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator.config = mock_config
+        generator.vault = mock_vault
+        generator.llm = MagicMock()
+        generator.llm.generate.return_value = "[메인 콘텐츠]\nhello"
+        generator.renderer = MagicMock()
+        generator.renderer.render_longform.return_value = "---\nid: longform_x\n---\nbody"
+        generator.weekly_slot = None
+        generator.dry_run = False
+        generator._load_exploration = MagicMock(return_value=None)
+
+        ok = generator._generate_longform(
+            {"input_id": "x", "account_id": "socialbuilders"},
+            {"title": "T", "tags": []},
+        )
+
+        assert ok is True
+        assert mock_vault.write_note.called
+
+    @patch("scripts.generate_content.get_config")
+    def test_generate_packs_truncates_and_handles_channel_exception(self, mock_get_config, mock_config, mock_vault):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        mock_config.get_account.return_value = {
+            "channels": {
+                "twitter": {"max_length": 10, "hashtags": True},
+                "linkedin": {"max_length": 20, "hashtags": False},
+            }
+        }
+
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator.config = mock_config
+        generator.vault = mock_vault
+        generator.llm = MagicMock()
+        generator.llm.generate.return_value = "very long content #a #b #c #d"
+        generator.renderer = MagicMock()
+        generator.renderer.render_pack.side_effect = [
+            "---\nid: p\n---\nbody",
+            RuntimeError("render fail"),
+        ]
+        generator.prompt_loader = MagicMock()
+        generator.prompt_loader.get_pack_prompt.return_value = "prompt"
+        generator._prepare_weekly_context = MagicMock(return_value=None)
+        generator.dry_run = False
+
+        count = generator._generate_packs({"input_id": "x", "account_id": "socialbuilders"}, {"tags": ["AI", "ML"]})
+
+        assert count == 1
+
+    @patch("scripts.generate_content.get_config")
+    def test_generate_image_prompt_writes_output(self, mock_get_config, mock_config, mock_vault):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator.config = mock_config
+        generator.vault = mock_vault
+        generator.prompt_loader = MagicMock()
+        generator.prompt_loader.get_image_prompt.return_value = "prompt"
+        generator.llm = MagicMock()
+        generator.llm.generate.return_value = "[메인 프롬프트]\nA scene"
+        generator.renderer = MagicMock()
+        generator.renderer.render_image_prompt.return_value = "---\nid: img_x\n---\nbody"
+        generator.dry_run = False
+
+        ok = generator._generate_image_prompt({"input_id": "x", "account_id": "socialbuilders"}, {})
+
+        assert ok is True
+        assert mock_vault.write_note.called
+
+    @patch("scripts.generate_content.get_config")
+    def test_generate_packs_with_approval_branches(self, mock_get_config, mock_config):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+
+        generator._check_derivative_approval = MagicMock(return_value={"status": "pending"})
+        assert generator._generate_packs_with_approval({"input_id": "x"}, {}) == 0
+
+        generator._check_derivative_approval = MagicMock(return_value={"status": "approved", "packs_channels": []})
+        generator._load_longform_content = MagicMock(return_value=None)
+        assert generator._generate_packs_with_approval({"input_id": "x"}, {}) == 0
+
+        generator._check_derivative_approval = MagicMock(
+            return_value={"status": "approved", "packs_channels": ["twitter"]}
+        )
+        generator._load_longform_content = MagicMock(return_value={"longform_body": "body"})
+        generator._generate_packs_for_channels = MagicMock(return_value=1)
+        assert generator._generate_packs_with_approval({"input_id": "x"}, {}) == 1
+
+    @patch("scripts.generate_content.get_config")
+    def test_generate_image_with_approval_branches(self, mock_get_config, mock_config):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+
+        generator._check_derivative_approval = MagicMock(return_value={"status": "pending"})
+        assert generator._generate_image_with_approval({"input_id": "x"}, {}) is False
+
+        generator._check_derivative_approval = MagicMock(return_value={"status": "approved", "images_approved": False})
+        assert generator._generate_image_with_approval({"input_id": "x"}, {}) is False
+
+        generator._check_derivative_approval = MagicMock(return_value={"status": "approved", "images_approved": True})
+        generator._load_longform_content = MagicMock(return_value={"main_content": "m"})
+        generator._generate_image_prompt = MagicMock(return_value=True)
+        assert generator._generate_image_with_approval({"input_id": "x"}, {}) is True
+
+    @patch("scripts.generate_content.get_config")
+    def test_check_derivative_approval_with_frontmatter_and_missing_file(
+        self, mock_get_config, mock_config, mock_vault
+    ):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator.config = mock_config
+        generator.vault = mock_vault
+
+        meta = {"packs_channels": ["newsletter"], "derivative_status": "pending"}
+        content = "[x] **Twitter**\n[x] **이미지 프롬프트**"
+        mock_vault.read_note.return_value = (meta, content)
+        result = generator._check_derivative_approval("x")
+        assert result["status"] == "approved"
+        assert result["packs_channels"] == ["newsletter"]
+        assert result["images_approved"] is True
+
+        mock_vault.read_note.side_effect = FileNotFoundError("missing")
+        missing_result = generator._check_derivative_approval("x")
+        assert missing_result["status"] == "pending"
+
+    @patch("scripts.generate_content.get_config")
+    def test_load_longform_content_and_missing(self, mock_get_config, mock_config, mock_vault):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator.config = mock_config
+        generator.vault = mock_vault
+        generator._extract_section = MagicMock(side_effect=["intro", "main", "takeaways"])
+
+        mock_vault.read_note.return_value = ({"title": "LF"}, "content")
+        loaded = generator._load_longform_content("x")
+        assert loaded["longform_title"] == "LF"
+
+        mock_vault.read_note.side_effect = FileNotFoundError("missing")
+        assert generator._load_longform_content("x") is None
+
+    @patch("scripts.generate_content.get_config")
+    def test_generate_packs_for_channels_handles_unconfigured_channel(self, mock_get_config, mock_config, mock_vault):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        mock_config.get_account.return_value = {
+            "channels": {
+                "twitter": {"max_length": 12, "hashtags": True},
+            }
+        }
+
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator.config = mock_config
+        generator.vault = mock_vault
+        generator.prompt_loader = MagicMock()
+        generator.prompt_loader.get_pack_prompt.return_value = "prompt"
+        generator.llm = MagicMock()
+        generator.llm.generate.return_value = "pack text over length"
+        generator.renderer = MagicMock()
+        generator.renderer.render_pack.return_value = "---\nid: p\n---\nbody"
+        generator._prepare_weekly_context = MagicMock(return_value=None)
+        generator.dry_run = False
+
+        created = generator._generate_packs_for_channels(
+            {"input_id": "x", "account_id": "socialbuilders"},
+            {"tags": ["a"]},
+            ["missing", "twitter"],
+        )
+        assert created == 1
+
+
+class TestStatusAndUtilityMethods:
+    @patch("scripts.generate_content.get_config")
+    def test_update_digest_status_success_and_failure(self, mock_get_config, mock_config, mock_vault):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator.config = mock_config
+        generator.vault = mock_vault
+
+        generator._update_digest_status("2026-02-20", "x")
+        assert mock_vault.write_note.called
+
+        mock_vault.read_note.side_effect = RuntimeError("write blocked")
+        generator._update_digest_status("2026-02-20", "x")
+
+    @patch("scripts.generate_content.get_config")
+    def test_prepare_weekly_context_and_parse_frontmatter(self, mock_get_config, mock_config):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator.weekly_slot = None
+        assert generator._prepare_weekly_context() is None
+
+        generator.weekly_slot = SimpleNamespace(
+            cta="CTA",
+            customer_outcome="Outcome",
+            operator_kpi="KPI",
+            pillar_distribution={"P1": 2},
+        )
+        ctx = generator._prepare_weekly_context()
+        assert ctx["cta"] == "CTA"
+
+        parsed = generator._parse_frontmatter("---\na: 1\n---\nbody")
+        assert parsed["a"] == 1
+        assert generator._parse_frontmatter("no frontmatter") == {}
+
+    @patch("scripts.generate_content.get_config")
+    def test_load_input_checkbox_status_updates(self, mock_get_config, mock_config, mock_vault):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator.config = mock_config
+        generator.vault = mock_vault
+
+        auto_content = "[x] **자동 작성**\n## 요약\nA"
+        mock_vault.read_note.return_value = (
+            {"title": "T", "writing_status": "pending", "tags": []},
+            auto_content,
+        )
+        auto_result = generator._load_input("x")
+        assert auto_result["writing_status"] == "auto_ready"
+
+        manual_content = "[x] **수동 작성**\n## 요약\nA"
+        mock_vault.read_note.return_value = (
+            {"title": "T", "writing_status": "pending", "tags": []},
+            manual_content,
+        )
+        manual_result = generator._load_input("x")
+        assert manual_result["writing_status"] == "manual"

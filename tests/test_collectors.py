@@ -254,8 +254,8 @@ Date: 2026-02-25
         }
         collector = PerplexityCollector.from_config(config)
 
-        assert str(collector.input_dir) == "Inbox/Perplexity"
-        assert str(collector.archive_dir) == "Archive/Perplexity"
+        assert collector.input_dir == Path("Inbox/Perplexity")
+        assert collector.archive_dir == Path("Archive/Perplexity")
         assert collector.file_patterns == ["*.md"]
 
     def test_clean_content_removes_frontmatter(self, temp_dirs):

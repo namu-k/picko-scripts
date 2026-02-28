@@ -249,6 +249,40 @@ class TestContentTypeDetection:
 
         assert result == "unknown"
 
+    @patch("scripts.validate_output.get_config")
+    def test_detect_from_path_pack(self, mock_get_config, mock_config):
+        """Test detecting pack from /Packs/ path (covers line 157)"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.validate_output import OutputValidator
+
+        with patch.object(OutputValidator, "__init__", lambda x: None):
+            validator = OutputValidator.__new__(OutputValidator)
+
+            meta = {}
+            path = Path("/tmp/vault/Content/Packs/twitter_pack.md")
+
+            result = validator._detect_content_type(meta, path)
+
+        assert result == "pack"
+
+    @patch("scripts.validate_output.get_config")
+    def test_detect_from_path_image_prompt(self, mock_get_config, mock_config):
+        """Test detecting image_prompt from /_prompts/ path (covers line 159)"""
+        mock_get_config.return_value = mock_config
+
+        from scripts.validate_output import OutputValidator
+
+        with patch.object(OutputValidator, "__init__", lambda x: None):
+            validator = OutputValidator.__new__(OutputValidator)
+
+            meta = {}
+            path = Path("/tmp/vault/Assets/Images/_prompts/prompt.md")
+
+            result = validator._detect_content_type(meta, path)
+
+        assert result == "image_prompt"
+
 
 class TestRequiredFieldValidation:
     """Tests for required field validation"""

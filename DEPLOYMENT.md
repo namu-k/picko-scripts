@@ -6,6 +6,7 @@ This guide covers setting up Picko for local development and CI/CD deployment.
 
 - [Local Setup](#local-setup)
 - [GitHub Actions Setup](#github-actions-setup)
+- [Auto Collection Workflow](#auto-collection-workflow)
 - [Environment Variables Reference](#environment-variables-reference)
 - [Troubleshooting](#troubleshooting)
 
@@ -104,7 +105,11 @@ For other LLM providers, you may want to add these secrets as well:
 |-------------|-------------|----------|
 | `OPENAI_API_KEY` | OpenAI API key | Yes |
 | `ANTHROPIC_API_KEY` | Anthropic API key (for Claude) | Optional |
-|| `RELAY_API_KEY` | Relay provider API key | Optional |
+| `RELAY_API_KEY` | Relay provider API key | Optional |
+| `TAVILY_API_KEY` | Tavily API key (for web search) | Optional |
+| `UNSPLASH_ACCESS_KEY` | Unsplash API key (for images) | Optional |
+| `UNSPLASH_SECRET_KEY` | Unsplash API secret | Optional |
+| `PEXELS_API_KEY` | Pexels API key (for images) | Optional |
 ---
 
 ### 3. Tavily API Key
@@ -131,7 +136,83 @@ For other LLM providers, you may want to add these secrets as well:
 4. Create a new API key
 5. Copy the key
 
+### 5. Unsplash API Key (Optional)
+
+**Unsplash** provides high-quality stock photos for multimedia templates.
+
+**Required for**: Photogram style background images
+
+1. Go to [https://unsplash.com/developers](https://unsplash.com/developers)
+2. Sign in or create an account
+3. Create a new application
+4. Copy the **Access Key** and **Secret Key**
+
+**Rate Limits**: 50 requests/hour (free tier)
+
+### 6. Pexels API Key (Optional)
+
+**Pexels** provides free stock photos and videos.
+
+**Required for**: Alternative image source for Photogram style
+
+1. Go to [https://www.pexels.com/api/](https://www.pexels.com/api/)
+2. Sign in or create an account
+3. Create a new application
+4. Copy the **API Key**
+
+**Rate Limits**: 200 requests/hour (free tier)
+
 ---
+
+---
+
+## Auto Collection Workflow
+
+> **파일**: `.github/workflows/auto_collect.yml`
+
+### 스케줄
+
+| Job | 트리거 | 실행 시각 (KST) |
+|-----|--------|----------------|
+| `daily-collect` | `cron: '0 23 * * *'` | 매일 08:00 |
+| `weekly-discover` | `cron: '0 21 * * 0'` | 매주 일요일 06:00 |
+
+### 필요한 GitHub Secrets
+
+아래 3개를 모두 Repository Settings → Secrets and variables → Actions에 추가해야 합니다.
+
+| Secret | 용도 | 필수 여부 |
+|--------|------|----------|
+| `OPENAI_API_KEY` | daily-collect LLM 요약·생성 | **필수** |
+| `TAVILY_API_KEY` | weekly-discover 웹 검색 | **필수** |
+| `RELAY_API_KEY` | Relay LLM 폴백 | 선택 |
+
+### workflow_dispatch 수동 실행 방법
+
+스케줄을 기다리지 않고 즉시 실행하려면:
+
+1. GitHub 리포지토리 → **Actions** 탭 이동
+2. 좌측 워크플로우 목록에서 **Daily Collection & Weekly Discovery** 클릭
+3. 우측 **Run workflow** 드롭다운 클릭
+4. 브랜치 확인 후 **Run workflow** 클릭
+5. 상단 목록에 실행 중인 항목이 나타나면 클릭하여 로그 확인
+
+> **참고**: `workflow_dispatch`로 수동 실행하면 `daily-collect` job만 실행됩니다.
+> (`weekly-discover`는 일요일 cron에만 실행)
+
+### 로컬 사전 검증
+
+```bash
+# 워크플로우 YAML 문법 검사
+python -c "import yaml; yaml.safe_load(open('.github/workflows/auto_collect.yml', encoding='utf-8')); print('OK')"
+
+# daily-collect 동작 확인 (dry-run)
+python -m scripts.daily_collector --account socialbuilders --dry-run
+
+# source discovery 동작 확인
+python -m scripts.source_discovery --account socialbuilders --dry-run
+```
+
 ## Environment Variables Reference
 
 ### Required Variables

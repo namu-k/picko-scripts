@@ -494,7 +494,7 @@ class ImageRenderer:
     ) -> dict | None:
         """Get layout configuration as dictionary."""
         # Import here to avoid circular imports
-        from .layout_config import LayoutConfig, LayoutConfigLoader, get_layout_for_template
+        from .layout_config import get_layout_for_template
 
         if layout_config is not None:
             # Use provided config directly

@@ -14,7 +14,8 @@ Unit tests for the DailyCollector class covering:
 import hashlib
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from types import SimpleNamespace
+from unittest.mock import MagicMock, mock_open, patch
 
 import pytest
 
@@ -627,7 +628,7 @@ class TestIngest:
             collector = DailyCollector.__new__(DailyCollector)
             collector.config = mock_config
             collector.account_id = "test_account"  # Required for collector.collect()
-            collector.collectors = [mock_collector]  # V2: mock collectors list
+            collector.__dict__["collectors"] = [mock_collector]  # V2: mock collectors list
 
             result = collector._ingest(source_filter=["test_source"])
 
@@ -692,3 +693,473 @@ class TestRun:
         assert "processed" in result
         assert "exported" in result
         assert "errors" in result
+
+
+class TestCollectorConfigAndLoading:
+    """Tests for collector config loading/enabling and collector initialization."""
+
+    def test_load_collectors_config_loads_yaml(self):
+        """Load collectors.yml when file exists."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+
+        fake_path = MagicMock()
+        fake_path.exists.return_value = True
+
+        with patch("scripts.daily_collector.Path", return_value=fake_path):
+            with patch("builtins.open", mock_open(read_data="perplexity:\n  enabled: true\n")):
+                result = collector._load_collectors_config()
+
+        assert result == {"perplexity": {"enabled": True}}
+
+    def test_load_collectors_config_returns_empty_on_error(self):
+        """Return empty config when collectors.yml cannot be loaded."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+
+        fake_path = MagicMock()
+        fake_path.exists.return_value = True
+
+        with patch("scripts.daily_collector.Path", return_value=fake_path):
+            with patch("builtins.open", side_effect=OSError("cannot open")):
+                result = collector._load_collectors_config()
+
+        assert result == {}
+
+    def test_is_enabled_reads_config_flag(self):
+        """Check enabled flag lookup from loaded collector config."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+        collector._collectors_config = {
+            "perplexity": {"enabled": True},
+            "rss": {"enabled": False},
+        }
+
+        assert collector._is_enabled("perplexity") is True
+        assert collector._is_enabled("rss") is False
+        assert collector._is_enabled("unknown") is False
+
+    @patch("scripts.daily_collector.PerplexityCollector.from_config")
+    @patch("scripts.daily_collector.RSSCollector")
+    @patch("scripts.daily_collector.SourceManager")
+    def test_load_collectors_handles_perplexity_failure(
+        self,
+        mock_source_manager,
+        mock_rss_collector,
+        mock_perplexity_from_config,
+    ):
+        """Continue loading RSS even if Perplexity collector init fails."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+        collector.__dict__["config"] = SimpleNamespace(sources_file="config/sources.yml")
+
+        mock_source_manager.return_value.get_active.return_value = [
+            SimpleNamespace(id="s1", type="rss", enabled=True),
+            SimpleNamespace(id="s2", type="newsletter", enabled=True),
+        ]
+        mock_rss_collector.return_value = "rss_collector"
+        mock_perplexity_from_config.side_effect = RuntimeError("bad config")
+
+        with patch.object(
+            DailyCollector,
+            "_load_collectors_config",
+            return_value={"perplexity": {"enabled": True}},
+        ):
+            loaded = collector._load_collectors()
+
+        assert loaded == ["rss_collector"]
+        mock_rss_collector.assert_called_once()
+        mock_perplexity_from_config.assert_called_once_with({"enabled": True})
+
+    @patch("scripts.daily_collector.RSSCollector")
+    @patch("scripts.daily_collector.SourceManager")
+    def test_load_collectors_returns_empty_when_no_active_sources_and_disabled_perplexity(
+        self,
+        mock_source_manager,
+        mock_rss_collector,
+    ):
+        """Return empty collectors when no RSS sources and no enabled extras."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+        collector.__dict__["config"] = SimpleNamespace(sources_file="config/sources.yml")
+
+        mock_source_manager.return_value.get_active.return_value = []
+
+        with patch.object(
+            DailyCollector,
+            "_load_collectors_config",
+            return_value={"perplexity": {"enabled": False}},
+        ):
+            loaded = collector._load_collectors()
+
+        assert loaded == []
+        mock_rss_collector.assert_not_called()
+
+
+class TestPipelineErrorPaths:
+    """Tests for run flow and error handling branches."""
+
+    def test_run_main_flow_non_dry_run_with_max_items(self, mock_config):
+        """Run full pipeline and verify export/digest/max_items behavior."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+        collector.dry_run = False
+        collector.config = mock_config
+
+        raw_items = [
+            {"source_url": "https://a.com"},
+            {"source_url": "https://b.com"},
+            {"source_url": "https://c.com"},
+        ]
+        scored_items = [
+            {"id": "item1", "score": {"total": 0.9}},
+            {"id": "item2", "score": {"total": 0.8}},
+            {"id": "item3", "score": {"total": 0.7}},
+        ]
+
+        collector._ingest = MagicMock(return_value=raw_items)
+        collector._dedupe = MagicMock(side_effect=lambda x: x)
+        collector._fetch = MagicMock(side_effect=lambda x: x)
+        collector._nlp_process = MagicMock(side_effect=lambda x: x)
+        collector._embed = MagicMock(side_effect=lambda x: x)
+        collector._score = MagicMock(return_value=scored_items)
+        collector._export = MagicMock(return_value=[Path("/tmp/1.md"), Path("/tmp/2.md")])
+        collector._create_digest = MagicMock()
+
+        result = collector.run(date="2026-02-27", max_items=2)
+
+        assert result["collected"] == 3
+        assert result["processed"] == 2
+        assert result["exported"] == 2
+        assert result["items"] == ["item1", "item2"]
+        collector._create_digest.assert_called_once()
+
+    def test_run_captures_pipeline_exception(self, mock_config):
+        """Capture top-level pipeline failure into results.errors."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+        collector.dry_run = True
+        collector.config = mock_config
+        collector._ingest = MagicMock(side_effect=RuntimeError("ingest failure"))
+
+        result = collector.run(date="2026-02-27")
+
+        assert result["errors"] == ["ingest failure"]
+        assert result["collected"] == 0
+
+    def test_ingest_continues_when_one_collector_fails(self, mock_config):
+        """Keep collecting from healthy collectors after one failure."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+        collector.config = mock_config
+        collector.account_id = "acct"
+
+        ok_item = MagicMock()
+        ok_item.to_dict.return_value = {"source_id": "ok", "title": "good"}
+
+        ok_collector = MagicMock()
+        ok_collector.collect.return_value = [ok_item]
+        ok_collector.name.return_value = "ok"
+
+        bad_collector = MagicMock()
+        bad_collector.collect.side_effect = RuntimeError("boom")
+        bad_collector.name.return_value = "bad"
+
+        collector.__dict__["collectors"] = [bad_collector, ok_collector]
+
+        items = collector._ingest(source_filter=["ok"])
+
+        assert items == [{"source_id": "ok", "title": "good"}]
+
+    def test_ingest_returns_empty_when_no_collectors(self, mock_config):
+        """Return empty list when no collectors are configured."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+        collector.config = mock_config
+        collector.account_id = "acct"
+        collector.collectors = []
+
+        assert collector._ingest() == []
+
+    @patch("scripts.daily_collector.httpx.Client")
+    def test_fetch_handles_missing_url_http_failures_and_non_200(self, mock_client_cls, mock_config):
+        """Skip/continue correctly for missing URL, request exception and non-200 response."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+        collector.config = mock_config
+
+        ok_response = MagicMock(status_code=200)
+        ok_response.text = """
+        <html><head><title>From HTML</title></head>
+        <body><main><p>Hello world</p><script>x=1</script></main></body></html>
+        """
+        non_200_response = MagicMock(status_code=404)
+
+        mock_client = MagicMock()
+        mock_client.get.side_effect = [
+            RuntimeError("network"),
+            ok_response,
+            non_200_response,
+        ]
+        mock_client_cls.return_value.__enter__.return_value = mock_client
+
+        items = [
+            {"source_url": "", "title": "No URL"},
+            {"source_url": "https://err.example", "title": "Err"},
+            {"source_url": "https://ok.example", "title": ""},
+            {"source_url": "https://404.example", "title": "Not Found"},
+        ]
+
+        fetched = collector._fetch(items)
+
+        assert len(fetched) == 1
+        assert fetched[0]["title"] == "From HTML"
+        assert "full_text" in fetched[0]
+
+    def test_nlp_process_skips_empty_and_continues_after_exception(self, mock_config):
+        """Process valid item, skip empty item, and continue after LLM error."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+        collector.config = mock_config
+
+        llm = MagicMock()
+        llm.summarize.side_effect = ["summary-ok", RuntimeError("llm down")]
+        llm.generate.return_value = "- Point 1\n• Point 2\nPoint 3\nPoint 4"
+        llm.generate_tags.return_value = ["t1", "t2"]
+        collector.llm = llm
+
+        items = [
+            {"title": "Good", "full_text": "A" * 700},
+            {"title": "Empty", "full_text": ""},
+            {"title": "Bad", "full_text": "B" * 10},
+        ]
+
+        processed = collector._nlp_process(items)
+
+        assert len(processed) == 1
+        assert processed[0]["summary"] == "summary-ok"
+        assert processed[0]["key_points"] == ["Point 1", "Point 2", "Point 3"]
+        assert processed[0]["tags"] == ["t1", "t2"]
+        assert processed[0]["excerpt"].endswith("...")
+
+
+class TestAdditionalCoveragePaths:
+    """Tests to cover export/digest/config/cache/CLI branches."""
+
+    @patch("scripts.daily_collector.PerplexityCollector.from_config")
+    @patch("scripts.daily_collector.RSSCollector")
+    @patch("scripts.daily_collector.SourceManager")
+    def test_load_collectors_adds_perplexity_when_enabled(
+        self,
+        mock_source_manager,
+        mock_rss_collector,
+        mock_perplexity_from_config,
+    ):
+        """Load both RSS and Perplexity collectors in success path."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+        collector.__dict__["config"] = SimpleNamespace(sources_file="config/sources.yml")
+
+        mock_source_manager.return_value.get_active.return_value = [
+            SimpleNamespace(id="rss-1", type="rss", enabled=True)
+        ]
+        mock_rss_collector.return_value = "rss_collector"
+        mock_perplexity_from_config.return_value = "perplexity_collector"
+
+        with patch.object(
+            DailyCollector,
+            "_load_collectors_config",
+            return_value={"perplexity": {"enabled": True, "input_dir": "Inbox/Perplexity"}},
+        ):
+            loaded = collector._load_collectors()
+
+        assert loaded == ["rss_collector", "perplexity_collector"]
+
+    def test_dedupe_ignores_frontmatter_read_errors(self, mock_config):
+        """Skip broken notes while reading existing URL hashes."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+        collector.config = mock_config
+        collector.vault = MagicMock()
+        collector.vault.list_notes.return_value = ["bad.md"]
+        collector.vault.read_frontmatter.side_effect = ValueError("broken")
+
+        result = collector._dedupe([{"source_url": "https://example.com/new", "title": "New"}])
+
+        assert len(result) == 1
+        assert result[0]["canonical_url"] == "https://example.com/new"
+
+    def test_run_with_no_date_uses_today(self, mock_config):
+        """Use current date string when date argument is omitted."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+        collector.dry_run = True
+        collector.config = mock_config
+        collector._ingest = MagicMock(return_value=[])
+        collector._dedupe = MagicMock(return_value=[])
+        collector._fetch = MagicMock(return_value=[])
+        collector._nlp_process = MagicMock(return_value=[])
+        collector._embed = MagicMock(return_value=[])
+        collector._score = MagicMock(return_value=[])
+
+        result = collector.run()
+
+        assert result["date"] == datetime.now().strftime("%Y-%m-%d")
+
+    def test_load_existing_embeddings_reads_cache_and_handles_bad_file(self, tmp_path, mock_config):
+        """Load valid .npy cache files and ignore broken ones."""
+        import numpy as np
+
+        from scripts.daily_collector import DailyCollector
+
+        cache_dir = tmp_path / "embeddings"
+        cache_dir.mkdir()
+        np.save(cache_dir / "ok.npy", np.array([0.1, 0.2, 0.3]))
+        (cache_dir / "broken.npy").write_text("not a numpy file", encoding="utf-8")
+
+        collector = DailyCollector.__new__(DailyCollector)
+        collector.config = mock_config
+        collector.__dict__["embedder"] = SimpleNamespace(cache_dir=cache_dir)
+        collector._existing_embeddings = None
+
+        loaded_once = collector._load_existing_embeddings()
+        loaded_twice = collector._load_existing_embeddings()
+
+        assert len(loaded_once) == 1
+        assert loaded_once == loaded_twice
+
+    def test_parse_frontmatter_returns_metadata_or_empty(self):
+        """Parse YAML frontmatter when present, else return empty dict."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+
+        with_frontmatter = "---\ntitle: Test\nscore: 0.9\n---\nbody"
+        without_frontmatter = "body only"
+
+        assert collector._parse_frontmatter(with_frontmatter) == {
+            "title": "Test",
+            "score": 0.9,
+        }
+        assert collector._parse_frontmatter(without_frontmatter) == {}
+
+    def test_export_skips_low_score_and_handles_existing_note(self, mock_config):
+        """Export only displayable items and ignore already-existing files."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+        collector.config = mock_config
+        collector.account_id = "acct"
+        collector.scorer = MagicMock()
+        collector.scorer.should_display.side_effect = [True, False, True]
+        collector.renderer = MagicMock()
+        collector.renderer.render_input_note.return_value = "---\nsource: test\n---\ncontent"
+        collector.vault = MagicMock()
+        collector.vault.write_note.side_effect = [
+            Path("/tmp/saved.md"),
+            FileExistsError("exists"),
+        ]
+
+        items = [
+            {"url_hash": "aaa111", "score_obj": ContentScore(total=0.8)},
+            {"url_hash": "bbb222", "score_obj": ContentScore(total=0.1)},
+            {"url_hash": "ccc333", "score_obj": ContentScore(total=0.9)},
+        ]
+
+        exported = collector._export(items, "2026-02-27")
+
+        assert len(exported) == 1
+        assert items[0]["id"] == "input_aaa111"
+        assert items[2]["id"] == "input_ccc333"
+
+    def test_create_digest_success_sets_default_writing_status(self, mock_config):
+        """Create digest with displayable items and default writing_status."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+        collector.config = mock_config
+        collector.scorer = MagicMock()
+        collector.scorer.should_display.side_effect = [True, False]
+        collector.renderer = MagicMock()
+        collector.renderer.render_digest.return_value = "---\ndate: 2026-02-27\n---\ndigest body"
+        collector.vault = MagicMock()
+        collector.vault.write_note.return_value = Path("/tmp/digest.md")
+
+        items = [
+            {"id": "a", "score_obj": ContentScore(total=0.9)},
+            {"id": "b", "score_obj": ContentScore(total=0.1)},
+        ]
+
+        result = collector._create_digest(items, "2026-02-27")
+
+        assert result == Path("/tmp/digest.md")
+        assert items[0]["writing_status"] == "pending"
+
+    def test_create_digest_raises_when_write_fails(self, mock_config):
+        """Re-raise write exceptions from digest creation."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+        collector.config = mock_config
+        collector.scorer = MagicMock()
+        collector.scorer.should_display.return_value = True
+        collector.renderer = MagicMock()
+        collector.renderer.render_digest.return_value = "digest body"
+        collector.vault = MagicMock()
+        collector.vault.write_note.side_effect = RuntimeError("disk full")
+
+        with pytest.raises(RuntimeError, match="disk full"):
+            collector._create_digest([{"score_obj": ContentScore(total=0.9)}], "2026-02-27")
+
+    def test_parse_date_invalid_string_returns_today(self):
+        """Fallback to today when date parsing fails."""
+        from scripts.daily_collector import DailyCollector
+
+        collector = DailyCollector.__new__(DailyCollector)
+        assert collector._parse_date("not-a-date") == datetime.now().strftime("%Y-%m-%d")
+
+    @patch("scripts.daily_collector.DailyCollector")
+    @patch("scripts.daily_collector.argparse.ArgumentParser.parse_args")
+    @patch("builtins.print")
+    def test_main_parses_args_runs_collector_and_prints_results(
+        self,
+        mock_print,
+        mock_parse_args,
+        mock_daily_collector,
+    ):
+        """CLI main should parse args, run collector, and print summary output."""
+        from scripts.daily_collector import main
+
+        mock_parse_args.return_value = SimpleNamespace(
+            date="2026-02-27",
+            account="socialbuilders",
+            sources=["s1"],
+            max_items=5,
+            dry_run=True,
+        )
+        mock_daily_collector.return_value.run.return_value = {
+            "date": "2026-02-27",
+            "collected": 10,
+            "processed": 5,
+            "exported": 0,
+            "errors": ["one"],
+        }
+
+        main()
+
+        mock_daily_collector.return_value.run.assert_called_once_with(date="2026-02-27", sources=["s1"], max_items=5)
+        assert mock_print.call_count >= 6

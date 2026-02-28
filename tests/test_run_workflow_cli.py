@@ -36,3 +36,39 @@ class TestRunWorkflowCLI:
         main(["--workflow", str(workflow_path)])
 
         mock_engine_instance.run.assert_called_once()
+
+    @patch("scripts.run_workflow.WorkflowEngine")
+    @patch("scripts.run_workflow.VaultAdapter")
+    @patch("scripts.run_workflow.VaultIO")
+    def test_main_passes_dry_run_true(self, MockVaultIO, MockVaultAdapter, MockEngine, tmp_path):
+        from picko.orchestrator.engine import WorkflowResult
+
+        mock_engine_instance = MagicMock()
+        mock_engine_instance.run.return_value = WorkflowResult()
+        MockEngine.return_value = mock_engine_instance
+
+        workflow_path = self._write_workflow(tmp_path)
+
+        from scripts.run_workflow import main
+
+        main(["--workflow", str(workflow_path), "--dry-run"])
+
+        mock_engine_instance.run.assert_called_once_with(workflow_path, dry_run=True)
+
+    @patch("scripts.run_workflow.WorkflowEngine")
+    @patch("scripts.run_workflow.VaultAdapter")
+    @patch("scripts.run_workflow.VaultIO")
+    def test_main_passes_dry_run_false_by_default(self, MockVaultIO, MockVaultAdapter, MockEngine, tmp_path):
+        from picko.orchestrator.engine import WorkflowResult
+
+        mock_engine_instance = MagicMock()
+        mock_engine_instance.run.return_value = WorkflowResult()
+        MockEngine.return_value = mock_engine_instance
+
+        workflow_path = self._write_workflow(tmp_path)
+
+        from scripts.run_workflow import main
+
+        main(["--workflow", str(workflow_path)])
+
+        mock_engine_instance.run.assert_called_once_with(workflow_path, dry_run=False)

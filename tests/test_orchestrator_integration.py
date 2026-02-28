@@ -1,10 +1,13 @@
 # tests/test_orchestrator_integration.py
 """오케스트레이션 통합 테스트 — 전체 파이프라인을 mock으로 검증"""
 
+from unittest.mock import MagicMock, patch
+
 import frontmatter
 import yaml
 
 from picko.orchestrator.actions import ActionRegistry, ActionResult
+from picko.orchestrator.default_actions import register_default_actions
 from picko.orchestrator.engine import WorkflowEngine
 from picko.orchestrator.vault_adapter import VaultAdapter
 from picko.vault_io import VaultIO
@@ -102,3 +105,52 @@ class TestOrchestratorIntegration:
         assert result.success is True
         assert result.step_results[0].skipped is True
         assert call_log == []
+
+    @patch("scripts.generate_content.ContentGenerator")
+    def test_batch_source_path_items_are_converted_to_stem_ids(self, MockGenerator, temp_vault_dir, tmp_path):
+        self._write_note(
+            temp_vault_dir,
+            "Content/Longform/article1.md",
+            {"derivative_status": "approved"},
+            "sample",
+        )
+
+        vault = VaultIO(vault_root=temp_vault_dir)
+        adapter = VaultAdapter(vault)
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        call_log = []
+        mock_generator_instance = MagicMock()
+
+        def _mock_run(**kwargs):
+            call_log.append(kwargs.get("items", []))
+            return {"approved_items": len(kwargs.get("items", []))}
+
+        mock_generator_instance.run.side_effect = _mock_run
+        MockGenerator.return_value = mock_generator_instance
+
+        workflow_path = self._write_workflow(
+            tmp_path,
+            [
+                {
+                    "name": "generate_packs",
+                    "action": "generator.run",
+                    "args": {"account": "socialbuilders", "type": "packs"},
+                    "condition": "${{ vault.count('Content/Longform', 'derivative_status=approved') > 0 }}",
+                    "batch": {
+                        "source": "${{ vault.list('Content/Longform', 'derivative_status=approved') }}",
+                        "size": 5,
+                        "delay": "0s",
+                    },
+                },
+            ],
+        )
+
+        engine = WorkflowEngine(vault_adapter=adapter, action_registry=registry)
+        result = engine.run(workflow_path)
+
+        assert result.success is True
+        assert call_log
+        assert "article1" in call_log[0]
