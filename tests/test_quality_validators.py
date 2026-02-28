@@ -146,9 +146,9 @@ class TestPrimaryValidator:
         """validate() should call LLM with formatted prompt."""
         mock_llm = MagicMock()
         mock_llm.generate.return_value = (
-            '{"verdict": "approved", "confidence": 0.9, '
-            '{"scores": {"factual": 9, "source_credibility": 9, '
-            '"bias": 8, "value": 9}, "reasoning": "Good", "flags": []}'
+            '{"verdict": "approved", "confidence": 0.9, "scores": '
+            '{"factual": 9, "source_credibility": 9, "bias": 8, "value": 9}, '
+            '"reasoning": "Good", "flags": []}'
         )
         mock_get_client.return_value = mock_llm
 
