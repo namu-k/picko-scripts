@@ -41,7 +41,7 @@ class TestWorkflowEngine:
 
         assert len(result.step_results) == 1
         assert result.step_results[0].success is True
-        assert call_log == [{"x": 1}]
+        assert call_log == [{"x": 1, "dry_run": False}]
 
     def test_condition_false_skips_step(self, tmp_path):
         registry = ActionRegistry()
