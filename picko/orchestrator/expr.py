@@ -80,7 +80,7 @@ class ExprEvaluator:
         steps_outputs_match = _STEPS_OUTPUTS_PATTERN.match(inner)
         if steps_outputs_match:
             step_name = steps_outputs_match.group(1)
-            return self._steps.get(step_name, {}).get("outputs", {})
+            return self._steps.get(step_name, {})  # BUGFIX: outputs stored directly, not nested under "outputs"
 
         # steps.name.outputs.key 참조
         steps_match = _STEPS_PATTERN.match(inner)

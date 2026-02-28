@@ -51,8 +51,7 @@ class DailyCollector:
 
         # 기존 임베딩 (novelty 계산용)
         self._existing_embeddings = None
-
-        # V2: 컬렉터 로딩
+        self._existing_embeddings_with_ids = None  # 중복 탐지용 (content_id, embedding)
         self.collectors = self._load_collectors()
         self._collectors_config = self._load_collectors_config()
 
@@ -380,7 +379,30 @@ class DailyCollector:
             item["score"] = score.to_dict()
             item["score_obj"] = score
 
-            # 새 임베딩을 기존 목록에 추가 (이후 항목 novelty 계산에 반영)
+            # Auto-approve / auto-reject quality gates
+            if self.scorer.should_auto_approve(score):
+                item["writing_status"] = "auto_ready"
+                item["auto_decision"] = "approved"
+                logger.info(f"Auto-approved: {item.get('id', 'unknown')} (score={score.total:.2f})")
+            elif self.scorer.should_auto_reject(score):
+                item["status"] = "rejected"
+                item["auto_decision"] = "rejected"
+                logger.info(f"Auto-rejected: {item.get('id', 'unknown')} (score={score.total:.2f})")
+                continue  # skip to next item (don't add to existing_embeddings)
+            else:
+                item.setdefault("writing_status", "pending")
+
+            # 2차 중복 탐지 (Embedding 유사도)
+            if item.get("embedding"):
+                duplicate_of, max_sim = self._check_duplicate(item["embedding"])
+                if max_sim >= 0.92 and duplicate_of:
+                    item["duplicate_of"] = duplicate_of
+                    item["duplicate_similarity"] = max_sim
+                    item["status"] = "duplicate"
+                    logger.warning(
+                        f"Duplicate detected: {item.get('id', 'unknown')} sim={max_sim:.2f} of {duplicate_of}"
+                    )
+                    continue  # skip to next item
             if item.get("embedding"):
                 existing_embeddings.append(item["embedding"])
 
@@ -415,6 +437,62 @@ class DailyCollector:
         self._existing_embeddings = embeddings
         return embeddings
 
+    def _load_existing_embeddings_with_ids(self) -> list[tuple[str, list[float]]]:
+        """기존 노트 파일들에서 (content_id, embedding) 튜플 목록 로드"""
+        if self._existing_embeddings_with_ids is not None:
+            return self._existing_embeddings_with_ids
+
+        embeddings_with_ids: list[tuple[str, list[float]]] = []
+        inbox_path = self.config.vault.inbox
+
+        # Inbox/Inputs 노트들 로드
+        notes = self.vault.list_notes(inbox_path, recursive=False)
+        for note_path in notes:
+            try:
+                # frontmatter에서 ID 추출
+                meta = self.vault.read_frontmatter(str(note_path))
+                content_id = meta.get("id", Path(note_path).stem)
+
+                # 텍스트 추출 후 임베딩 생성
+                text = self._extract_text_for_embedding(meta)
+                if text:
+                    embedding = self.embedder.embed(text)
+                    embeddings_with_ids.append((content_id, embedding))
+            except Exception as e:
+                logger.debug(f"Failed to load embedding for {note_path}: {e}")
+
+        logger.info(f"Loaded {len(embeddings_with_ids)} existing embeddings with IDs")
+        self._existing_embeddings_with_ids = embeddings_with_ids
+        return embeddings_with_ids
+
+    def _extract_text_for_embedding(self, meta: dict[str, Any]) -> str:
+        """임베딩용 텍스트 추출"""
+        parts = []
+        if meta.get("title"):
+            parts.append(meta["title"])
+        if meta.get("summary"):
+            parts.append(meta["summary"])
+        return " ".join(parts)
+
+    def _check_duplicate(self, new_embedding: list[float]) -> tuple[str | None, float]:
+        """새 임베딩이 기존 콘텐츠와 중복되는지 확인
+
+        Returns:
+            (duplicate_content_id, max_similarity) - 중복 없으면 (None, 0.0)
+        """
+        existing_embeddings_with_ids = self._load_existing_embeddings_with_ids()
+
+        max_sim = 0.0
+        duplicate_of = None
+
+        for content_id, existing_emb in existing_embeddings_with_ids:
+            sim = self.embedder.cosine_similarity(new_embedding, existing_emb)
+            if sim > max_sim:
+                max_sim = sim
+                duplicate_of = content_id
+
+        return duplicate_of, max_sim
+
     def _export(self, items: list[dict[str, Any]], date: str) -> list[Path]:
         """Input 노트 Export"""
         exported = []
@@ -425,7 +503,13 @@ class DailyCollector:
             if not self.scorer.should_display(item.get("score_obj", ContentScore())):
                 continue
 
-            # 노트 ID 생성
+            # auto-rejected 아이템 건너뛰기
+            if item.get("status") == "rejected":
+                continue
+
+            # duplicate 아이템 건너뛰기
+            if item.get("status") == "duplicate":
+                continue
             note_id = f"input_{item['url_hash']}"
             item["id"] = note_id
             item["account_id"] = self.account_id

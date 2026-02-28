@@ -62,7 +62,7 @@ scoring:
     novelty: 0.3
     relevance: 0.4
     quality: 0.3
-  thresholds:
+    freshness: 0.15  # 추가: 신선도 가중치 (총합 1.15 → 정규화)
     auto_approve: 0.85
     auto_reject: 0.3
     minimum_display: 0.4

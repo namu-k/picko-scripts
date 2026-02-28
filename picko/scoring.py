@@ -158,16 +158,13 @@ class ContentScorer:
                 score += pillar_score * 0.5  # 필러는 가중치 낮게
                 matches += 1
 
-        # 정규화 (매칭 수에 따라 동적 기준)
-        # - matches가 많을수록 더 많은 소스에서 매칭됨 = 더 관련성 높음
-        # - 기본 기준 3.0, 매칭 소스가 많을수록 기준 완화
+        # 정규화 (고정 기준 사용 - AccountIdentity 필드 수에 관계없이 일관된 점수)
+        RELEVANCE_BASE = 3.0  # 고정 기준값
+
         if matches == 0:
             return 0.5  # 매칭 없으면 중립 점수
 
-        # 동적 정규화: 매칭 소스 수에 따라 기준 조정
-        # matches=1 → 기준 3.0, matches=2 → 기준 2.5, matches>=3 → 기준 2.0
-        base = max(2.0, 3.5 - (matches * 0.5))
-        normalized = min(score / base, 1.0)
+        normalized = min(score / RELEVANCE_BASE, 1.0)
         return max(0.0, min(1.0, normalized))
 
     def _match_target_audience(self, text: str, identity: AccountIdentity) -> float:
