@@ -3,6 +3,10 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any, cast
+
+from picko.config import get_config
 from picko.logger import get_logger
 from picko.orchestrator.actions import ActionRegistry, ActionResult
 
@@ -15,7 +19,33 @@ def register_default_actions(registry: ActionRegistry):
     registry.register("generator.run", _run_generator)
     registry.register("renderer.run", _run_renderer)
     registry.register("publisher.run", _run_publisher)
+    registry.register("engagement.sync", _run_engagement_sync)
     registry.register("embedding.check_duplicate", _check_duplicate)
+
+
+def _extract_item_id(item: object) -> str:
+    if isinstance(item, Path):
+        return item.stem
+
+    if isinstance(item, str):
+        value = item.strip()
+        path_like = Path(value)
+        if path_like.suffix == ".md":
+            return path_like.stem
+        return value
+
+    if isinstance(item, dict):
+        candidate = item.get("id") or item.get("input_id") or item.get("path")
+        if isinstance(candidate, Path):
+            return candidate.stem
+        if isinstance(candidate, str):
+            candidate = candidate.strip()
+            path_like = Path(candidate)
+            if path_like.suffix == ".md":
+                return path_like.stem
+            return candidate
+
+    return ""
 
 
 def _run_collector(account: str = "socialbuilders", dry_run: bool = False, **kwargs) -> ActionResult:
@@ -42,7 +72,7 @@ def _run_generator(
     account: str = "socialbuilders",
     type: str = "longform",
     dry_run: bool = False,
-    items: list | None = None,
+    items: list[object] | None = None,
     **kwargs,
 ) -> ActionResult:
     """scripts/generate_content.py의 ContentGenerator를 래핑
@@ -60,13 +90,7 @@ def _run_generator(
 
         # items가 있으면 해당 항목만 처리 (배치 모드)
         if items:
-            # item ID 추출 (문자열이면 그대로, dict면 id/path 추출)
-            item_ids = []
-            for item in items:
-                if isinstance(item, str):
-                    item_ids.append(item)
-                elif isinstance(item, dict):
-                    item_ids.append(item.get("id") or item.get("path", ""))
+            item_ids = [_extract_item_id(item) for item in items]
 
             # 유효한 ID만 필터링
             item_ids = [iid for iid in item_ids if iid]
@@ -77,7 +101,10 @@ def _run_generator(
             )
             return ActionResult(
                 success=True,
-                outputs={"result": result, "processed_count": result.get("approved_items", 0)},
+                outputs={
+                    "result": result,
+                    "processed_count": result.get("approved_items", 0),
+                },
             )
         else:
             # 기존 동작: 전체 처리
@@ -102,14 +129,12 @@ def _run_renderer(
         limit: 최대 렌더링 항목 수
         dry_run: 실제 렌더링 없이 상태만 확인
     """
-    from pathlib import Path
-
     from picko.multimedia_io import parse_multimedia_input
     from picko.templates import ImageRenderer
     from scripts.render_media import get_pending_proposals
 
     try:
-        vault_path = Path("mock_vault")
+        vault_path = Path(get_config().vault.root)
         proposals = get_pending_proposals(vault_path)
 
         # Filter by status if specified
@@ -189,10 +214,13 @@ def _run_renderer(
 
 
 def _run_publisher(
+    account: str = "socialbuilders",
     source_path: str = "Content/Packs/twitter",
     filter: str = "derivative_status=approved",
+    publish_platform: str = "twitter",
     text_field: str = "tweet_text",
     update_content_status_to: str = "published",
+    publish_log_status: str = "published",
     publish_log_path: str = "Logs/Publish",
     dry_run: bool = False,
     **kwargs,
@@ -213,6 +241,9 @@ def _run_publisher(
     from picko.vault_io import VaultIO
 
     try:
+        if publish_platform != "twitter":
+            return ActionResult(success=False, error=f"Unsupported publish platform: {publish_platform}")
+
         vault = VaultIO()
         from picko.orchestrator.vault_adapter import VaultAdapter
 
@@ -230,7 +261,11 @@ def _run_publisher(
             logger.info(f"DRY RUN: Would publish {len(notes)} notes")
             return ActionResult(
                 success=True,
-                outputs={"published_count": 0, "pending_count": len(notes), "dry_run": True},
+                outputs={
+                    "published_count": 0,
+                    "pending_count": len(notes),
+                    "dry_run": True,
+                },
             )
 
         publisher = TwitterPublisher()
@@ -251,7 +286,13 @@ def _run_publisher(
                 now = datetime.now().isoformat()
 
                 # Update content status
-                vault.update_frontmatter(note_path, {update_content_status_to: now})
+                vault.update_frontmatter(
+                    note_path,
+                    {
+                        "status": update_content_status_to,
+                        f"{update_content_status_to}_at": now,
+                    },
+                )
 
                 # Create/update publish log
                 log_filename = f"pub_{note_path.stem}_{datetime.now().strftime('%Y%m%d%H%M%S')}.md"
@@ -261,13 +302,14 @@ def _run_publisher(
                 log_meta = {
                     "id": f"pub_{datetime.now().strftime('%Y%m%d%H%M%S')}",
                     "type": "publish_log",
-                    "platform": "twitter",
+                    "platform": publish_platform,
                     "source": str(note_path.relative_to(vault.root)),
-                    "status": "published" if result.success else "failed",
+                    "status": publish_log_status if result.success else "failed",
                     "created_at": now,
                     "tweet_id": result.tweet_id,
                     "published_url": result.tweet_url,
                     "error": result.error if not result.success else None,
+                    "account": account,
                 }
                 log_body = f"# Twitter Publish Log\n\n## Text\n\n{text}\n"
                 vault.write_note(log_path, log_body, metadata=log_meta, overwrite=True)
@@ -297,8 +339,50 @@ def _run_publisher(
         return ActionResult(success=False, error=str(e))
 
 
+def _run_engagement_sync(
+    platforms: str | list[str] | None = None,
+    days: int = 7,
+    delay_minutes: int = 0,
+    only_recently_published: bool = False,
+    dry_run: bool = False,
+    **kwargs,
+) -> ActionResult:
+    """Engagement 지표 동기화 액션.
+
+    # NOTE: delay_minutes, only_recently_published are accepted but currently unused
+    """
+    from scripts.engagement_sync import EngagementSyncer
+
+    try:
+        normalized_platforms: list[str] | None
+        if platforms is None:
+            normalized_platforms = None
+        elif isinstance(platforms, str):
+            normalized_platforms = [platforms]
+        else:
+            normalized_platforms = platforms
+
+        syncer = EngagementSyncer()
+        results = syncer.sync_all(days=days, platforms=normalized_platforms, dry_run=dry_run)
+        success_count = sum(1 for result in results if result.success)
+        failed_count = len(results) - success_count
+
+        return ActionResult(
+            success=failed_count == 0,
+            outputs={
+                "synced_count": success_count,
+                "failed_count": failed_count,
+                "total": len(results),
+            },
+            error=f"{failed_count} engagement sync failures" if failed_count else "",
+        )
+    except Exception as e:
+        logger.error(f"engagement.sync failed: {e}")
+        return ActionResult(success=False, error=str(e))
+
+
 def _check_duplicate(
-    source: list[str] | list[dict],
+    source: list[str] | list[dict[str, Any]],
     threshold: float = 0.9,
     embedding_field: str = "text",
     **kwargs,
@@ -341,7 +425,8 @@ def _check_duplicate(
                 except Exception:
                     text = item  # 텍스트 자체로 처리
             elif isinstance(item, dict):
-                text = item.get(embedding_field, "")
+                raw_text = item.get(embedding_field, "")
+                text = raw_text if isinstance(raw_text, str) else str(raw_text)
             else:
                 text = str(item)  # type: ignore[unreachable]
             if text:
@@ -356,22 +441,25 @@ def _check_duplicate(
         # 중복 검사
         duplicates = []
         unique = []
-        seen_embeddings: list[dict] = []
+        seen_embeddings: list[dict[str, Any]] = []
 
         for entry in items_with_embeddings:
             is_duplicate = False
             duplicate_of = None
+            similarity = 0.0
 
             for seen in seen_embeddings:
                 # 코사인 유사도 계산
-                norm_entry = np.linalg.norm(entry["embedding"])
-                norm_seen = np.linalg.norm(seen["embedding"])
+                entry_embedding = cast(np.ndarray, entry["embedding"])
+                seen_embedding = cast(np.ndarray, seen["embedding"])
+                norm_entry = np.linalg.norm(entry_embedding)
+                norm_seen = np.linalg.norm(seen_embedding)
 
                 # zero-norm 가드: 둘 중 하나라도 0이면 유사도 0
                 if norm_entry == 0 or norm_seen == 0:
                     similarity = 0.0
                 else:
-                    similarity = np.dot(entry["embedding"], seen["embedding"]) / (norm_entry * norm_seen)
+                    similarity = np.dot(entry_embedding, seen_embedding) / (norm_entry * norm_seen)
 
                 if similarity >= threshold:
                     is_duplicate = True
