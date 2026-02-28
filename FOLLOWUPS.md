@@ -130,3 +130,95 @@ powershell .\scripts\setup_scheduler.ps1 -VaultPath "C:\picko-scripts\mock_vault
 
 *Created: 2026-02-15*
 *Reference: Commit 753183c and hardening plan*
+
+
+---
+
+## 006: Multimedia Styles System
+
+### Phase 1: Foundation (P0)
+
+#### 1.1 Layer System
+- [ ] HTML layer structure (background, overlay, decoration, content)
+- [ ] `_layer_base.html` common base template
+- [ ] CSS layer styles (z-index, positioning)
+
+#### 1.2 Image Source Module
+- [ ] Create `picko/image_source.py` module
+- [ ] Implement `ImageSourceManager` class
+- [ ] Unsplash API integration (`search_unsplash()`)
+- [ ] Image cache system (`cache/images/`)
+- [ ] Environment variable loading (`UNSPLASH_ACCESS_KEY`)
+
+#### 1.3 Photogram Style
+- [ ] `config/layouts/styles/photogram.yml` configuration
+- [ ] `templates/images/styles/photogram/` directory
+- [ ] `quote_photo.html` template
+- [ ] `card_photo.html` template
+- [ ] `hero_photo.html` template (full screen)
+
+#### 1.4 Input Schema Extension
+- [ ] `multimedia_io.py`: add `style`, `template`, `image_keywords` fields
+- [ ] Extend `MultimediaInput` dataclass
+- [ ] Update parsing logic
+
+#### 1.5 CLI Updates
+- [ ] Add `--style` option
+- [ ] Add `--image-keywords` option
+- [ ] Add `--image-source` option
+- [ ] Add `styles` subcommand (list available styles)
+
+#### 1.6 Tests
+- [ ] `test_image_source.py`: Unsplash search, cache
+- [ ] `test_photogram_templates.py`: rendering tests
+- [ ] E2E: full pipeline test
+
+### Phase 2: Expansion (P1)
+
+#### 2.1 Illustrated Style
+- [ ] `config/layouts/styles/illustrated.yml` configuration
+- [ ] `templates/images/styles/illustrated/` directory
+- [ ] `quote_shapes.html` (abstract shapes)
+- [ ] `card_abstract.html` (gradient + shapes)
+- [ ] `gradient_wave.html` (wave pattern)
+
+#### 2.2 SVG Decoration System
+- [ ] `picko/decorations.py` module
+- [ ] SVG shape library (circle, triangle, blob, wave)
+- [ ] Dynamic color application
+- [ ] Random placement algorithm
+
+#### 2.3 Additional Image Sources
+- [ ] Pexels API integration
+- [ ] Local image library support
+- [ ] Image source priority configuration
+
+#### 2.4 Tests
+- [ ] `test_illustrated_templates.py`
+- [ ] `test_decorations.py`
+
+### Phase 3: Corporate (P2)
+
+#### 3.1 Corporate Style
+- [ ] `config/layouts/styles/corporate.yml` configuration
+- [ ] `templates/images/styles/corporate/` directory
+- [ ] `infographic.html`
+- [ ] `timeline.html`
+- [ ] `comparison.html`
+
+#### 3.2 Data Visualization
+- [ ] Evaluate Chart.js or SVG chart support
+- [ ] Simple bar chart, pie chart templates
+
+#### 3.3 Tests
+- [ ] `test_corporate_templates.py`
+
+### Documentation
+- [ ] Update `config/layouts/README.md` (style system)
+- [ ] Update `CLAUDE.md` (new CLI options)
+- [ ] Update `.env.example` (UNSPLASH_ACCESS_KEY)
+
+---
+
+*006 Section Added: 2026-02-28*
+*Branch: 006-multimedia-styles*

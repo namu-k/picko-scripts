@@ -48,10 +48,12 @@ class WorkflowEngine:
     ):
         self._vault = vault_adapter
         self._actions = action_registry
-        self._step_outputs: dict[str, dict] = {}
+        self._step_outputs: dict[str, dict[str, Any]] = {}
+        self._dry_run = False
 
-    def run(self, workflow_path: Path) -> WorkflowResult:
+    def run(self, workflow_path: Path, dry_run: bool = False) -> WorkflowResult:
         """워크플로우 파일을 로드하고 실행"""
+        self._dry_run = dry_run
         workflow = self._load(workflow_path)
         logger.info(f"Running workflow: {workflow.get('name', 'unknown')}")
 
@@ -76,7 +78,7 @@ class WorkflowEngine:
             data = yaml.safe_load(f)
             return data if isinstance(data, dict) else {}
 
-    def _execute_step(self, step_def: dict) -> StepResult:
+    def _execute_step(self, step_def: dict[str, Any]) -> StepResult:
         name = step_def["name"]
         action_name = step_def.get("action", "")
         condition = step_def.get("condition")
@@ -95,6 +97,8 @@ class WorkflowEngine:
 
         # args 내 표현식 해석
         resolved_args = self._resolve_args(args)
+        if "dry_run" not in resolved_args:
+            resolved_args["dry_run"] = self._dry_run
 
         # 액션 실행
         try:
@@ -109,7 +113,7 @@ class WorkflowEngine:
             logger.error(f"Step '{name}' failed: {e}")
             return StepResult(name=name, error=str(e))
 
-    def _resolve_args(self, args: dict) -> dict:
+    def _resolve_args(self, args: dict[str, Any]) -> dict[str, Any]:
         """args 내 ${{ }} 표현식을 해석"""
         evaluator = ExprEvaluator(
             vault_adapter=self._vault,
@@ -123,7 +127,7 @@ class WorkflowEngine:
                 resolved[key] = value
         return resolved
 
-    def _execute_step_with_batch(self, step_def: dict) -> StepResult:
+    def _execute_step_with_batch(self, step_def: dict[str, Any]) -> StepResult:
         """배치 처리가 포함된 step 실행"""
         from picko.orchestrator.batch import BatchProcessor
 
@@ -173,11 +177,13 @@ class WorkflowEngine:
         all_outputs = []
         errors = []
 
-        def process_batch(batch: list) -> dict:
+        def process_batch(batch: list[Any]) -> dict[str, Any]:
             """단일 배치 처리"""
             batch_args = dict(args)
             batch_args["items"] = batch
             resolved_args = self._resolve_args(batch_args)
+            if "dry_run" not in resolved_args:
+                resolved_args["dry_run"] = self._dry_run
             action_result: ActionResult = self._actions.execute(action_name, resolved_args)
             return {
                 "success": action_result.success,

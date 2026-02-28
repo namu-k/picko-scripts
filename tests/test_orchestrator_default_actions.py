@@ -1,10 +1,11 @@
 # tests/test_orchestrator_default_actions.py
 """기본 액션 래퍼 테스트"""
 
-from unittest.mock import MagicMock, patch
+from pathlib import Path
+from unittest.mock import ANY, MagicMock, patch
 
 from picko.orchestrator.actions import ActionRegistry
-from picko.orchestrator.default_actions import register_default_actions
+from picko.orchestrator.default_actions import _extract_item_id, register_default_actions
 
 
 class TestDefaultActions:
@@ -16,6 +17,8 @@ class TestDefaultActions:
         assert "collector.run" in actions
         assert "generator.run" in actions
         assert "renderer.run" in actions
+        assert "publisher.run" in actions
+        assert "engagement.sync" in actions
 
     @patch("scripts.daily_collector.DailyCollector")
     def test_collector_run_calls_daily_collector(self, MockCollector):
@@ -64,7 +67,13 @@ class TestDefaultActions:
     @patch("pathlib.Path.mkdir")
     @patch("pathlib.Path.write_text")
     def test_renderer_run_with_pending(
-        self, mock_write, mock_mkdir, mock_exists, mock_get_pending, mock_parse, mock_renderer_class
+        self,
+        mock_write,
+        mock_mkdir,
+        mock_exists,
+        mock_get_pending,
+        mock_parse,
+        mock_renderer_class,
     ):
         # Setup mock data
         mock_get_pending.return_value = [{"id": "test_001", "status": "pending"}]
@@ -88,3 +97,121 @@ class TestDefaultActions:
 
         assert result.success is True
         assert result.outputs["rendered"] == 1
+
+    @patch("picko.orchestrator.vault_adapter.VaultAdapter")
+    @patch("picko.vault_io.VaultIO")
+    def test_publisher_run_dry_run_returns_pending_count(self, MockVaultIO, MockVaultAdapter):
+        mock_vault = MagicMock()
+        MockVaultIO.return_value = mock_vault
+
+        mock_adapter = MagicMock()
+        mock_adapter.list.return_value = [MagicMock()]
+        MockVaultAdapter.return_value = mock_adapter
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "publisher.run",
+            {
+                "dry_run": True,
+                "source_path": "Content/Packs/twitter",
+                "filter": "derivative_status=approved",
+            },
+        )
+
+        assert result.success is True
+        assert result.outputs["dry_run"] is True
+        assert result.outputs["pending_count"] == 1
+        assert result.outputs["published_count"] == 0
+
+    @patch("picko.publisher.TwitterPublisher")
+    @patch("picko.orchestrator.vault_adapter.VaultAdapter")
+    @patch("picko.vault_io.VaultIO")
+    def test_publisher_run_updates_frontmatter_with_status_and_timestamp(
+        self, MockVaultIO, MockVaultAdapter, MockTwitterPublisher
+    ):
+        mock_vault = MagicMock()
+        mock_vault.root = Path("/vault")
+        mock_vault.read_note.return_value = ({"tweet_text": "hello"}, "hello")
+        MockVaultIO.return_value = mock_vault
+
+        note_path = Path("/vault/Content/Packs/twitter/note1.md")
+        mock_adapter = MagicMock()
+        mock_adapter.list.return_value = [note_path]
+        MockVaultAdapter.return_value = mock_adapter
+
+        mock_publish_result = MagicMock()
+        mock_publish_result.success = True
+        mock_publish_result.tweet_id = "123"
+        mock_publish_result.tweet_url = "https://twitter.com/example/status/123"
+        mock_publish_result.error = None
+
+        mock_publisher = MagicMock()
+        mock_publisher.publish.return_value = mock_publish_result
+        MockTwitterPublisher.return_value = mock_publisher
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "publisher.run",
+            {
+                "update_content_status_to": "published",
+                "dry_run": False,
+                "publish_platform": "twitter",
+            },
+        )
+
+        assert result.success is True
+        mock_vault.update_frontmatter.assert_called_once_with(
+            note_path,
+            {
+                "status": "published",
+                "published_at": ANY,
+            },
+        )
+
+    def test_publisher_run_fails_on_unsupported_platform(self):
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "publisher.run",
+            {
+                "publish_platform": "instagram",
+            },
+        )
+
+        assert result.success is False
+        assert "instagram" in result.error
+
+    def test_extract_item_id_handles_path_string_dict_and_empty(self):
+        assert _extract_item_id(Path("/vault/Inbox/note1.md")) == "note1"
+        assert _extract_item_id("Inbox/note2.md") == "note2"
+        assert _extract_item_id("plain-id") == "plain-id"
+        assert _extract_item_id({"id": "abc"}) == "abc"
+        assert _extract_item_id({"path": Path("/vault/foo.md")}) == "foo"
+        assert _extract_item_id({}) == ""
+
+    @patch("scripts.engagement_sync.EngagementSyncer")
+    def test_engagement_sync_accepts_known_optional_args(self, MockSyncer):
+        mock_syncer = MagicMock()
+        mock_syncer.sync_all.return_value = []
+        MockSyncer.return_value = mock_syncer
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "engagement.sync",
+            {
+                "platforms": "twitter",
+                "days": 1,
+                "delay_minutes": 30,
+                "only_recently_published": True,
+                "dry_run": True,
+            },
+        )
+
+        assert result.success is True

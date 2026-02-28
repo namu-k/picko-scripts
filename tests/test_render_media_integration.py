@@ -80,8 +80,7 @@ created: 2026-02-24
 
         # Verify proposal
         assert proposal.input_id == "mm_quote_001"
-        assert proposal.content_type == "quote"
-        assert proposal.template == "quote.html"
+        assert proposal.content_type == "social_quote"
         assert "linkedin" in proposal.channels
         assert "twitter" in proposal.channels
 

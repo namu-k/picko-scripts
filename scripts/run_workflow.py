@@ -26,7 +26,7 @@ logger = get_logger("run_workflow")
 def main(argv: list[str] | None = None):
     parser = argparse.ArgumentParser(description="워크플로우 실행")
     parser.add_argument("--workflow", required=True, help="워크플로우 YAML 파일 경로")
-    parser.add_argument("--dry-run", action="store_true", help="실제 실행 없이 조건만 평가 (TODO: Phase 2 구현 예정)")
+    parser.add_argument("--dry-run", action="store_true", help="액션 실행을 dry-run 모드로 전파")
 
     args = parser.parse_args(argv)
     workflow_path = Path(args.workflow)
@@ -48,7 +48,7 @@ def main(argv: list[str] | None = None):
 
     # 실행
     logger.info(f"Running workflow: {workflow_path}")
-    result = engine.run(workflow_path)
+    result = engine.run(workflow_path, dry_run=args.dry_run)
 
     # 결과 출력
     for step_result in result.step_results:
