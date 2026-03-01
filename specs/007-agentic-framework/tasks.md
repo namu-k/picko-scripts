@@ -384,46 +384,37 @@ source: techcrunch  # source_id (sources.yml의 id)
   - `active` 소스: `enhanced_verification` 플래그 설정 후 sources.yml에 추가
 
 ### 3.5 Tests
-- ⬜ `tests/test_adapter_threads.py` (HTTP mock)
-- ⬜ `tests/test_adapter_reddit.py` (HTTP mock)
-- ⬜ `tests/test_adapter_mastodon.py` (HTTP mock)
-- ⬜ `tests/test_discovery_orchestrator.py`
----
+### 3.5 Tests
+- ● `tests/test_adapter_threads.py` (HTTP mock) ✅ 2026-03-01
+- ○ `tests/test_adapter_reddit.py` (HTTP mock)
+- ○ `tests/test_adapter_mastodon.py` (HTTP mock)
+- ● `tests/test_discovery_orchestrator.py` ✅ 2026-03-01
 
 ## Phase 4: Integration (P1)
 
 **선행 조건: Phase 1, 2, 3 완료**
-- ⬜ `picko/orchestrator/engine.py` — `dynamic_steps` 지원
-- ⬜ `picko/orchestrator/actions.py` — `ActionConfig`에 `fallback` 필드 추가
-- ⬜ `picko/orchestrator/expr.py` — 새 연산자: `contains_topic`, `score_range`, `has_quality_flag`
+
+### 4.1 Dynamic Steps Support
+- ● `picko/orchestrator/engine.py` — `dynamic_steps` 지원 ✅ 2026-03-01
+  - Workflow-level `dynamic_steps` declarations
+  - Action-emitted `dynamic_steps` via step outputs
+  - Runtime insertion with condition evaluation
+- ● `tests/test_orchestrator_engine.py` — dynamic steps tests ✅ 2026-03-01
+  - test_dynamic_steps_execute_when_condition_true
+  - test_dynamic_steps_skip_when_condition_false
+- ○ `picko/orchestrator/actions.py` — `ActionConfig`에 `fallback` 필드 추가
+- ○ `picko/orchestrator/expr.py` — 새 연산자: `contains_topic`, `score_range`, `has_quality_flag`
 
 ### 4.2 Quality Action 등록
-- ⬜ `picko/orchestrator/default_actions.py`에 `quality.verify` 액션 등록
-  - 새 소스 여부 감지 → `enhanced_verification` 모드 자동 적용
-  - 검증 완료 후 `collections_remaining` 감소
-
-### 4.3 Config 확장
-- ⬜ `config/config.yml`에 `quality` 섹션 추가
-  - `quality.enabled: true/false` (롤백 플래그)
-  - `quality.primary.model`, `quality.cross_check.model`
-  - `quality.final.auto_approve_threshold: 0.85`
-  - `quality.feedback.enabled: true`
-- ⬜ `config/config.yml`에 `notification` 섹션 추가
-  - `notification.provider: telegram` (또는 slack)
-  - `notification.review_timeout_hours: 72`
-
-### 4.4 Example Workflow
-- ⬜ `config/workflows/agentic_pipeline.yml` — 품질 검증 포함 전체 파이프라인 예시
-
-### 4.5 E2E Tests
-- ⬜ `tests/test_e2e_agentic.py`
-  - 전체 파이프라인 + 품질 검증
-  - fallback on fetcher failure
-  - low confidence → pending 상태 확인
-  - high confidence → auto approve
-  - 강화 검증 모드 E2E
-  - LangGraph 체크포인트 재개
-
+- ● `picko/orchestrator/default_actions.py`에 `quality.verify` 액션 등록 ✅ 2026-03-01
+  - Single-item mode (item_id, title, content, enhanced_verification, thread_id)
+  - Batch mode (items list with verified/pending/rejected grouping)
+  - Integration with `QualityGraph.verify()`
+- ● `tests/test_orchestrator_default_actions.py` — quality.verify tests ✅ 2026-03-01
+  - test_registers_expected_actions (includes quality.verify)
+  - test_quality_verify_calls_quality_graph
+- ○ 새 소스 여부 감지 → `enhanced_verification` 모드 자동 적용
+- ○ 검증 완료 후 `collections_remaining` 감소
 ---
 
 ## Phase 5: Meta Platforms (P2, 선택)
@@ -442,10 +433,12 @@ source: techcrunch  # source_id (sources.yml의 id)
 
 ## Documentation
 
-- ⬜ `CLAUDE.md` 업데이트 (새 모듈, 환경 변수)
-- ⬜ `.env.example` 업데이트 (Bot 토큰, Threads/Reddit/Mastodon API 키)
-- ⬜ `specs/007-agentic-framework/spec.md` ✅ 완료
-
+- ○ `CLAUDE.md` 업데이트 (새 모듈, 환경 변수)
+- ● `.env.example` 업데이트 (Bot 토큰, Threads/Reddit/Mastodon API 키) ✅ 2026-03-01
+  - THREADS_ACCESS_TOKEN
+  - REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET
+  - MASTODON_ACCESS_TOKEN, MASTODON_INSTANCE
+- ● `specs/007-agentic-framework/spec.md` ✅ 완료
 ---
 
 ## Dependencies
@@ -497,3 +490,30 @@ REVIEW_TIMEOUT_HOURS=72
 
 *Created: 2026-03-01*
 *Branch: 007-agentic*
+
+---
+
+## Session Log
+
+### 2026-03-01 Session
+
+**Completed:**
+- Phase 3 Tests closure:
+  - ✅ `tests/test_adapter_threads.py` — 7 tests for Threads adapter placeholder behavior
+  - ✅ `.env.example` — Added discovery adapter env vars (THREADS_ACCESS_TOKEN, REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, MASTODON_ACCESS_TOKEN, MASTODON_INSTANCE)
+- Phase 4 Integration kickoff:
+  - ✅ `picko/orchestrator/engine.py` — Dynamic steps support with runtime insertion
+  - ✅ `picko/orchestrator/default_actions.py` — `quality.verify` action registration and implementation
+  - ✅ `tests/test_orchestrator_engine.py` — Dynamic steps tests (2 new tests)
+  - ✅ `tests/test_orchestrator_default_actions.py` — Quality verify tests (updated)
+
+**Test Results:**
+- All 1025 tests passing
+- No LSP errors on modified files
+
+**Next Steps:**
+- Phase 4.1: Complete remaining items (fallback field, new operators)
+- Phase 4.2: Source tracking for enhanced_verification auto-detection
+- Phase 4.3: Config expansion (quality section)
+- Phase 4.4: Example workflow YAML
+- Phase 4.5: E2E tests
