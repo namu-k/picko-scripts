@@ -188,7 +188,12 @@ class TestOrchestratorDiscover:
         # Create a non-social platform candidate (web/rss type)
         # Using a trusted domain-like platform to test auto-approve
         candidates = [
-            create_candidate("techcrunch", "web", 0.95),  # High score, non-social
+            create_candidate(
+                "techcrunch",
+                "web",
+                0.95,
+                url="https://techcrunch.com/ai",
+            ),  # High score, non-social
         ]
 
         # Create a custom gate that allows "techcrunch.com" as trusted

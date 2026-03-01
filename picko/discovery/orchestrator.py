@@ -6,6 +6,7 @@ Coordinates multiple platform adapters and applies human review gates.
 
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from picko.discovery.base import BaseDiscoveryCollector, SourceCandidate
 from picko.discovery.gates import HumanConfirmationGate
@@ -100,20 +101,16 @@ class SourceDiscoveryOrchestrator:
             try:
                 candidates = await adapter.search(keyword)
 
-                # Validate candidates is iterable
+                # Empty results are valid
                 if not candidates:
-                    continue
-                if not isinstance(candidates, (list, tuple)):
-                    logger.warning(
-                        f"Adapter {adapter.platform} returned non-iterable: {type(candidates)}"
-                    )  # mypy can't figure out unreachable
                     continue
 
                 for candidate in candidates:
+                    domain = urlparse(candidate.url).hostname
                     # Use full gate evaluation to distinguish auto-reject vs auto-approve
                     decision = self.gate.evaluate(
                         platform=candidate.platform,
-                        domain=None,  # Social platforms don't have domains
+                        domain=domain,
                         relevance_score=candidate.relevance_score,
                         metadata=candidate.metadata,
                     )
