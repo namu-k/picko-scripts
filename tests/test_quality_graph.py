@@ -4,7 +4,6 @@ Tests for Quality Graph - LangGraph state machine.
 Tests state transitions, routing logic, and graph compilation.
 """
 
-import sys
 from unittest.mock import MagicMock, patch
 
 from picko.quality.graph import (
@@ -255,17 +254,29 @@ class TestQualityGraph:
         """QualityGraph should initialize with checkpointing if path provided."""
         from langgraph.checkpoint.memory import MemorySaver
 
-        # sqlite 서브모듈이 없을 수 있으므로(sys.modules) fake 모듈로 주입
+        # Mock SqliteSaver to use MemorySaver for testing
         fake_sqlite = MagicMock()
         fake_sqlite.SqliteSaver = MagicMock()
         fake_sqlite.SqliteSaver.from_conn_string = MagicMock(return_value=MemorySaver())
 
-        with patch.dict(sys.modules, {"langgraph.checkpoint.sqlite": fake_sqlite}):
-            qg = QualityGraph(checkpoint_path="cache/test.db")
+        # Patch at the picko.quality.graph module level where the import happens
+        with patch.dict("sys.modules", {"langgraph.checkpoint.sqlite": fake_sqlite}):
+            # Also need to patch the attribute access on langgraph.checkpoint
+            import langgraph.checkpoint
 
-        assert qg.checkpoint_path == "cache/test.db"
-        assert qg.compiled is not None
-        fake_sqlite.SqliteSaver.from_conn_string.assert_called_once_with("cache/test.db")
+            original_checkpoint = langgraph.checkpoint
+            langgraph.checkpoint.sqlite = fake_sqlite
+
+            try:
+                qg = QualityGraph(checkpoint_path="cache/test.db")
+
+                assert qg.checkpoint_path == "cache/test.db"
+                assert qg.compiled is not None
+                fake_sqlite.SqliteSaver.from_conn_string.assert_called_once_with("cache/test.db")
+            finally:
+                # Restore original state
+                if hasattr(original_checkpoint, "sqlite"):
+                    delattr(original_checkpoint, "sqlite")
 
     @patch("picko.quality.validators.primary.PrimaryValidator.validate")
     def test_verify_returns_state(self, mock_validate):

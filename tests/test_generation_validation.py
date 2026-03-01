@@ -17,13 +17,14 @@ class TestValidationAutoRun:
         from scripts.generate_content import ContentGenerator
 
         with patch("scripts.generate_content.get_config", return_value=mock_config):
-            with patch("scripts.generate_content.get_writer_client"):
-                with patch("scripts.generate_content.OutputValidator") as mock_validator_class:
-                    mock_validator = MagicMock()
-                    mock_validator_class.return_value = mock_validator
+            with patch("scripts.generate_content.VaultIO"):
+                with patch("scripts.generate_content.get_writer_client"):
+                    with patch("scripts.generate_content.OutputValidator") as mock_validator_class:
+                        mock_validator = MagicMock()
+                        mock_validator_class.return_value = mock_validator
 
-                    generator = ContentGenerator(dry_run=True)
-                    return generator, mock_validator
+                        generator = ContentGenerator(dry_run=True)
+                        return generator, mock_validator
 
     def test_validator_initialized(self, mock_generator):
         """validator가 초기화되어야 함"""

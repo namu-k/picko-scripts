@@ -19,15 +19,16 @@ class TestDuplicateDetection:
         from scripts.daily_collector import DailyCollector
 
         with patch("scripts.daily_collector.get_config", return_value=mock_config):
-            with patch("scripts.daily_collector.get_embedding_manager") as mock_emb:
-                with patch("scripts.daily_collector.get_summary_client"):
-                    with patch("scripts.daily_collector.ContentScorer"):
-                        mock_emb.return_value = MagicMock()
-                        mock_emb.return_value.cosine_similarity = lambda a, b: sum(x * y for x, y in zip(a, b)) / (
-                            sum(x**2 for x in a) ** 0.5 * sum(y**2 for y in b) ** 0.5
-                        )
-                        collector = DailyCollector(dry_run=True)
-                        return collector
+            with patch("scripts.daily_collector.VaultIO"):
+                with patch("scripts.daily_collector.get_embedding_manager") as mock_emb:
+                    with patch("scripts.daily_collector.get_summary_client"):
+                        with patch("scripts.daily_collector.ContentScorer"):
+                            mock_emb.return_value = MagicMock()
+                            mock_emb.return_value.cosine_similarity = lambda a, b: sum(x * y for x, y in zip(a, b)) / (
+                                sum(x**2 for x in a) ** 0.5 * sum(y**2 for y in b) ** 0.5
+                            )
+                            collector = DailyCollector(dry_run=True)
+                            return collector
 
     def test_check_duplicate_no_existing(self, mock_collector):
         """기존 임베딩 없으면 중복 없음"""
