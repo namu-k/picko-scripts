@@ -71,6 +71,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Aligned `specs/006-multimedia-styles/tasks.md` with plan.md (path references, cache metadata, mock annotations)
 
+## [0.5.0] - 2026-03-01
+
+### Added
+- **Agentic Framework (007)**:
+  - `picko/orchestrator/engine.py`: Dynamic step execution support
+    - Workflow-level `dynamic_steps` declarations in YAML
+    - Action-emitted `dynamic_steps` via step outputs
+    - Runtime insertion with condition evaluation
+  - `picko/orchestrator/default_actions.py`: `quality.verify` action
+    - Single-item mode for workflow invocation
+    - Batch mode with verified/pending/rejected grouping
+    - Integration with `QualityGraph.verify()`
+  - `picko/discovery/orchestrator.py`: Source discovery orchestration
+    - Multi-adapter sequential execution
+    - Human confirmation gate integration
+    - Trusted domain evaluation
+  - `picko/discovery/adapters/`: Platform adapters
+    - `threads.py`: Threads API adapter (placeholder, App Review required)
+    - `reddit.py`: Reddit API adapter (OAuth)
+    - `mastodon.py`: Mastodon API adapter
+  - `picko/discovery/gates.py`: Human confirmation gate logic
+- **Tests**:
+  - `test_adapter_threads.py`: Threads adapter placeholder and rate limit tests
+  - `test_adapter_reddit.py`: Reddit adapter tests
+  - `test_adapter_mastodon.py`: Mastodon adapter tests
+  - `test_discovery_orchestrator.py`: Discovery orchestration tests
+  - `test_discovery_gates.py`: Human confirmation gate tests
+  - `test_orchestrator_engine.py`: Dynamic steps tests (2 new)
+  - `test_orchestrator_default_actions.py`: Quality verify tests
+- **Specs**:
+  - `specs/007-agentic-framework/`: Complete specification and task breakdown
+  - `docs/plans/2026-02-28-agentic-framework-spec.md`: Business requirements
+  - `docs/plans/2026-02-28-hybrid-agentic-pipeline-design.md`: Technical design
+
+### Changed
+- `.env.example`: Added discovery adapter environment variables (THREADS_ACCESS_TOKEN, REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET, MASTODON_ACCESS_TOKEN, MASTODON_INSTANCE)
+
+### Fixed
 ## [0.3.0] - 2026-02-16
 
 ### Added
