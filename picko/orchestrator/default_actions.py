@@ -6,7 +6,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, cast
 
-from picko.config import get_config
+from picko.config import PROJECT_ROOT, get_config
 from picko.logger import get_logger
 from picko.orchestrator.actions import ActionRegistry, ActionResult
 
@@ -392,16 +392,37 @@ def _run_quality_verify(
     content: str = "",
     enhanced_verification: bool = False,
     thread_id: str | None = None,
+    source_id: str | None = None,
     **kwargs,
 ) -> ActionResult:
     """Quality verification action wrapper.
 
     Supports both single-item invocation and batch invocation via `items`.
+
+    When source_id is provided, auto-detects if enhanced_verification should be enabled
+    based on source metadata (auto_discovered && collected_count < 5).
     """
     from picko.quality.graph import QualityGraph
+    from picko.source_manager import SourceManager
 
     try:
         graph = QualityGraph()
+
+        # Source tracking for enhanced_verification auto-detection
+        source_manager: SourceManager | None = None
+        source_meta = None
+        if source_id:
+            try:
+                source_manager = SourceManager(PROJECT_ROOT / "config" / "sources.yml")
+                source_meta = source_manager.get_by_id(source_id)
+            except Exception as e:
+                logger.warning(f"Failed to load source metadata for {source_id}: {e}")
+        # Auto-detect enhanced_verification for new sources
+        if source_meta and not enhanced_verification:
+            is_new_source = source_meta.auto_discovered and source_meta.collected_count < 5
+            if is_new_source:
+                enhanced_verification = True
+                logger.info(f"Auto-enabled enhanced_verification for new source: {source_id}")
 
         # Single-item mode (used by workflow and tests)
         if not items:
@@ -413,6 +434,24 @@ def _run_quality_verify(
                 enhanced_verification=enhanced_verification,
                 thread_id=thread_id,
             )
+
+            # Update source metadata if applicable
+            if source_manager and source_meta and source_id and source_meta.enhanced_verification:
+                try:
+                    current_remaining = source_meta.enhanced_verification.get("collections_remaining", 0)
+                    if current_remaining > 0:
+                        updated_ev = dict(source_meta.enhanced_verification)
+                        updated_ev["collections_remaining"] = current_remaining - 1
+                        source_manager.update_stats(str(source_id), enhanced_verification=updated_ev)
+                        logger.info(
+                            "Decremented collections_remaining for %s: %s -> %s",
+                            source_id,
+                            current_remaining,
+                            current_remaining - 1,
+                        )
+                except Exception as e:
+                    logger.warning(f"Failed to update source metadata for {source_id}: {e}")
+
             return ActionResult(success=True, outputs={"result": state})
 
         # Batch mode
