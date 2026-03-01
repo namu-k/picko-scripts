@@ -70,6 +70,45 @@ class WorkflowEngine:
             else:
                 step_result = self._execute_step(step_def)
 
+            # Fallback action support: run fallback when primary step fails
+            fallback_def = step_def.get("fallback")
+            if (
+                not step_result.success
+                and not step_result.skipped
+                and isinstance(fallback_def, dict)
+                and fallback_def.get("action")
+            ):
+                fallback_action = fallback_def.get("action", "")
+                fallback_args = fallback_def.get("args", {})
+                if isinstance(fallback_args, dict):
+                    resolved_fallback_args = self._resolve_args(fallback_args)
+                else:
+                    resolved_fallback_args = {}
+
+                if "dry_run" not in resolved_fallback_args:
+                    resolved_fallback_args["dry_run"] = self._dry_run
+
+                try:
+                    fallback_result = self._actions.execute(fallback_action, resolved_fallback_args)
+                    if fallback_result.success:
+                        step_result = StepResult(
+                            name=step_result.name,
+                            success=True,
+                            outputs={
+                                **fallback_result.outputs,
+                                "fallback_used": True,
+                            },
+                            error="",
+                        )
+                    else:
+                        step_result.error = (
+                            f"{step_result.error}; fallback '{fallback_action}' failed: {fallback_result.error}"
+                        ).strip("; ")
+                except Exception as e:
+                    step_result.error = (f"{step_result.error}; fallback '{fallback_action}' exception: {e}").strip(
+                        "; "
+                    )
+
             result.step_results.append(step_result)
 
             if not step_result.skipped:
