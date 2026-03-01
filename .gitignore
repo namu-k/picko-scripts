@@ -71,9 +71,6 @@ mock_vault/
 implementation_plan.md
 task.md
 
-# Agent guide (로컬 참고용)
-AGENT_GUIDE.md
-
 # Docs (evaluation and market analysis kept local)
 docs/
 docs/evaluation_0226.md
