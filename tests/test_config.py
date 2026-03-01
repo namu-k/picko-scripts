@@ -10,6 +10,8 @@ import pytest
 from picko.config import (
     EmbeddingConfig,
     LLMConfig,
+    NotificationConfig,
+    QualityConfig,
     ScoringConfig,
     SummaryLLMConfig,
     VaultConfig,
@@ -111,6 +113,23 @@ class TestScoringConfig:
         assert config.thresholds["auto_approve"] == 0.85
 
 
+class TestAgenticConfig:
+    """Quality/Notification config tests"""
+
+    def test_quality_config_defaults(self):
+        config = QualityConfig()
+        assert config.enabled is True
+        assert config.primary_model == "gpt-4o-mini"
+        assert config.cross_check_model == "claude-3.5-sonnet"
+        assert config.auto_approve_threshold == 0.85
+        assert config.feedback_enabled is True
+
+    def test_notification_config_defaults(self):
+        config = NotificationConfig()
+        assert config.provider == "telegram"
+        assert config.review_timeout_hours == 72
+
+
 class TestOpenRouterConfig:
     """OpenRouter config tests"""
 
@@ -197,6 +216,21 @@ logging:
 processing:
   batch_size: 10
   max_retries: 3
+
+quality:
+  enabled: true
+  primary:
+    model: "gpt-4o-mini"
+  cross_check:
+    model: "claude-3-5-sonnet-20241022"
+  final:
+    auto_approve_threshold: 0.85
+  feedback:
+    enabled: true
+
+notification:
+  provider: "telegram"
+  review_timeout_hours: 72
 """
         config_file = tmp_path / "config.yml"
         config_file.write_text(config_content)
@@ -208,6 +242,13 @@ processing:
         assert config.vault.root == "C:/test/vault"
         assert config.llm.provider == "openai"
         assert config.scoring.weights["novelty"] == 0.3
+        assert config.quality.enabled is True
+        assert config.quality.primary_model == "gpt-4o-mini"
+        assert config.quality.cross_check_model == "claude-3-5-sonnet-20241022"
+        assert config.quality.auto_approve_threshold == 0.85
+        assert config.quality.feedback_enabled is True
+        assert config.notification.provider == "telegram"
+        assert config.notification.review_timeout_hours == 72
 
     def test_load_config_file_not_found(self):
         """존재하지 않는 config.yml"""
