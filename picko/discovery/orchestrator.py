@@ -69,7 +69,8 @@ class SourceDiscoveryOrchestrator:
 
         Args:
             keyword: Search keyword
-            auto_approve: If True, auto-approve high-relevance sources
+            auto_approve: If True, auto-approve sources that would otherwise need review
+                          (only for sources where gate.auto_approve_eligible is True)
 
         Returns:
             Dict with 'approved', 'pending', 'rejected' lists
@@ -80,29 +81,71 @@ class SourceDiscoveryOrchestrator:
             "rejected": [],
         }
 
+        if not self.adapters:
+            logger.warning("No discovery adapters configured")
+            return results
+
         for adapter in self.adapters:
-            if not adapter.is_available():
+            # Safely check adapter availability
+            try:
+                available = adapter.is_available()
+            except Exception as e:
+                logger.warning(f"Adapter {adapter.platform} is_available() raised: {e}")
+                continue
+
+            if not available:
                 logger.debug(f"Skipping {adapter.platform}: not available")
                 continue
 
             try:
                 candidates = await adapter.search(keyword)
 
+                # Validate candidates is iterable
+                if not candidates:
+                    continue
+                if not isinstance(candidates, (list, tuple)):
+                    logger.warning(
+                        f"Adapter {adapter.platform} returned non-iterable: {type(candidates)}"
+                    )  # mypy can't figure out unreachable
+                    continue
+
                 for candidate in candidates:
-                    # Apply human review gate
-                    requires_review = self.gate.requires_review(
+                    # Use full gate evaluation to distinguish auto-reject vs auto-approve
+                    decision = self.gate.evaluate(
                         platform=candidate.platform,
                         domain=None,  # Social platforms don't have domains
                         relevance_score=candidate.relevance_score,
+                        metadata=candidate.metadata,
                     )
 
-                    if requires_review and not auto_approve:
-                        results["pending"].append(candidate)
-                        logger.info(f"Source pending review: {candidate.handle} " f"({candidate.platform})")
+                    if decision.requires_review:
+                        # Source needs human review
+                        if auto_approve and decision.auto_approve_eligible:
+                            # Override: auto-approve eligible sources when flag set
+                            results["approved"].append(candidate)
+                            logger.info(
+                                f"Source auto-approved (override): {candidate.handle} " f"({candidate.platform})"
+                            )
+                        else:
+                            results["pending"].append(candidate)
+                            logger.info(
+                                f"Source pending review: {candidate.handle} "
+                                f"({candidate.platform}) - {decision.reason}"
+                            )
                     else:
-                        # Auto-approve or doesn't require review
-                        results["approved"].append(candidate)
-                        logger.info(f"Source approved: {candidate.handle} " f"({candidate.platform})")
+                        # No review required - could be auto-approve or auto-reject
+                        if decision.auto_approve_eligible:
+                            results["approved"].append(candidate)
+                            logger.info(
+                                f"Source auto-approved: {candidate.handle} "
+                                f"({candidate.platform}) - {decision.reason}"
+                            )
+                        else:
+                            # Auto-reject (e.g., low score)
+                            results["rejected"].append(candidate)
+                            logger.info(
+                                f"Source rejected: {candidate.handle} " f"({candidate.platform}) - {decision.reason}"
+                            )
 
             except Exception as e:
                 logger.error(f"Discovery failed for {adapter.platform}: {e}")
@@ -196,12 +239,14 @@ class SourceDiscoveryOrchestrator:
 
     def _get_api_provider(self, platform: str) -> str:
         """Get API provider name for platform."""
+        # Normalize platform to lowercase for consistent mapping
+        platform_lower = platform.lower()
         mapping = {
             "reddit": "reddit_api",
             "mastodon": "mastodon_api",
             "threads": "threads_api",
         }
-        return mapping.get(platform, f"{platform}_api")
+        return mapping.get(platform_lower, f"{platform_lower}_api")
 
     def get_adapter_status(self) -> list[dict[str, Any]]:
         """Get status of all adapters."""

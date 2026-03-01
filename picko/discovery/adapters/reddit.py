@@ -84,6 +84,8 @@ class RedditDiscoveryAdapter(BaseDiscoveryCollector):
         if self._access_token and time.time() < self._token_expires_at:
             return self._access_token
         url = "https://www.reddit.com/api/v1/access_token"
+        # Type guard - credentials checked by is_available()
+        assert self.client_id and self.client_secret, "Credentials required"
         auth = httpx.BasicAuth(self.client_id, self.client_secret)
 
         async with httpx.AsyncClient() as client:

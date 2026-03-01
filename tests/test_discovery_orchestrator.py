@@ -184,20 +184,27 @@ class TestOrchestratorDiscover:
 
     @pytest.mark.asyncio
     async def test_discover_with_auto_approve(self, mock_source_manager):
-        """Auto-approve bypasses human review for social platforms."""
+        """Auto-approve only works for non-social platforms with high relevance."""
+        # Create a non-social platform candidate (web/rss type)
+        # Using a trusted domain-like platform to test auto-approve
         candidates = [
-            create_candidate("r_machinelearning", "reddit", 0.9),
+            create_candidate("techcrunch", "web", 0.95),  # High score, non-social
         ]
 
-        adapter = MockAdapter("reddit", search_results=candidates)
+        # Create a custom gate that allows "techcrunch.com" as trusted
+        gate = HumanConfirmationGate(trusted_domains={"techcrunch.com"})
+
+        adapter = MockAdapter("web", search_results=candidates)
         orchestrator = SourceDiscoveryOrchestrator(
             adapters=[adapter],
             source_manager=mock_source_manager,
+            gate=gate,
         )
 
-        # With auto_approve=True, social platforms go to approved
+        # With auto_approve=True, high-score trusted domain goes to approved
         results = await orchestrator.discover("AI", auto_approve=True)
 
+        # techcrunch.com is trusted + score 0.95 >= 0.9 -> auto-approved
         assert len(results["approved"]) == 1
         assert len(results["pending"]) == 0
 
@@ -400,6 +407,7 @@ class TestOrchestratorIntegration:
     async def test_full_discovery_flow(self):
         """Complete discovery to registration flow."""
         # Setup adapters with candidates
+        # Social platforms - always require review
         reddit_candidates = [
             create_candidate("r_machinelearning", "reddit", 0.92),
             create_candidate("r_artificial", "reddit", 0.88),
@@ -419,17 +427,20 @@ class TestOrchestratorIntegration:
             source_manager=mock_source_manager,
         )
 
-        # 1. Discover sources
+        # 1. Discover sources - social platforms always require review
         results = await orchestrator.discover("AI")
 
-        # Social platforms always require review
+        # All 3 social platform candidates go to pending
         assert len(results["pending"]) == 3
+        assert len(results["approved"]) == 0
 
-        # 2. Auto-approve for registration test
-        results_approved = await orchestrator.discover("AI", auto_approve=True)
-        assert len(results_approved["approved"]) == 3
+        # 2. Even with auto_approve=True, social platforms still require review
+        # because auto_approve_eligible is False for social platforms
+        results_auto = await orchestrator.discover("AI", auto_approve=True)
+        assert len(results_auto["pending"]) == 3
+        assert len(results_auto["approved"]) == 0
 
-        # 3. Register approved sources
-        registered = await orchestrator.register_approved_sources(results_approved["approved"])
+        # 3. Register pending sources (they're still valid candidates, just need review)
+        registered = await orchestrator.register_approved_sources(results["pending"])
 
         assert registered == 3
