@@ -257,7 +257,7 @@ Apache License 2.0
 - 📛 보안 취약점 신고: [SECURITY.md](SECURITY.md)
 - 사용자 가이드: [USER_GUIDE.md](USER_GUIDE.md)
 - 개발자 가이드: [CLAUDE.md](CLAUDE.md)
-- **에이전트 가이드**: [AGENT_GUIDE.md](AGENT_GUIDE.md) - CLI 코딩 에이전트용
+- 에이전트 가이드: 로컬 참고용 (AGENT_GUIDE.md, 저장소 미포함)
 - 배포 가이드: [DEPLOYMENT.md](DEPLOYMENT.md)
 - 변경 로그: [CHANGELOG.md](CHANGELOG.md)
 - 코드 리뷰 체크리스트: [REVIEW_CHECKLIST.md](REVIEW_CHECKLIST.md)

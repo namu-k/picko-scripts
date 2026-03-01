@@ -60,11 +60,8 @@ htmlcov/
 .env
 .env.local
 
-# Test content in mock_vault
-mock_vault/Content/
-mock_vault/Inbox/
-mock_vault/Assets/
-mock_vault/config/
+# mock_vault (로컬 테스트/실행용, 저장소 미포함)
+mock_vault/
 .cache/
 .cursor/
 .sisyphus/
@@ -73,6 +70,9 @@ mock_vault/config/
 **/plans/
 implementation_plan.md
 task.md
+
+# Agent guide (로컬 참고용)
+AGENT_GUIDE.md
 
 # Docs (evaluation and market analysis kept local)
 docs/
