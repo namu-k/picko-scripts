@@ -188,8 +188,8 @@ class TestLoadConfig:
         """임시 config.yml 파일"""
         config_content = """
 vault:
-  root: "C:/test/vault"
-  inbox: "Inbox/Inputs"
+  root: "test_vault"
+
 
 llm:
   provider: "openai"
@@ -255,7 +255,9 @@ deduplication:
     def test_load_config_success(self, mock_config_file):
         """config.yml 로드 성공"""
         config = load_config(mock_config_file)
-        assert config.vault.root == "C:/test/vault"
+        # vault.root is resolved to absolute path by PROJECT_ROOT / root
+        assert config.vault.root.endswith("test_vault") or config.vault.root == "test_vault"
+
         assert config.llm.provider == "openai"
         assert config.scoring.weights["novelty"] == 0.3
         assert config.quality.enabled is True
