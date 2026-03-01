@@ -21,6 +21,7 @@ def register_default_actions(registry: ActionRegistry):
     registry.register("publisher.run", _run_publisher)
     registry.register("engagement.sync", _run_engagement_sync)
     registry.register("embedding.check_duplicate", _check_duplicate)
+    registry.register("quality.verify", _run_quality_verify)
 
 
 def _extract_item_id(item: object) -> str:
@@ -378,6 +379,96 @@ def _run_engagement_sync(
         )
     except Exception as e:
         logger.error(f"engagement.sync failed: {e}")
+        return ActionResult(success=False, error=str(e))
+
+
+def _run_quality_verify(
+    account: str = "socialbuilders",
+    items: list[object] | None = None,
+    threshold: float = 0.85,
+    dry_run: bool = False,
+    item_id: str = "",
+    title: str = "",
+    content: str = "",
+    enhanced_verification: bool = False,
+    thread_id: str | None = None,
+    **kwargs,
+) -> ActionResult:
+    """Quality verification action wrapper.
+
+    Supports both single-item invocation and batch invocation via `items`.
+    """
+    from picko.quality.graph import QualityGraph
+
+    try:
+        graph = QualityGraph()
+
+        # Single-item mode (used by workflow and tests)
+        if not items:
+            target_id = item_id or "unknown"
+            state = graph.verify(
+                item_id=target_id,
+                title=title,
+                content=content,
+                enhanced_verification=enhanced_verification,
+                thread_id=thread_id,
+            )
+            return ActionResult(success=True, outputs={"result": state})
+
+        # Batch mode
+        results: list[dict[str, Any]] = []
+        verified: list[str] = []
+        pending: list[str] = []
+        rejected: list[str] = []
+
+        for item in items:
+            target_id = _extract_item_id(item)
+            if not target_id:
+                target_id = "unknown"
+
+            current_title = ""
+            current_content = ""
+            current_enhanced = enhanced_verification
+
+            if isinstance(item, dict):
+                raw_title = item.get("title", "")
+                current_title = raw_title if isinstance(raw_title, str) else ""
+                raw_content = item.get("content") or item.get("text", "")
+                current_content = raw_content if isinstance(raw_content, str) else ""
+                current_enhanced = bool(item.get("enhanced_verification", enhanced_verification))
+
+            state = graph.verify(
+                item_id=target_id,
+                title=current_title,
+                content=current_content,
+                enhanced_verification=current_enhanced,
+                thread_id=f"quality-{target_id}",
+            )
+            results.append(dict(state))
+
+            verdict = state.get("final_verdict")
+            confidence = float(state.get("final_confidence", 0.0))
+            if verdict == "approved" or confidence >= threshold:
+                verified.append(target_id)
+            elif verdict == "needs_review":
+                pending.append(target_id)
+            else:
+                rejected.append(target_id)
+
+        return ActionResult(
+            success=True,
+            outputs={
+                "results": results,
+                "verified": verified,
+                "pending": pending,
+                "rejected": rejected,
+                "total": len(items),
+                "dry_run": dry_run,
+                "account": account,
+            },
+        )
+    except Exception as e:
+        logger.error(f"quality.verify failed: {e}")
         return ActionResult(success=False, error=str(e))
 
 
