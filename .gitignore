@@ -14,8 +14,11 @@ venv/
 logs/
 *.log
 
-# Claude Code settings (local)
-.claude/settings.local.json
+# Local/tooling (not shared)
+.claude/
+.specify/
+# docs/plans: 계획문서는 로컬만 (docs/ 전체 무시로 이미 제외)
+docs/plans/
 
 # IDE
 .vscode/
