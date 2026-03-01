@@ -402,10 +402,14 @@ source: techcrunch  # source_id (sources.yml의 id)
 - ● `tests/test_orchestrator_engine.py` — dynamic steps tests ✅ 2026-03-01
   - test_dynamic_steps_execute_when_condition_true
   - test_dynamic_steps_skip_when_condition_false
-- ◆ `picko/orchestrator/actions.py` — `ActionConfig`에 `fallback` 필드 추가
-  - `WorkflowEngine` 런타임 fallback 실행 지원 완료 ✅ 2026-03-01
-  - `ActionConfig` 타입 모델 확장만 미완료
-- ○ `picko/orchestrator/expr.py` — 새 연산자: `contains_topic`, `score_range`, `has_quality_flag`
+- ● `picko/orchestrator/actions.py` — `ActionConfig`에 `fallback` 필드 추가 ✅ 2026-03-01
+  - `ActionConfig`, `FallbackConfig` 타입 모델 도입
+  - `WorkflowEngine`에서 typed fallback 파싱/실행 연동
+- ● `picko/orchestrator/expr.py` — 새 연산자 구현 ✅ 2026-03-01
+  - `contains_topic`, `score_range`, `has_quality_flag`
+- ● 테스트 보강 ✅ 2026-03-01
+  - `tests/test_orchestrator_actions.py` — ActionConfig/FallbackConfig 파싱 검증
+  - `tests/test_orchestrator_expr.py` — 신규 연산자 3종 검증
 
 ### 4.2 Quality Action 등록
 - ● `picko/orchestrator/default_actions.py`에 `quality.verify` 액션 등록 ✅ 2026-03-01
