@@ -184,6 +184,20 @@ class NotificationConfig:
 
 
 @dataclass
+class GenerationConfig:
+    """콘텐츠 생성 설정"""
+
+    auto_validate: bool = True
+
+
+@dataclass
+class DeduplicationConfig:
+    """중복 탐지 설정"""
+
+    embedding_threshold: float = 0.92
+
+
+@dataclass
 class Config:
     """전체 설정"""
 
@@ -197,6 +211,8 @@ class Config:
     processing: ProcessingConfig
     quality: QualityConfig = field(default_factory=QualityConfig)
     notification: NotificationConfig = field(default_factory=NotificationConfig)
+    generation: GenerationConfig = field(default_factory=GenerationConfig)
+    deduplication: DeduplicationConfig = field(default_factory=DeduplicationConfig)
     sources_file: str = "config/sources.yml"
     accounts_dir: str = "config/accounts"
 
@@ -262,9 +278,15 @@ def load_config(config_path: str | Path | None = None) -> Config:
 
     logger.info(f"Loaded config from {config_path}")
 
+    # vault root: 상대 경로면 프로젝트 루트 기준으로 해석 (CI/다중 환경 대응)
+    vault_raw = dict(raw.get("vault", {}))
+    root = vault_raw.get("root", "mock_vault")
+    if not Path(root).is_absolute():
+        vault_raw["root"] = str(PROJECT_ROOT / root)
+
     # 각 섹션별로 dataclass 생성
     return Config(
-        vault=VaultConfig(**raw.get("vault", {})),
+        vault=VaultConfig(**vault_raw),
         llm=LLMConfig(**raw.get("llm", {})),
         summary_llm=SummaryLLMConfig(**raw.get("summary_llm", {})),
         writer_llm=WriterLLMConfig(**raw.get("writer_llm", {})),
@@ -282,6 +304,12 @@ def load_config(config_path: str | Path | None = None) -> Config:
         notification=NotificationConfig(
             provider=raw.get("notification", {}).get("provider", "telegram"),
             review_timeout_hours=raw.get("notification", {}).get("review_timeout_hours", 72),
+        ),
+        generation=GenerationConfig(
+            auto_validate=raw.get("generation", {}).get("auto_validate", True),
+        ),
+        deduplication=DeduplicationConfig(
+            embedding_threshold=raw.get("deduplication", {}).get("embedding_threshold", 0.92),
         ),
         sources_file=raw.get("sources_file", "config/sources.yml"),
         accounts_dir=raw.get("accounts_dir", "config/accounts"),

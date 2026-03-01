@@ -1,6 +1,6 @@
-# Vault 경로
+# Vault 경로 (상대 경로면 프로젝트 루트 기준)
 vault:
-  root: "c:/picko-scripts/mock_vault"
+  root: "mock_vault"
   inbox: "Inbox/Inputs"
   digests: "Inbox/Inputs/_digests"
   content: "Content"
@@ -86,6 +86,14 @@ processing:
   max_retries: 3
   retry_delay_seconds: 5
   request_timeout_seconds: 30
+
+# 생성 설정
+generation:
+  auto_validate: true
+
+# 중복 탐지 설정
+deduplication:
+  embedding_threshold: 0.92
 
 # ─────────────────────────────────────────────────────────────
 # 품질 검증 설정 (007-agentic)
