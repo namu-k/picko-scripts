@@ -59,7 +59,11 @@ class WorkflowEngine:
 
         result = WorkflowResult()
 
-        for step_def in workflow.get("steps", []):
+        steps = list(workflow.get("steps", []))
+        index = 0
+
+        while index < len(steps):
+            step_def = steps[index]
             # batch 섹션이 있으면 배치 처리 사용
             if "batch" in step_def:
                 step_result = self._execute_step_with_batch(step_def)
@@ -70,6 +74,28 @@ class WorkflowEngine:
 
             if not step_result.skipped:
                 self._step_outputs[step_def["name"]] = step_result.outputs
+
+            # Dynamic step insertion (Phase 4 kickoff)
+            # Support both declarative workflow-level dynamic_steps and
+            # action-emitted dynamic_steps from step outputs.
+            output_dynamic_steps = step_result.outputs.get("dynamic_steps", [])
+            declared_dynamic_steps = step_def.get("dynamic_steps", [])
+            dynamic_steps: list[Any] = []
+            if isinstance(declared_dynamic_steps, list):
+                dynamic_steps.extend(declared_dynamic_steps)
+            if isinstance(output_dynamic_steps, list):
+                dynamic_steps.extend(output_dynamic_steps)
+
+            if dynamic_steps:
+                insert_at = index + 1
+                for dyn_step in dynamic_steps:
+                    if isinstance(dyn_step, dict) and dyn_step.get("name") and dyn_step.get("action"):
+                        steps.insert(insert_at, dyn_step)
+                        insert_at += 1
+                    else:
+                        logger.warning(f"Invalid dynamic step emitted by '{step_def['name']}': {dyn_step}")
+
+            index += 1
 
         return result
 
