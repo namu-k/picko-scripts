@@ -181,7 +181,7 @@ def route_by_cross_result(state: QualityState) -> str:
     return "confidence_calc"
 
 
-def build_quality_graph() -> StateGraph[QualityState, None, QualityState, QualityState]:
+def build_quality_graph() -> StateGraph:
     """
     Build the quality verification state machine
 
