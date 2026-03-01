@@ -402,7 +402,9 @@ source: techcrunch  # source_id (sources.yml의 id)
 - ● `tests/test_orchestrator_engine.py` — dynamic steps tests ✅ 2026-03-01
   - test_dynamic_steps_execute_when_condition_true
   - test_dynamic_steps_skip_when_condition_false
-- ○ `picko/orchestrator/actions.py` — `ActionConfig`에 `fallback` 필드 추가
+- ◆ `picko/orchestrator/actions.py` — `ActionConfig`에 `fallback` 필드 추가
+  - `WorkflowEngine` 런타임 fallback 실행 지원 완료 ✅ 2026-03-01
+  - `ActionConfig` 타입 모델 확장만 미완료
 - ○ `picko/orchestrator/expr.py` — 새 연산자: `contains_topic`, `score_range`, `has_quality_flag`
 
 ### 4.2 Quality Action 등록
@@ -413,8 +415,33 @@ source: techcrunch  # source_id (sources.yml의 id)
 - ● `tests/test_orchestrator_default_actions.py` — quality.verify tests ✅ 2026-03-01
   - test_registers_expected_actions (includes quality.verify)
   - test_quality_verify_calls_quality_graph
-- ○ 새 소스 여부 감지 → `enhanced_verification` 모드 자동 적용
-- ○ 검증 완료 후 `collections_remaining` 감소
+- ● 새 소스 여부 감지 → `enhanced_verification` 모드 자동 적용 ✅ 2026-03-01
+- ● 검증 완료 후 `collections_remaining` 감소 ✅ 2026-03-01
+
+### 4.3 Config 확장
+- ● `config/config.yml`에 `quality` 섹션 추가 ✅ 2026-03-01
+  - `quality.enabled: true/false` (롤백 플래그)
+  - `quality.primary.model`, `quality.cross_check.model`
+  - `quality.final.auto_approve_threshold: 0.85`
+  - `quality.feedback.enabled: true`
+- ● `config/config.yml`에 `notification` 섹션 추가 ✅ 2026-03-01
+  - `notification.provider: telegram` (또는 slack)
+  - `notification.review_timeout_hours: 72`
+- ● `picko/config.py` dataclass/loader 확장 (`QualityConfig`, `NotificationConfig`) ✅ 2026-03-01
+
+### 4.4 Example Workflow
+- ● `config/workflows/agentic_pipeline.yml` — 품질 검증 포함 전체 파이프라인 예시 ✅ 2026-03-01
+  - collect → dedup → quality.verify → dynamic_steps(generate/publish)
+
+### 4.5 E2E Tests
+- ● `tests/test_e2e_agentic.py` ✅ 2026-03-01
+  - fallback on fetcher failure
+  - low confidence → pending
+  - high confidence → auto approve
+  - enhanced verification mode E2E
+  - checkpoint thread_id 전달 검증
+- ● `tests/test_workflow_agentic_pipeline.py` ✅ 2026-03-01
+  - workflow 파일 존재/구조 검증
 ---
 
 ## Phase 5: Meta Platforms (P2, 선택)
