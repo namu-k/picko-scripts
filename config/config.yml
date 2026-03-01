@@ -86,3 +86,24 @@ processing:
   max_retries: 3
   retry_delay_seconds: 5
   request_timeout_seconds: 30
+
+# ─────────────────────────────────────────────────────────────
+# 품질 검증 설정 (007-agentic)
+# ─────────────────────────────────────────────────────────────
+quality:
+  enabled: true  # 롤백 플래그: false 시 품질 검증 비활성화
+  primary:
+    model: "gpt-4o-mini"  # 1차 검증용 LLM
+  cross_check:
+    model: "claude-3-5-sonnet-20241022"  # 2차 교차 검증용 LLM (다른 모델 권장)
+  final:
+    auto_approve_threshold: 0.85  # 이 이상 시 자동 승인
+  feedback:
+    enabled: true  # 피드백 루프 활성화
+
+# ─────────────────────────────────────────────────────────────
+# 알림 설정 (007-agentic)
+# ─────────────────────────────────────────────────────────────
+notification:
+  provider: "telegram"  # telegram | slack
+  review_timeout_hours: 72  # 미응답 시 자동 거절 시간
