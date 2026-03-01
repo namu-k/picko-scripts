@@ -4,7 +4,7 @@ Picko는 RSS 피드와 웹 소스에서 콘텐츠를 자동으로 수집하고, 
 
 이 가이드에서는 Picko를 처음 사용하는 분들을 위해 시스템의 개념, 설치 방법, 설정, 그리고 일일 작업 흐름을 상세히 설명합니다.
 
-> **참고**: CLI 코딩 에이전트를 위한 가이드는 [AGENT_GUIDE.md](AGENT_GUIDE.md)를 참조하세요.
+> **참고**: CLI 코딩 에이전트를 위한 가이드는 로컬의 AGENT_GUIDE.md를 참조하세요 (저장소 미포함).
 
 Picko는 RSS 피드와 웹 소스에서 콘텐츠를 자동으로 수집하고, AI를 활용해 다양한 형태의 콘텐츠(블로그 포스트, 소셜 미디어 게시물 등)를 생성하는 콘텐츠 파이프라인 시스템입니다.
 
@@ -1172,7 +1172,7 @@ config/reference_styles/
 - **로그**: `logs/` 디렉토리의 상세 실행 로그
 - **Ollama 공식 문서**: [https://ollama.ai](https://ollama.ai)
 - **Sentence Transformers 문서**: [https://sbert.net](https://sbert.net)
-- **에이전트 가이드**: [AGENT_GUIDE.md](AGENT_GUIDE.md) - CLI 코딩 에이전트용 가이드
+- **에이전트 가이드**: AGENT_GUIDE.md (로컬 참고용, 저장소 미포함)
 
 ---
 

@@ -20,7 +20,7 @@
 
 **정확한 삽입 위치:** `daily_collector.py` line 381 (`item["score_obj"] = score`) 직후
 
-- ○ `scripts/daily_collector.py::_score()` 수정 (line 381 직후)
+- ● `scripts/daily_collector.py::_score()` 수정 (line 381 직후) ✅ 2026-03-01
   - 현재: `should_display()`만 호출 (lines 425, 467)
   - 변경: `should_auto_approve()` / `should_auto_reject()` 추가 호출
   - auto_reject 시: `item["status"] = "rejected"` 설정
@@ -44,16 +44,16 @@ else:
     item.setdefault("writing_status", "pending")
 ```
 
-- ○ `_export()` 에서 `status == "rejected"` 아이템 건너뛰도록 추가 확인
-- ○ 수동 테스트: 고점/저점 아이템으로 auto 동작 확인
-- ○ 로그 기록: auto-approve/reject 사유 (`score.total` 값)
+- ● `_export()` 에서 `status == "rejected"` 아이템 건너뛰기 확인 ✅ 2026-03-01
+- ● 자동 테스트로 high/low score gate 동작 검증 (`tests/test_scoring_auto_gates.py`) ✅ 2026-03-01
+- ● 로그 기록: auto-approve/reject 사유 (`score.total` 값) ✅ 2026-03-01
 ### 0.2 DuplicateChecker Pipeline Integration 🔹 HIGH
 
 **현황:** `scripts/duplicate_checker.py` 가 별도 CLI로서 파이프라인에서 자동 호출되지 않음.
 
 **⚠️ API 확인 필요:** `DuplicateChecker.check_content()` 는 파일 경로를 받으며, embedding은 내부에서 생성합니다.
 
-- ○ `scripts/daily_collector.py::_score()` 또는 `_dedupe()` 에 통합
+- ● `scripts/daily_collector.py::_score()` 에 embedding 기반 중복 탐지 통합 ✅ 2026-03-01
   - 1차 URL 해시 중복 제거 후
   - 2차 Embedding 유사도 검사 추가
   - Threshold: 0.92 이상 시 중복 플래그 또는 건너뜀
@@ -88,14 +88,14 @@ if max_sim >= 0.92:
     continue
 ```
 
-- ○ Config 추가: `config.yml` 에 `deduplication.embedding_threshold: 0.92`
-- ○ 로그: 중복 감지 시 `duplicate_of` ID 기록
-- ○ **추가 작업:** `existing_embeddings` 와 `content_id` 매핑 테이블 필요
+- ● Config 추가: `config.yml` 에 `deduplication.embedding_threshold: 0.92` ✅ 2026-03-02
+- ● 로그: 중복 감지 시 `duplicate_of` ID 기록 ✅ 2026-03-01
+- ● `existing_embeddings` 와 `content_id` 매핑 테이블 구현 (`_load_existing_embeddings_with_ids`) ✅ 2026-03-01
 ### 0.3 Freshness Weight Config 🔹 MEDIUM
 
 **현황:** `scoring.py` 에서 `freshness` 가중치를 코드에서 하드코딩 (0.15)하나 `config.yml` 에 동일 값이 없음.
 
-- ○ `config/config.yml` 에 `scoring.weights.freshness` 추가
+- ● `config/config.yml` 에 `scoring.weights.freshness` 추가 ✅ 2026-03-01
 
 ```yaml
 scoring:
@@ -106,8 +106,8 @@ scoring:
     freshness: 0.15  # ADD THIS
 ```
 
-- ○ 결과: 전체 가중치 합계 1.15로 정규화
-- ○ 상대적으로 가중치 재조정 가능
+- ● 결과: 전체 가중치 합계(1.15) 기준 정규화 적용 (`total_weight`) ✅ 2026-03-01
+- ● 상대 가중치 재조정 가능 구조 유지 ✅ 2026-03-01
 
 ### 0.4 Validation Auto-Run 🔹 MEDIUM
 
@@ -115,7 +115,7 @@ scoring:
 
 **⚠️ API 확인 필요:** `OutputValidator.validate_path()` 는 `ValidationReport` 를 반환하며, 개별 결과는 `report.results[0]` 로 접근해야 함.
 
-- ○ `scripts/generate_content.py` 수정
+- ● `scripts/generate_content.py` 수정 ✅ 2026-03-01
   - `__init__` 에 `self.validator = OutputValidator()` 추가
   - Longform/Packs/Images 생성 후 각각 검증 실행
   - 검증 실패 시 로그 기록 및 results['errors'] 에 추가
@@ -152,13 +152,13 @@ if not self.dry_run:
 # _generate_packs(), _generate_packs_for_channels(), _generate_image_prompt()
 ```
 
-- ○ Config 추가: `generation.auto_validate: true` (켜고 끔 목적)
-- ○ 로그: 검증 실패 사유별 기록
+- ● Config 추가: `generation.auto_validate: true` (켜고 끔 목적) ✅ 2026-03-02
+- ● 로그: 검증 실패 사유별 기록 ✅ 2026-03-01
 ### 0.5 Relevance Normalization Fix 🔹 LOW
 
 **현황:** `scoring._calculate_relevance()` 의 `base = max(2.0, 3.5 - 0.5*matches)` 가 AccountIdentity 필드 수에 따라 점수를 완곡시킨다.
 
-- ○ `picko/scoring.py::_calculate_relevance()` 수정
+- ● `picko/scoring.py::_calculate_relevance()` 수정 ✅ 2026-03-01
   - 현재: 동적 base 계산
   - 변경: 고정 base 사용 (또는 config에서 설정 가능)
 
@@ -171,12 +171,12 @@ FIXED_BASE = 3.0  # 일관된 기준
 # 또는 config에서 로드
 ```
 
-- ○ 단위 테스트: matches 수가 달라도 동일한 점수 범위 보장
+- ◆ 단위 테스트: matches 수가 달라도 동일한 점수 범위 보장 (고정 base 전용 케이스 추가 필요)
 
 ### 0.6 Tests
-- ○ `tests/test_scoring_auto_gates.py` — auto-approve/reject 활성화 테스트
-- ○ `tests/test_collector_dedup.py` — embedding 중복 탐지 통합 테스트
-- ○ `tests/test_generation_validation.py` — 자동 검증 테스트
+- ● `tests/test_scoring_auto_gates.py` — auto-approve/reject 활성화 테스트 ✅ 2026-03-01
+- ● `tests/test_collector_dedup.py` — embedding 중복 탐지 통합 테스트 ✅ 2026-03-01
+- ● `tests/test_generation_validation.py` — 자동 검증 테스트 ✅ 2026-03-01
 ---
 
 ## Pre-Implementation Design Decisions ⚠️
@@ -254,43 +254,43 @@ source: techcrunch  # source_id (sources.yml의 id)
 **공통 인프라 — 다른 모든 Phase의 선행 조건**
 
 ### 1.1 Notification Bot ⬅️ **START HERE**
-- ⬜ `picko/notification/__init__.py`
-- ⬜ `picko/notification/bot.py` — `HumanReviewBot` 클래스
+- ● `picko/notification/__init__.py` ✅ 2026-03-01
+- ● `picko/notification/bot.py` — `HumanReviewBot` 클래스 ✅ 2026-03-01
   - `notify_quality_review(item_id, title, confidence, reason)` → Telegram/Slack 메시지 전송
   - `notify_source_discovered(source_id, handle, platform, score)` → 소스 발견 알림
   - `handle_callback(callback_data)` → 승인/거절 버튼 응답 처리
   - Vault frontmatter 업데이트 (status: approved / rejected)
-- ⬜ 72시간 만료 자동 거절 (`REVIEW_TIMEOUT_HOURS`)
-- ⬜ 재알림 기능 (24h 미응답 시)
-- ⬜ 환경 변수: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (또는 Slack 대응)
+- ● 72시간 만료 자동 거절 (`REVIEW_TIMEOUT_HOURS`) ✅ 2026-03-01
+- ● 재알림 기능 (24h 미응답 시) ✅ 2026-03-01
+- ● 환경 변수: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (또는 Slack 대응) ✅ 2026-03-01
 
 ### 1.2 Human Confirmation Gate
-- ⬜ `picko/discovery/gates.py` — `HumanConfirmationGate` 클래스
+- ● `picko/discovery/gates.py` — `HumanConfirmationGate` 클래스 ✅ 2026-03-01
   - `requires_review(platform, domain, relevance_score) -> bool`
   - 소셜 플랫폼(threads/reddit/mastodon/instagram/facebook/linkedin): 항상 True
   - 신뢰 도메인 RSS + score >= 0.9: False
-- ⬜ `tests/test_gates.py`
+- ● `tests/test_discovery_gates.py` ✅ 2026-03-01
 
 ### 1.3 BaseDiscoveryCollector
-- ⬜ `picko/discovery/__init__.py`
-- ⬜ `picko/discovery/base.py` — `BaseDiscoveryCollector` 추상 클래스
+- ● `picko/discovery/__init__.py` ✅ 2026-03-01
+- ● `picko/discovery/base.py` — `BaseDiscoveryCollector` 추상 클래스 ✅ 2026-03-01
   - `search(keyword: str) -> list[SourceCandidate]`
   - `SourceCandidate` 데이터클래스 (handle, platform, url, relevance_score, metadata)
 
 ### 1.4 SourceMeta 스키마 확장
-- ⬜ `picko/source_manager.py` — `SourceMeta`에 필드 추가:
+- ● `picko/source_manager.py` — `SourceMeta`에 필드 추가 ✅ 2026-03-01:
   - `human_review_required: bool = False`
   - `api_provider: str | None = None`
   - `account_handle: str | None = None`
   - `last_api_sync: str | None = None`
   - `enhanced_verification: dict | None = None`  # {enabled, collections_remaining, elevated_threshold}
-- ⬜ `to_dict()` / `from_dict()` 업데이트
-- ⬜ 기존 V2 필드와 중복 없음 확인
+- ● `to_dict()` / `from_dict()` 업데이트 ✅ 2026-03-01
+- ● 기존 V2 필드와 중복 없음 확인 ✅ 2026-03-01
 
 ### 1.5 Tests
-- ⬜ `tests/test_discovery_gates.py`
-- ⬜ `tests/test_notification_bot.py` (mock Telegram API)
-- ⬜ `tests/test_source_meta_extended.py`
+- ● `tests/test_discovery_gates.py` ✅ 2026-03-01
+- ● `tests/test_notification_bot.py` (mock Telegram API) ✅ 2026-03-01
+- ● `tests/test_source_meta_extended.py` ✅ 2026-03-01
 
 ---
 
@@ -299,32 +299,32 @@ source: techcrunch  # source_id (sources.yml의 id)
 **선행 조건: Phase 1 완료**
 
 ### 2.1 LangGraph 의존성
-- ⬜ `pyproject.toml`에 추가: `langgraph>=0.3.0,<0.4.0`, `langchain-core>=0.3.0,<0.4.0`
-- ⬜ `langgraph-checkpoint-sqlite` 패키지 별도 설치 필요 (0.3.x에서 분리됨)
-- ⬜ `SqliteSaver` 임포트 경로 0.3.x 기준으로 확인
+- ● `pyproject.toml`에 추가: `langgraph>=0.3.0,<0.4.0`, `langchain-core>=0.3.0,<0.4.0` ✅ 2026-03-01
+- ● `langgraph-checkpoint-sqlite` 패키지 의존성 정책 확정: optional `agentic` extra로 분리 (`pip install .[agentic]`) ✅ 2026-03-02
+- ● `SqliteSaver` 임포트 경로 0.3.x 기준으로 확인 ✅ 2026-03-01
 
 ### 2.2 QualityState & Graph
-  - ⬜ `picko/quality/__init__.py`
-  - ⬜ `picko/quality/graph.py` — `QualityState` TypedDict + LangGraph 상태 머신
+  - ● `picko/quality/__init__.py` ✅ 2026-03-01
+  - ● `picko/quality/graph.py` — `QualityState` TypedDict + LangGraph 상태 머신 ✅ 2026-03-01
   - 노드: `primary_validation`, `cross_check`, `external_check`, `confidence_calc`, `human_review`
   - 라우팅: confidence >= 0.9 → approved, 0.7-0.9 → cross_check, < 0.7 → rejected
   - SQLite 체크포인트 (`cache/quality_checkpoints.db`)
   - 강화 검증 모드: `enhanced_verification=True`이면 cross_check 의무화 + 임계값 0.92
 
   ### 2.3 Primary Validator
-  - ⬜ `picko/quality/validators/__init__.py`
-  - ⬜ `picko/quality/validators/primary.py`
+  - ● `picko/quality/validators/__init__.py` ✅ 2026-03-01
+  - ● `picko/quality/validators/primary.py` ✅ 2026-03-01
   - `validate(item: dict) -> dict`
   - 평가 기준: 사실 정확성, 출처 신뢰성, 편향 여부, 가치 제공 (0-10)
   - JSON 파싱 실패 시 fallback: `needs_review`, confidence=0.5
 
 ### 2.4 Cross-Check Validator
-  - ⬜ `picko/quality/validators/cross_check.py`
+  - ● `picko/quality/validators/cross_check.py` ✅ 2026-03-01
   - 1차와 다른 LLM 모델 사용 (GPT ↔ Claude)
   - `agreement` 여부 계산
 
   ### 2.5 Confidence Calculator (정규화 포함)
-  - ⬜ `picko/quality/confidence.py`
+  - ● `picko/quality/confidence.py` ✅ 2026-03-01
   - `calculate_final_confidence(primary, cross_check=None, external=None) -> float`
   - **정규화 로직:** 사용 단계 수에 따라 가중치 자동 재계산
     - primary only: 1.0
@@ -333,20 +333,20 @@ source: techcrunch  # source_id (sources.yml의 id)
   - cross_check 불일치 시 50% 패널티
 
 ### 2.6 Feedback Loop
-  - ⬜ `picko/quality/feedback.py` — `FeedbackLoop` 클래스
+  - ● `picko/quality/feedback.py` — `FeedbackLoop` 클래스 ✅ 2026-03-01
   - `record_feedback(item_id, ai_verdict, human_verdict, ...) → JSONL 기록
   - `get_accuracy_metrics(days=30) -> dict`
 
 ### 2.7 Vault Integration
-- ⬜ 품질 검증 완료 후 Vault frontmatter 업데이트 (`quality`, `job_history`)
-- ⬜ `needs_review` 아이템: Bot 알림 전송 후 `pending` 상태로 보존
+- ● 품질 검증 완료 후 Vault frontmatter 업데이트 (`quality`, `job_history`) ✅ 2026-03-02
+- ● `needs_review` 아이템: Bot 알림 전송 후 `pending` 상태로 보존 ✅ 2026-03-02
 
 ### 2.8 Tests
-- ⬜ `tests/test_quality_graph.py` — 상태 전환, 라우팅
-- ⬜ `tests/test_quality_validators.py` — JSON 파싱, verdict 로직
-- ⬜ `tests/test_quality_confidence.py` — 가중치 정규화 케이스
-- ⬜ `tests/test_quality_feedback.py` — 피드백 기록, 메트릭
-  - ⬜ `tests/test_quality_enhanced_verification.py` — 강화 검증 모드
+- ● `tests/test_quality_graph.py` — 상태 전환, 라우팅 ✅ 2026-03-01
+- ● `tests/test_quality_validators.py` — JSON 파싱, verdict 로직 ✅ 2026-03-01
+- ● `tests/test_quality_confidence.py` — 가중치 정규화 케이스 ✅ 2026-03-01
+- ● `tests/test_quality_feedback.py` — 피드백 기록, 메트릭 ✅ 2026-03-01
+  - ● `tests/test_quality_enhanced_verification.py` — 강화 검증 모드 ✅ 2026-03-01
 
   ---
 
@@ -358,36 +358,35 @@ source: techcrunch  # source_id (sources.yml의 id)
   > 검증 실패 시 Reddit → Mastodon 순서로 먼저 진행.
 
   ### 3.1 Threads Adapter
-- ⬜ `picko/discovery/adapters/__init__.py`
-- ⬜ `picko/discovery/adapters/threads.py` — `ThreadsDiscoveryAdapter`
+- ● `picko/discovery/adapters/__init__.py` ✅ 2026-03-01
+- ◆ `picko/discovery/adapters/threads.py` — `ThreadsDiscoveryAdapter`
   - `search(keyword) -> list[SourceCandidate]`
   - Meta API `/keyword_search` 연동 (500 쿼리/7일 레이트 리밋 준수)
   - API 버전 고정
-- ⬜ 환경 변수: `THREADS_ACCESS_TOKEN`
+- ● 환경 변수: `THREADS_ACCESS_TOKEN` ✅ 2026-03-01
 
   ### 3.2 Reddit Adapter
-  - ⬜ `picko/discovery/adapters/reddit.py` — `RedditDiscoveryAdapter`
+  - ● `picko/discovery/adapters/reddit.py` — `RedditDiscoveryAdapter` ✅ 2026-03-01
   - `/subreddits/search` 연동 (60 요청/분)
   - OAuth 인증
-    - ⬜ 환경 변수: `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`
+    - ● 환경 변수: `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` ✅ 2026-03-01
 
   ### 3.3 Mastodon Adapter
-- ⬜ `picko/discovery/adapters/mastodon.py` — `MastodonDiscoveryAdapter`
+- ● `picko/discovery/adapters/mastodon.py` — `MastodonDiscoveryAdapter` ✅ 2026-03-01
   - `/api/v2/search` 연동 (30 요청/분)
-  - ⬜ 환경 변수: `MASTODON_ACCESS_TOKEN`
+  - ● 환경 변수: `MASTODON_ACCESS_TOKEN` ✅ 2026-03-01
 
   ### 3.4 Discovery Orchestrator
-- ⬜ `picko/discovery/orchestrator.py` — `SourceDiscoveryOrchestrator`
+- ● `picko/discovery/orchestrator.py` — `SourceDiscoveryOrchestrator` ✅ 2026-03-01
   - 여러 어댑터를 순서대로 실행
   - `HumanConfirmationGate` 통과 후 `SourceMeta` 생성
   - `pending` 소스: Vault + sources.yml에 기록, Bot 알림 전송
   - `active` 소스: `enhanced_verification` 플래그 설정 후 sources.yml에 추가
 
 ### 3.5 Tests
-### 3.5 Tests
 - ● `tests/test_adapter_threads.py` (HTTP mock) ✅ 2026-03-01
-- ○ `tests/test_adapter_reddit.py` (HTTP mock)
-- ○ `tests/test_adapter_mastodon.py` (HTTP mock)
+- ● `tests/test_adapter_reddit.py` (HTTP mock) ✅ 2026-03-01
+- ● `tests/test_adapter_mastodon.py` (HTTP mock) ✅ 2026-03-01
 - ● `tests/test_discovery_orchestrator.py` ✅ 2026-03-01
 
 ## Phase 4: Integration (P1)
@@ -464,11 +463,12 @@ source: techcrunch  # source_id (sources.yml의 id)
 
 ## Documentation
 
-- ○ `CLAUDE.md` 업데이트 (새 모듈, 환경 변수)
-- ● `.env.example` 업데이트 (Bot 토큰, Threads/Reddit/Mastodon API 키) ✅ 2026-03-01
+- ● `CLAUDE.md` 업데이트 (새 모듈, 환경 변수) ✅ 2026-03-01
+- ● `.env.example` 업데이트 (Threads/Reddit/Mastodon/Bot 토큰 포함) ✅ 2026-03-01
   - THREADS_ACCESS_TOKEN
   - REDDIT_CLIENT_ID, REDDIT_CLIENT_SECRET
   - MASTODON_ACCESS_TOKEN, MASTODON_INSTANCE
+  - TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, REVIEW_TIMEOUT_HOURS
 - ● `specs/007-agentic-framework/spec.md` ✅ 완료
 ---
 
@@ -548,3 +548,38 @@ REVIEW_TIMEOUT_HOURS=72
 - Phase 4.3: Config expansion (quality section)
 - Phase 4.4: Example workflow YAML
 - Phase 4.5: E2E tests
+
+### 2026-03-01 Session (Status Sync)
+
+**Completed since previous log:**
+- ✅ Phase 4.1 remaining items closed
+  - `ActionConfig`/`FallbackConfig` typed model
+  - expr operators: `contains_topic`, `score_range`, `has_quality_flag`
+- ✅ Phase 0/1/2/3 상태를 코드/테스트 기준으로 재분류
+  - 이미 구현된 항목을 `●`로 정정
+  - 미구현 항목만 `○/◆/⬜` 유지
+
+**Verification snapshot:**
+- Full test suite: `1044 passed`
+
+### 2026-03-02 Session (Required 5 Items Closure)
+
+**Completed:**
+- ✅ `deduplication.embedding_threshold` 구성화 (`config/config.yml`, `picko/config.py`, `scripts/daily_collector.py`)
+- ✅ `generation.auto_validate` 토글 구성화 (`config/config.yml`, `picko/config.py`, `scripts/generate_content.py`)
+- ✅ `quality.verify` 결과 Vault frontmatter 반영 (`quality`, `job_history`) (`picko/orchestrator/default_actions.py`)
+- ✅ `needs_review` 경로에서 Bot 알림 연동 + `pending` 상태 보존 (`picko/orchestrator/default_actions.py`)
+- ✅ `langgraph-checkpoint-sqlite` 정책 명시 (optional dependency group `agentic`) (`pyproject.toml`, `picko/quality/graph.py` 안내 로그)
+
+**Verification snapshot:**
+- Full test suite: `1051 passed`
+
+**True remaining TODOs (non-optional):**
+- `config.yml`: `deduplication.embedding_threshold` 구성화
+- `config.yml`: `generation.auto_validate` 토글 추가
+- 품질 결과 Vault frontmatter (`quality`, `job_history`) 기록 연동
+- `needs_review` → Bot 알림 + `pending` 상태 보존 연동
+- `langgraph-checkpoint-sqlite` 의존성 관리 정책 확정 (필수/선택)
+
+**Optional (Phase 5):**
+- Instagram/Facebook adapters

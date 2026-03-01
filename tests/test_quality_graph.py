@@ -4,7 +4,7 @@ Tests for Quality Graph - LangGraph state machine.
 Tests state transitions, routing logic, and graph compilation.
 """
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from picko.quality.graph import (
     QualityGraph,
@@ -250,18 +250,33 @@ class TestQualityGraph:
         assert qg.checkpoint_path is None
         assert qg.compiled is not None
 
-    @patch("langgraph.checkpoint.sqlite.SqliteSaver.from_conn_string")
-    def test_init_with_checkpoint(self, mock_from_conn_string):
+    def test_init_with_checkpoint(self):
         """QualityGraph should initialize with checkpointing if path provided."""
-        # Import MemorySaver as a valid checkpointer for testing
         from langgraph.checkpoint.memory import MemorySaver
 
-        mock_from_conn_string.return_value = MemorySaver()
+        # Mock SqliteSaver to use MemorySaver for testing
+        fake_sqlite = MagicMock()
+        fake_sqlite.SqliteSaver = MagicMock()
+        fake_sqlite.SqliteSaver.from_conn_string = MagicMock(return_value=MemorySaver())
 
-        qg = QualityGraph(checkpoint_path="cache/test.db")
+        # Patch at the picko.quality.graph module level where the import happens
+        with patch.dict("sys.modules", {"langgraph.checkpoint.sqlite": fake_sqlite}):
+            # Also need to patch the attribute access on langgraph.checkpoint
+            import langgraph.checkpoint
 
-        assert qg.checkpoint_path == "cache/test.db"
-        mock_from_conn_string.assert_called_once_with("cache/test.db")
+            original_checkpoint = langgraph.checkpoint
+            langgraph.checkpoint.sqlite = fake_sqlite
+
+            try:
+                qg = QualityGraph(checkpoint_path="cache/test.db")
+
+                assert qg.checkpoint_path == "cache/test.db"
+                assert qg.compiled is not None
+                fake_sqlite.SqliteSaver.from_conn_string.assert_called_once_with("cache/test.db")
+            finally:
+                # Restore original state
+                if hasattr(original_checkpoint, "sqlite"):
+                    delattr(original_checkpoint, "sqlite")
 
     @patch("picko.quality.validators.primary.PrimaryValidator.validate")
     def test_verify_returns_state(self, mock_validate):

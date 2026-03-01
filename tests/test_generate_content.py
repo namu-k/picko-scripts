@@ -165,8 +165,10 @@ class TestContentGeneratorInit:
     @patch("scripts.generate_content.get_writer_client")
     @patch("scripts.generate_content.get_renderer")
     @patch("scripts.generate_content.get_prompt_loader")
+    @patch("scripts.generate_content.OutputValidator")
     def test_init_default(
         self,
+        mock_validator,
         mock_loader,
         mock_renderer,
         mock_llm,
@@ -188,8 +190,10 @@ class TestContentGeneratorInit:
     @patch("scripts.generate_content.get_writer_client")
     @patch("scripts.generate_content.get_renderer")
     @patch("scripts.generate_content.get_prompt_loader")
+    @patch("scripts.generate_content.OutputValidator")
     def test_init_dry_run(
         self,
+        mock_validator,
         mock_loader,
         mock_renderer,
         mock_llm,

@@ -2,7 +2,7 @@
 """기본 액션 래퍼 테스트"""
 
 from pathlib import Path
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 from picko.orchestrator.actions import ActionRegistry
 from picko.orchestrator.default_actions import _extract_item_id, register_default_actions
@@ -190,6 +190,105 @@ class TestDefaultActions:
         update_kwargs = call_args[1]
         assert "enhanced_verification" in update_kwargs
         assert update_kwargs["enhanced_verification"]["collections_remaining"] == 2
+
+    @patch("picko.vault_io.VaultIO")
+    @patch("picko.quality.graph.QualityGraph")
+    def test_quality_verify_updates_frontmatter_quality_and_job_history(self, MockQualityGraph, MockVaultIO):
+        mock_graph = MagicMock()
+        mock_graph.verify.return_value = {
+            "item_id": "input_abc123",
+            "primary_verdict": "approved",
+            "primary_confidence": 0.91,
+            "primary_scores": {"factual": 9},
+            "primary_reasoning": "Looks good",
+            "primary_flags": [],
+            "cross_check_verdict": None,
+            "cross_check_confidence": None,
+            "cross_check_agreement": None,
+            "final_verdict": "approved",
+            "final_confidence": 0.93,
+            "enhanced_verification": False,
+        }
+        MockQualityGraph.return_value = mock_graph
+
+        mock_vault = MagicMock()
+        mock_vault.read_note.return_value = ({"job_history": []}, "content")
+        MockVaultIO.return_value = mock_vault
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "quality.verify",
+            {
+                "item_id": "input_abc123",
+                "title": "Sample title",
+                "content": "Sample content",
+                "dry_run": False,
+            },
+        )
+
+        assert result.success is True
+        mock_vault.update_frontmatter.assert_called_once()
+        called_path = mock_vault.update_frontmatter.call_args[0][0]
+        called_updates = mock_vault.update_frontmatter.call_args[0][1]
+        assert called_path.endswith("Inbox/Inputs/input_abc123.md")
+        assert called_updates["quality"]["final_verdict"] == "approved"
+        assert called_updates["status"] == "approved"
+        assert called_updates["job_history"][-1]["stage"] == "quality.verify"
+
+    @patch("picko.notification.bot.HumanReviewBot")
+    @patch("picko.vault_io.VaultIO")
+    @patch("picko.quality.graph.QualityGraph")
+    def test_quality_verify_needs_review_notifies_and_preserves_pending(
+        self, MockQualityGraph, MockVaultIO, MockHumanReviewBot
+    ):
+        mock_graph = MagicMock()
+        mock_graph.verify.return_value = {
+            "item_id": "input_pending1",
+            "primary_verdict": "needs_review",
+            "primary_confidence": 0.74,
+            "primary_scores": {},
+            "primary_reasoning": "uncertain facts",
+            "primary_flags": ["fact_check_needed"],
+            "cross_check_verdict": None,
+            "cross_check_confidence": None,
+            "cross_check_agreement": None,
+            "final_verdict": "needs_review",
+            "final_confidence": 0.74,
+            "enhanced_verification": False,
+        }
+        MockQualityGraph.return_value = mock_graph
+
+        mock_vault = MagicMock()
+        mock_vault.read_note.return_value = (
+            {"status": "pending", "job_history": []},
+            "content",
+        )
+        MockVaultIO.return_value = mock_vault
+
+        mock_bot = MagicMock()
+        mock_bot.is_configured.return_value = True
+        mock_bot.notify_quality_review = AsyncMock(return_value=True)
+        MockHumanReviewBot.return_value = mock_bot
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "quality.verify",
+            {
+                "item_id": "input_pending1",
+                "title": "Needs review title",
+                "content": "Needs review content",
+                "dry_run": False,
+            },
+        )
+
+        assert result.success is True
+        called_updates = mock_vault.update_frontmatter.call_args[0][1]
+        assert called_updates["status"] == "pending"
+        mock_bot.notify_quality_review.assert_awaited_once()
 
     @patch("scripts.daily_collector.DailyCollector")
     def test_collector_run_calls_daily_collector(self, MockCollector):

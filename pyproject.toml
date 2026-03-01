@@ -24,6 +24,14 @@ dependencies = [
     "langchain-core>=0.3.0,<0.4.0",
 ]
 [project.optional-dependencies]
+agentic = [
+    # Optional checkpoint backend for QualityGraph
+    # QualityGraph falls back to non-checkpoint mode if this package is absent
+    "langgraph-checkpoint-sqlite",
+    # Human review bot providers
+    "python-telegram-bot>=21.0",
+    "slack-sdk>=3.0",
+]
 dev = [
     "pytest==9.0.2",
     "pytest-cov==7.0.0",

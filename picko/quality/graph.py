@@ -4,7 +4,7 @@ Quality State Machine using LangGraph
 Multi-step quality verification with confidence scoring.
 """
 
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 from langgraph.graph import END, StateGraph
 
@@ -181,7 +181,7 @@ def route_by_cross_result(state: QualityState) -> str:
     return "confidence_calc"
 
 
-def build_quality_graph() -> StateGraph:
+def build_quality_graph() -> StateGraph[QualityState, None, QualityState, QualityState]:
     """
     Build the quality verification state machine
 
@@ -236,16 +236,19 @@ class QualityGraph:
         self.checkpoint_path = checkpoint_path
         self.graph = build_quality_graph()
 
-        # Compile with optional checkpointing
+        # Compile with optional checkpointing (requires langgraph-checkpoint-sqlite)
         if checkpoint_path:
             try:
                 from langgraph.checkpoint.sqlite import SqliteSaver
 
                 self.checkpointer = SqliteSaver.from_conn_string(checkpoint_path)
-                self.compiled = self.graph.compile(checkpointer=self.checkpointer)
+                self.compiled = self.graph.compile(checkpointer=cast(Any, self.checkpointer))
                 logger.info(f"Quality graph compiled with checkpointing: {checkpoint_path}")
-            except ImportError:
-                logger.warning("SqliteSaver not available, running without checkpointing")
+            except (ImportError, AttributeError):
+                logger.warning(
+                    "SqliteSaver not available, running without checkpointing "
+                    "(install optional deps: pip install .[agentic])"
+                )
                 self.compiled = self.graph.compile()
         else:
             self.compiled = self.graph.compile()
@@ -291,10 +294,10 @@ class QualityGraph:
             "feedback_notes": [],
         }
 
-        config = {}
+        invoke_config: Any = None
         if thread_id and self.checkpoint_path:
-            config = {"configurable": {"thread_id": thread_id}}
+            invoke_config = {"configurable": {"thread_id": thread_id}}
 
-        result = self.compiled.invoke(initial_state, config)
+        result = self.compiled.invoke(initial_state, invoke_config)
 
-        return result  # type: ignore[no-any-return]
+        return cast(QualityState, result)

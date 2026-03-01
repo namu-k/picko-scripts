@@ -9,7 +9,23 @@ from unittest.mock import MagicMock
 import pytest
 
 # Add project root to path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+PROJECT_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+
+@pytest.fixture(scope="session", autouse=True)
+def ensure_mock_vault_exists():
+    """실제 config를 쓰는 테스트를 위해 mock_vault 디렉터리를 프로젝트 루트에 생성."""
+    mock_vault = PROJECT_ROOT / "mock_vault"
+    (mock_vault / "Inbox" / "Inputs").mkdir(parents=True, exist_ok=True)
+    (mock_vault / "Inbox" / "Inputs" / "_digests").mkdir(parents=True, exist_ok=True)
+    (mock_vault / "Content" / "Longform").mkdir(parents=True, exist_ok=True)
+    (mock_vault / "Content" / "Packs" / "twitter").mkdir(parents=True, exist_ok=True)
+    (mock_vault / "Content" / "Packs" / "linkedin").mkdir(parents=True, exist_ok=True)
+    (mock_vault / "Content" / "Packs" / "newsletter").mkdir(parents=True, exist_ok=True)
+    (mock_vault / "Assets" / "Images" / "_prompts").mkdir(parents=True, exist_ok=True)
+    (mock_vault / "Logs" / "Publish").mkdir(parents=True, exist_ok=True)
+    (mock_vault / "Archive").mkdir(parents=True, exist_ok=True)
 
 
 @pytest.fixture
@@ -61,7 +77,15 @@ def mock_config(temp_vault_dir):
     config.embedding.cache_dir = str(temp_vault_dir / "cache")
 
     config.scoring.weights = {"novelty": 0.3, "relevance": 0.4, "quality": 0.3}
-    config.scoring.thresholds = {"auto_approve": 0.85, "auto_reject": 0.3, "minimum_display": 0.4}
+    config.scoring.thresholds = {
+        "auto_approve": 0.85,
+        "auto_reject": 0.3,
+        "minimum_display": 0.4,
+    }
+    config.generation.auto_validate = True
+    config.deduplication.embedding_threshold = 0.92
+    config.notification.provider = "telegram"
+    config.notification.review_timeout_hours = 72
 
     return config
 
@@ -77,7 +101,11 @@ def sample_input_data():
         "publish_date": "2026-02-15",
         "collected_at": "2026-02-15T10:00:00",
         "summary": "AI 기술이 빠르게 발전하고 있습니다.",
-        "key_points": ["LLM 모델의 성능 향상", "멀티모달 AI의 등장", "에너지 효율성 개선"],
+        "key_points": [
+            "LLM 모델의 성능 향상",
+            "멀티모달 AI의 등장",
+            "에너지 효율성 개선",
+        ],
         "excerpt": "최근 AI 연구는...",
         "tags": ["AI", "머신러닝", "LLM"],
         "score": {"novelty": 0.85, "relevance": 0.90, "quality": 0.80, "total": 0.855},

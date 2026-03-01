@@ -19,15 +19,16 @@ class TestDuplicateDetection:
         from scripts.daily_collector import DailyCollector
 
         with patch("scripts.daily_collector.get_config", return_value=mock_config):
-            with patch("scripts.daily_collector.get_embedding_manager") as mock_emb:
-                with patch("scripts.daily_collector.get_summary_client"):
-                    with patch("scripts.daily_collector.ContentScorer"):
-                        mock_emb.return_value = MagicMock()
-                        mock_emb.return_value.cosine_similarity = lambda a, b: sum(x * y for x, y in zip(a, b)) / (
-                            sum(x**2 for x in a) ** 0.5 * sum(y**2 for y in b) ** 0.5
-                        )
-                        collector = DailyCollector(dry_run=True)
-                        return collector
+            with patch("scripts.daily_collector.VaultIO"):
+                with patch("scripts.daily_collector.get_embedding_manager") as mock_emb:
+                    with patch("scripts.daily_collector.get_summary_client"):
+                        with patch("scripts.daily_collector.ContentScorer"):
+                            mock_emb.return_value = MagicMock()
+                            mock_emb.return_value.cosine_similarity = lambda a, b: sum(x * y for x, y in zip(a, b)) / (
+                                sum(x**2 for x in a) ** 0.5 * sum(y**2 for y in b) ** 0.5
+                            )
+                            collector = DailyCollector(dry_run=True)
+                            return collector
 
     def test_check_duplicate_no_existing(self, mock_collector):
         """기존 임베딩 없으면 중복 없음"""
@@ -128,6 +129,37 @@ class TestDuplicateDetection:
         # 첫 번째는 중복, 두 번째는 정상
         assert items[0].get("status") == "duplicate"
         assert items[1].get("status") != "duplicate"
+
+    def test_score_respects_configured_duplicate_threshold(self, mock_collector):
+        """중복 임계값 설정이 높으면 동일 임베딩도 중복 처리하지 않음"""
+        mock_collector._existing_embeddings_with_ids = [
+            ("input_existing", [0.5, 0.5, 0.5]),
+        ]
+        mock_collector.scorer = MagicMock()
+        mock_collector.scorer.score.return_value = ContentScore(
+            novelty=0.8,
+            relevance=0.8,
+            quality=0.8,
+            freshness=0.8,
+            total=0.8,
+        )
+        mock_collector.scorer.should_auto_approve.return_value = False
+        mock_collector.scorer.should_auto_reject.return_value = False
+
+        # Hardcode(0.92) 대신 설정값을 사용하면 duplicate가 아니어야 함
+        mock_collector.duplicate_threshold = 1.1
+
+        items = [
+            {
+                "url_hash": "abc123",
+                "title": "Test",
+                "embedding": [0.5, 0.5, 0.5],  # 동일 임베딩(유사도 1.0)
+            }
+        ]
+
+        mock_collector._score(items)
+
+        assert items[0].get("status") != "duplicate"
 
 
 class TestCosineSimilarity:

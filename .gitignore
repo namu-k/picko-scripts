@@ -14,8 +14,11 @@ venv/
 logs/
 *.log
 
-# Claude Code settings (local)
-.claude/settings.local.json
+# Local/tooling (not shared)
+.claude/
+.specify/
+# docs/plans: 계획문서는 로컬만 (docs/ 전체 무시로 이미 제외)
+docs/plans/
 
 # IDE
 .vscode/
@@ -57,11 +60,8 @@ htmlcov/
 .env
 .env.local
 
-# Test content in mock_vault
-mock_vault/Content/
-mock_vault/Inbox/
-mock_vault/Assets/
-mock_vault/config/
+# mock_vault (로컬 테스트/실행용, 저장소 미포함)
+mock_vault/
 .cache/
 .cursor/
 .sisyphus/

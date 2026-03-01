@@ -17,13 +17,14 @@ class TestValidationAutoRun:
         from scripts.generate_content import ContentGenerator
 
         with patch("scripts.generate_content.get_config", return_value=mock_config):
-            with patch("scripts.generate_content.get_writer_client"):
-                with patch("scripts.generate_content.OutputValidator") as mock_validator_class:
-                    mock_validator = MagicMock()
-                    mock_validator_class.return_value = mock_validator
+            with patch("scripts.generate_content.VaultIO"):
+                with patch("scripts.generate_content.get_writer_client"):
+                    with patch("scripts.generate_content.OutputValidator") as mock_validator_class:
+                        mock_validator = MagicMock()
+                        mock_validator_class.return_value = mock_validator
 
-                    generator = ContentGenerator(dry_run=True)
-                    return generator, mock_validator
+                        generator = ContentGenerator(dry_run=True)
+                        return generator, mock_validator
 
     def test_validator_initialized(self, mock_generator):
         """validator가 초기화되어야 함"""
@@ -99,6 +100,33 @@ class TestValidationAutoRun:
         # dry_run=True이므로 실제로는 검증이 실행되지 않음
         # 예외 처리 로직이 있는지만 확인
         assert generator.validator is not None
+
+    def test_run_validation_skips_when_auto_validate_disabled(self, mock_generator):
+        """auto_validate=False면 검증을 수행하지 않아야 함"""
+        generator, mock_validator = mock_generator
+        generator.dry_run = False
+        generator.auto_validate = False
+
+        generator._run_validation_if_enabled("Content/Longform/test.md", "Longform")
+
+        mock_validator.validate_path.assert_not_called()
+
+    def test_run_validation_calls_validator_when_enabled(self, mock_generator):
+        """auto_validate=True면 validate_path를 호출해야 함"""
+        generator, mock_validator = mock_generator
+        generator.dry_run = False
+        generator.auto_validate = True
+
+        mock_result = MagicMock()
+        mock_result.valid = True
+        mock_result.errors = []
+        mock_report = MagicMock()
+        mock_report.results = [mock_result]
+        mock_validator.validate_path.return_value = mock_report
+
+        generator._run_validation_if_enabled("Content/Longform/test.md", "Longform")
+
+        mock_validator.validate_path.assert_called_once_with("Content/Longform/test.md", recursive=False)
 
 
 class TestOutputValidatorIntegration:
