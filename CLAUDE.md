@@ -87,6 +87,18 @@ python -m scripts.simple_rss_collector --hours 24 --max-items 50
 python -m scripts.simple_rss_collector --dry-run
 ```
 
+### Workflow Orchestration (Agentic)
+```bash
+# Run a workflow YAML
+python -m scripts.run_workflow --workflow config/workflows/daily_pipeline.yml
+
+# Run agentic pipeline example
+python -m scripts.run_workflow --workflow config/workflows/agentic_pipeline.yml
+
+# Dry-run mode
+python -m scripts.run_workflow --workflow config/workflows/agentic_pipeline.yml --dry-run
+```
+
 ### Environment Setup
 
 **Requirements**: Python 3.13+
@@ -131,6 +143,19 @@ export OPENAI_API_KEY=your_api_key_here  # macOS/Linux
 - **source_manager.py**: RSS source quality management and curation
 - **proposal_generator.py**: Media proposal generation from content templates
 - **layout_config.py**: Layout preset and theme configuration for multimedia rendering
+- **notification/bot.py**: Human review bot (Telegram/Slack) with timeout/reminder handling
+- **discovery/base.py**: `SourceCandidate` model and `BaseDiscoveryCollector` interface
+- **discovery/gates.py**: Human confirmation gate (social sources always require review)
+- **discovery/orchestrator.py**: Multi-adapter source discovery orchestration and source registration
+- **discovery/adapters/**: Threads, Reddit, Mastodon discovery adapters
+- **quality/graph.py**: LangGraph-based quality state machine (`QualityGraph`, `QualityState`)
+- **quality/confidence.py**: Confidence normalization and verdict thresholds
+- **quality/feedback.py**: Human feedback loop and accuracy metrics
+- **quality/validators/**: Primary and cross-check validators
+- **orchestrator/actions.py**: Action registry + typed action config/fallback config
+- **orchestrator/engine.py**: Workflow engine with dynamic steps and fallback execution
+- **orchestrator/default_actions.py**: Built-in workflow actions (collector/fetcher/nlp/embed/score/generate/publish/quality.verify)
+- **orchestrator/expr.py**: Safe expression evaluator with workflow operators
 
 ### LLM Architecture (Task-Specific)
 
@@ -205,6 +230,9 @@ The multimedia rendering system converts content templates into images/videos:
 #### Phase 4: Multimedia Scripts
 - **render_media.py**: Multimedia rendering pipeline - renders HTML templates to images/videos using Playwright
 
+#### Phase 5: Orchestration & Agentic Scripts
+- **run_workflow.py**: Workflow YAML execution CLI (`WorkflowEngine` + `ActionRegistry`)
+
 ### Configuration Structure
 
 ```
@@ -212,6 +240,12 @@ config/
 ├── config.yml          # Main configuration
 ├── sources.yml         # RSS feed sources and categories
 ├── collectors.yml      # Collector-specific configuration
+├── workflows/          # Orchestration workflow definitions
+│   ├── daily_pipeline.yml
+│   ├── approved_packs.yml
+│   ├── image_generation.yml
+│   ├── twitter_publish.yml
+│   └── agentic_pipeline.yml
 ├── prompts/            # Externalized LLM prompts
 │   ├── longform/
 │   │   ├── default.md
@@ -334,7 +368,11 @@ picko-scripts/
 │   ├── multimedia_io.py     # Multimedia content I/O management
 │   ├── source_manager.py    # Source quality management
 │   ├── proposal_generator.py # Media proposal generation
-│   └── layout_config.py     # Layout preset and theme configuration
+│   ├── layout_config.py     # Layout preset and theme configuration
+│   ├── notification/        # Human review bot
+│   ├── discovery/           # Source discovery subsystem
+│   ├── quality/             # Quality verification subsystem
+│   └── orchestrator/        # Workflow orchestration layer
 ├── scripts/                 # Executable CLI scripts
 │   ├── daily_collector.py   # Main ingestion pipeline
 │   ├── generate_content.py  # Content generation from digests
@@ -349,6 +387,7 @@ picko-scripts/
 │   ├── source_discovery.py  # Automatic source discovery
 │   ├── simple_rss_collector.py  # Standalone RSS collector
 │   ├── render_media.py      # Multimedia rendering pipeline
+│   ├── run_workflow.py      # Workflow orchestrator CLI
 │   ├── engagement_sync.py   # Platform metrics sync (Phase 3)
 │   ├── score_calibrator.py  # Score weight analysis (Phase 3)
 │   ├── duplicate_checker.py # Duplicate detection (Phase 3)
@@ -440,6 +479,15 @@ print(style["tone"])  # Style characteristics
 - `RELAY_API_KEY`: Relay API key (for relay provider)
 - `ANTHROPIC_API_KEY`: Anthropic API key (for anthropic provider)
 
+**Discovery Adapter Variables (optional):**
+- `THREADS_ACCESS_TOKEN`: Threads API token (requires Meta App Review for `/keyword_search`)
+- `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`: Reddit OAuth credentials
+- `MASTODON_ACCESS_TOKEN`, `MASTODON_INSTANCE`: Mastodon API credentials
+
+**Human Review Bot Variables (optional):**
+- `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`: Telegram bot review notifications
+- `REVIEW_TIMEOUT_HOURS`: Review timeout window (default 72)
+
 **Setup via .env file (recommended):**
 ```bash
 # Copy example .env
@@ -449,6 +497,14 @@ cp .env.example .env
 OPENAI_API_KEY=sk-your-key-here
 OPENROUTER_API_KEY=sk-or-your-key-here
 RELAY_API_KEY=your-relay-key-here
+THREADS_ACCESS_TOKEN=your-threads-access-token
+REDDIT_CLIENT_ID=your-reddit-client-id
+REDDIT_CLIENT_SECRET=your-reddit-client-secret
+MASTODON_ACCESS_TOKEN=your-mastodon-access-token
+MASTODON_INSTANCE=mastodon.social
+TELEGRAM_BOT_TOKEN=your-telegram-bot-token
+TELEGRAM_CHAT_ID=your-telegram-chat-id
+REVIEW_TIMEOUT_HOURS=72
 ```
 
 The `.env` file is automatically loaded when the `picko.config` module is imported. Each LLM config section (`summary_llm`, `writer_llm`, `embedding`) has an `api_key_env` field that specifies which environment variable to use.

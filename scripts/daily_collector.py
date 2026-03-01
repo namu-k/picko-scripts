@@ -54,6 +54,7 @@ class DailyCollector:
         self._existing_embeddings_with_ids = None  # 중복 탐지용 (content_id, embedding)
         self.collectors = self._load_collectors()
         self._collectors_config = self._load_collectors_config()
+        self.duplicate_threshold = float(getattr(self.config.deduplication, "embedding_threshold", 0.92))
 
         logger.info(f"DailyCollector initialized for account: {self.account_id}")
 
@@ -371,6 +372,13 @@ class DailyCollector:
 
     def _score(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         """점수 계산"""
+        config_threshold = getattr(
+            getattr(getattr(self, "config", None), "deduplication", None),
+            "embedding_threshold",
+            0.92,
+        )
+        duplicate_threshold = float(getattr(self, "duplicate_threshold", config_threshold))
+
         # 기존 임베딩 로드 (novelty 계산용)
         existing_embeddings = self._load_existing_embeddings()
 
@@ -395,12 +403,13 @@ class DailyCollector:
             # 2차 중복 탐지 (Embedding 유사도)
             if item.get("embedding"):
                 duplicate_of, max_sim = self._check_duplicate(item["embedding"])
-                if max_sim >= 0.92 and duplicate_of:
+                if max_sim >= duplicate_threshold and duplicate_of:
                     item["duplicate_of"] = duplicate_of
                     item["duplicate_similarity"] = max_sim
                     item["status"] = "duplicate"
                     logger.warning(
-                        f"Duplicate detected: {item.get('id', 'unknown')} sim={max_sim:.2f} of {duplicate_of}"
+                        f"Duplicate detected: {item.get('id', 'unknown')} sim={max_sim:.2f} "
+                        f"of {duplicate_of} (threshold={duplicate_threshold:.2f})"
                     )
                     continue  # skip to next item
             if item.get("embedding"):

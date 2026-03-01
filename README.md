@@ -13,6 +13,7 @@ Picko는 다음 작업을 자동화합니다:
 - 🤖 **AI 기반 콘텐츠 분석**: 요약, 핵심 포인트 추출, 태깅
 - 📊 **스마트 점수 매기기**: 참신도, 관련도, 품질 기반 자동 필터링
 - ✍️ **다양한 형식 생성**: 블로그, 트위터, 링크드인, 뉴스레터
+- 🔁 **에이전틱 워크플로우**: 동적 단계(`dynamic_steps`), fallback, 품질 검증(`quality.verify`)
 - 📝 **Obsidian 통합**: 마크다운 기반 콘텐츠 관리
 
 ## 🚀 빠른 시작
@@ -181,6 +182,21 @@ python -m scripts.simple_rss_collector -o ./output -c config/sources.yml
 # 최근 24시간만 수집
 python -m scripts.simple_rss_collector --hours 24 --max-items 50
 ```
+
+### 에이전틱 워크플로우 실행
+
+```bash
+# 워크플로우 실행
+python -m scripts.run_workflow --workflow config/workflows/daily_pipeline.yml
+
+# Agentic 예시 워크플로우 실행
+python -m scripts.run_workflow --workflow config/workflows/agentic_pipeline.yml
+
+# Dry-run 모드
+python -m scripts.run_workflow --workflow config/workflows/agentic_pipeline.yml --dry-run
+```
+
+> `config/workflows/agentic_pipeline.yml`은 collect → dedup → quality.verify → dynamic steps 흐름 예시를 포함합니다.
 
 ### Phase 3: 성과 분석 (선택)
 

@@ -8,7 +8,9 @@ from pathlib import Path
 import pytest
 
 from picko.config import (
+    DeduplicationConfig,
     EmbeddingConfig,
+    GenerationConfig,
     LLMConfig,
     NotificationConfig,
     QualityConfig,
@@ -129,6 +131,14 @@ class TestAgenticConfig:
         assert config.provider == "telegram"
         assert config.review_timeout_hours == 72
 
+    def test_generation_config_defaults(self):
+        config = GenerationConfig()
+        assert config.auto_validate is True
+
+    def test_deduplication_config_defaults(self):
+        config = DeduplicationConfig()
+        assert config.embedding_threshold == 0.92
+
 
 class TestOpenRouterConfig:
     """OpenRouter config tests"""
@@ -231,6 +241,12 @@ quality:
 notification:
   provider: "telegram"
   review_timeout_hours: 72
+
+generation:
+  auto_validate: true
+
+deduplication:
+  embedding_threshold: 0.92
 """
         config_file = tmp_path / "config.yml"
         config_file.write_text(config_content)
@@ -249,6 +265,8 @@ notification:
         assert config.quality.feedback_enabled is True
         assert config.notification.provider == "telegram"
         assert config.notification.review_timeout_hours == 72
+        assert config.generation.auto_validate is True
+        assert config.deduplication.embedding_threshold == 0.92
 
     def test_load_config_file_not_found(self):
         """존재하지 않는 config.yml"""

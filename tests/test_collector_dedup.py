@@ -129,6 +129,37 @@ class TestDuplicateDetection:
         assert items[0].get("status") == "duplicate"
         assert items[1].get("status") != "duplicate"
 
+    def test_score_respects_configured_duplicate_threshold(self, mock_collector):
+        """중복 임계값 설정이 높으면 동일 임베딩도 중복 처리하지 않음"""
+        mock_collector._existing_embeddings_with_ids = [
+            ("input_existing", [0.5, 0.5, 0.5]),
+        ]
+        mock_collector.scorer = MagicMock()
+        mock_collector.scorer.score.return_value = ContentScore(
+            novelty=0.8,
+            relevance=0.8,
+            quality=0.8,
+            freshness=0.8,
+            total=0.8,
+        )
+        mock_collector.scorer.should_auto_approve.return_value = False
+        mock_collector.scorer.should_auto_reject.return_value = False
+
+        # Hardcode(0.92) 대신 설정값을 사용하면 duplicate가 아니어야 함
+        mock_collector.duplicate_threshold = 1.1
+
+        items = [
+            {
+                "url_hash": "abc123",
+                "title": "Test",
+                "embedding": [0.5, 0.5, 0.5],  # 동일 임베딩(유사도 1.0)
+            }
+        ]
+
+        mock_collector._score(items)
+
+        assert items[0].get("status") != "duplicate"
+
 
 class TestCosineSimilarity:
     """Cosine similarity calculation tests"""

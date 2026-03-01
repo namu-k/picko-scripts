@@ -2,11 +2,26 @@
 
 ## Overview
 
-Picko를 에이전틱 워크플로우로 변환하는 두 개의 독립적인 하위 시스템 구현.
+Picko를 에이전틱 워크플로우로 변환하는 두 개의 독립적인 하위 시스템 설계 및 구현.
 
 **상세 설계 문서:**
 - [agentic-framework-spec.md](../../docs/plans/2026-02-28-agentic-framework-spec.md) — 비즈니스 요구사항 & 아키텍처
 - [hybrid-agentic-pipeline-design.md](../../docs/plans/2026-02-28-hybrid-agentic-pipeline-design.md) — 기술 구현 상세
+
+---
+
+## Current Status (2026-03-01)
+
+- **Phase 4 (Integration)**: 4.1~4.5 구현 완료
+- **Foundation/Quality/Discovery**: 핵심 모듈 및 테스트 대부분 구현 완료
+- **남은 핵심 작업**
+  - `config.yml` deduplication/auto_validate 구성화
+  - Quality 결과의 Vault frontmatter(`quality`, `job_history`) 반영
+  - `needs_review` Bot 알림 + `pending` 상태 보존 연동
+  - `.env.example` Bot 토큰 항목 추가
+  - `langgraph-checkpoint-sqlite` 의존성 정책 확정
+
+상세 진행 상태는 `tasks.md`를 기준으로 유지합니다.
 
 ---
 

@@ -81,6 +81,7 @@ class ContentGenerator:
         self.dry_run = dry_run
         self.weekly_slot = weekly_slot
         self.validator = OutputValidator()  # 자동 검증용
+        self.auto_validate = bool(getattr(self.config.generation, "auto_validate", True))
         logger.info("ContentGenerator initialized")
 
     def run(
@@ -535,17 +536,7 @@ class ContentGenerator:
             self.vault.write_note(output_path, body, metadata=meta, overwrite=True)
             logger.info(f"Created longform: {output_path}")
 
-            # 자동 검증
-            try:
-                report = self.validator.validate_path(output_path, recursive=False)
-                if report.results:
-                    result = report.results[0]
-                    if not result.valid:
-                        logger.error(f"Longform validation FAILED: {result.errors}")
-                    else:
-                        logger.info(f"Longform validation passed: {output_path}")
-            except Exception as e:
-                logger.warning(f"Validation error: {e}")
+            self._run_validation_if_enabled(output_path, "Longform")
 
         return True
 
@@ -570,6 +561,32 @@ class ContentGenerator:
             sections[current_section] = "\n".join(current_content).strip()
 
         return sections
+
+    def _run_validation_if_enabled(self, output_path: str, content_type: str) -> None:
+        """설정 기반 자동 검증 실행"""
+        if self.dry_run:
+            return
+
+        auto_validate = bool(getattr(self, "auto_validate", True))
+        if not auto_validate:
+            logger.debug(f"Auto validation disabled, skipping: {output_path}")
+            return
+
+        validator = getattr(self, "validator", None)
+        if validator is None:
+            logger.debug(f"Validator not configured, skipping: {output_path}")
+            return
+
+        try:
+            report = validator.validate_path(output_path, recursive=False)
+            if report.results:
+                result = report.results[0]
+                if not result.valid:
+                    logger.error(f"{content_type} validation FAILED: {result.errors}")
+                else:
+                    logger.debug(f"{content_type} validation passed: {output_path}")
+        except Exception as e:
+            logger.warning(f"{content_type} validation error: {e}")
 
     def _generate_packs(self, item: dict[str, Any], input_content: dict[str, Any]) -> int:
         """채널별 패키징 콘텐츠 생성"""
@@ -670,17 +687,7 @@ class ContentGenerator:
             self.vault.write_note(output_path, body, metadata=meta, overwrite=True)
             logger.info(f"Created image prompt: {output_path}")
 
-            # 자동 검증
-            try:
-                report = self.validator.validate_path(output_path, recursive=False)
-                if report.results:
-                    result = report.results[0]
-                    if not result.valid:
-                        logger.error(f"Image prompt validation FAILED: {result.errors}")
-                    else:
-                        logger.debug(f"Image prompt validation passed: {output_path}")
-            except Exception as e:
-                logger.warning(f"Image prompt validation error: {e}")
+            self._run_validation_if_enabled(output_path, "Image prompt")
 
         return True
 
@@ -858,17 +865,7 @@ class ContentGenerator:
                     self.vault.write_note(output_path, body, metadata=meta, overwrite=True)
                     logger.info(f"Created pack: {output_path}")
 
-                    # 자동 검증
-                    try:
-                        report = self.validator.validate_path(output_path, recursive=False)
-                        if report.results:
-                            result = report.results[0]
-                            if not result.valid:
-                                logger.error(f"Pack validation FAILED: {result.errors}")
-                            else:
-                                logger.debug(f"Pack validation passed: {output_path}")
-                    except Exception as e:
-                        logger.warning(f"Pack validation error: {e}")
+                    self._run_validation_if_enabled(output_path, "Pack")
 
                 created_count += 1  # Increment count after successful creation
 

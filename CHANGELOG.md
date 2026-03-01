@@ -52,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Agentic Framework (007) follow-ups**:
+  - `picko/orchestrator/actions.py`: typed `ActionConfig`/`FallbackConfig`
+  - `picko/orchestrator/expr.py`: `contains_topic`, `score_range`, `has_quality_flag` operators
+  - `tests/test_orchestrator_actions.py`: ActionConfig/FallbackConfig parsing tests
+  - `tests/test_orchestrator_expr.py`: new expression operator tests
 - **Tests** (Phase 2 utility scripts):
   - `test_archive_manager.py`: Archive operations and cleanup tests
   - `test_duplicate_checker.py`: Embedding-based duplicate detection tests
@@ -67,6 +72,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Extended test coverage for collectors, daily_collector, embedding, engagement_sync, generate_content, publisher, render_media, scheduler, source_discovery, validate_output
 - Hardened `.gitignore` to exclude local artifacts (`NUL`, `C*picko-scripts.sisyphus*`, `.ruff_cache/`)
+- Documentation synced to current 007 implementation state:
+  - `specs/007-agentic-framework/tasks.md` status realignment (implemented vs remaining)
+  - `specs/007-agentic-framework/plan.md` and `specs/007-agentic-framework/spec.md` status snapshot updates
+  - `README.md` agentic workflow execution examples
 
 ### Fixed
 - Aligned `specs/006-multimedia-styles/tasks.md` with plan.md (path references, cache metadata, mock annotations)

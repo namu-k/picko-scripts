@@ -61,7 +61,15 @@ def mock_config(temp_vault_dir):
     config.embedding.cache_dir = str(temp_vault_dir / "cache")
 
     config.scoring.weights = {"novelty": 0.3, "relevance": 0.4, "quality": 0.3}
-    config.scoring.thresholds = {"auto_approve": 0.85, "auto_reject": 0.3, "minimum_display": 0.4}
+    config.scoring.thresholds = {
+        "auto_approve": 0.85,
+        "auto_reject": 0.3,
+        "minimum_display": 0.4,
+    }
+    config.generation.auto_validate = True
+    config.deduplication.embedding_threshold = 0.92
+    config.notification.provider = "telegram"
+    config.notification.review_timeout_hours = 72
 
     return config
 
@@ -77,7 +85,11 @@ def sample_input_data():
         "publish_date": "2026-02-15",
         "collected_at": "2026-02-15T10:00:00",
         "summary": "AI 기술이 빠르게 발전하고 있습니다.",
-        "key_points": ["LLM 모델의 성능 향상", "멀티모달 AI의 등장", "에너지 효율성 개선"],
+        "key_points": [
+            "LLM 모델의 성능 향상",
+            "멀티모달 AI의 등장",
+            "에너지 효율성 개선",
+        ],
         "excerpt": "최근 AI 연구는...",
         "tags": ["AI", "머신러닝", "LLM"],
         "score": {"novelty": 0.85, "relevance": 0.90, "quality": 0.80, "total": 0.855},
