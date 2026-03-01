@@ -19,6 +19,41 @@ class TestDefaultActions:
         assert "renderer.run" in actions
         assert "publisher.run" in actions
         assert "engagement.sync" in actions
+        assert "quality.verify" in actions
+
+    @patch("picko.quality.graph.QualityGraph")
+    def test_quality_verify_calls_quality_graph(self, MockQualityGraph):
+        mock_graph = MagicMock()
+        mock_graph.verify.return_value = {
+            "item_id": "item_1",
+            "final_verdict": "approved",
+            "final_confidence": 0.93,
+        }
+        MockQualityGraph.return_value = mock_graph
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "quality.verify",
+            {
+                "item_id": "item_1",
+                "title": "Sample title",
+                "content": "Sample content",
+                "enhanced_verification": True,
+                "thread_id": "thread-item-1",
+            },
+        )
+
+        assert result.success is True
+        assert result.outputs["result"]["final_verdict"] == "approved"
+        mock_graph.verify.assert_called_once_with(
+            item_id="item_1",
+            title="Sample title",
+            content="Sample content",
+            enhanced_verification=True,
+            thread_id="thread-item-1",
+        )
 
     @patch("scripts.daily_collector.DailyCollector")
     def test_collector_run_calls_daily_collector(self, MockCollector):

@@ -144,3 +144,80 @@ class TestWorkflowEngine:
         assert order == ["a", "b"]
         assert len(result.step_results) == 2
         assert all(r.success for r in result.step_results)
+
+    def test_dynamic_steps_execute_when_condition_true(self, tmp_path):
+        registry = ActionRegistry()
+        calls: list[str] = []
+
+        def base_action(**kwargs):
+            calls.append("base")
+            return ActionResult(success=True, outputs={"ok": True})
+
+        def dynamic_action(**kwargs):
+            calls.append("dynamic")
+            return ActionResult(success=True, outputs={"ran": True})
+
+        registry.register("base.run", base_action)
+        registry.register("dynamic.run", dynamic_action)
+
+        workflow_path = self._write_workflow(
+            tmp_path,
+            [
+                {
+                    "name": "base_step",
+                    "action": "base.run",
+                    "dynamic_steps": [
+                        {
+                            "name": "dyn_step",
+                            "action": "dynamic.run",
+                            "condition": "${{ steps.base_step.outputs.ok }}",
+                        }
+                    ],
+                }
+            ],
+        )
+
+        engine = WorkflowEngine(vault_adapter=None, action_registry=registry)
+        result = engine.run(workflow_path)
+
+        assert [r.name for r in result.step_results] == ["base_step", "dyn_step"]
+        assert calls == ["base", "dynamic"]
+
+    def test_dynamic_steps_skip_when_condition_false(self, tmp_path):
+        registry = ActionRegistry()
+        calls: list[str] = []
+
+        def base_action(**kwargs):
+            calls.append("base")
+            return ActionResult(success=True)
+
+        def dynamic_action(**kwargs):
+            calls.append("dynamic")
+            return ActionResult(success=True)
+
+        registry.register("base.run", base_action)
+        registry.register("dynamic.run", dynamic_action)
+
+        workflow_path = self._write_workflow(
+            tmp_path,
+            [
+                {
+                    "name": "base_step",
+                    "action": "base.run",
+                    "dynamic_steps": [
+                        {
+                            "name": "dyn_step",
+                            "action": "dynamic.run",
+                            "condition": "${{ steps.base_step.outputs.missing }}",
+                        }
+                    ],
+                }
+            ],
+        )
+
+        engine = WorkflowEngine(vault_adapter=None, action_registry=registry)
+        result = engine.run(workflow_path)
+
+        assert [r.name for r in result.step_results] == ["base_step", "dyn_step"]
+        assert result.step_results[1].skipped is True
+        assert calls == ["base"]
