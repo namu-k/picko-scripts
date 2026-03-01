@@ -1092,6 +1092,13 @@ class TestGenerationAndApprovalPaths:
         generator._prepare_weekly_context = MagicMock(return_value=None)
         generator.dry_run = False
 
+        # Properly mock the validator with correct return structure
+        mock_report = MagicMock()
+        mock_report.results = []  # Empty results means no validation errors
+        mock_validator = MagicMock()
+        mock_validator.validate_path.return_value = mock_report
+        generator.validator = mock_validator
+
         created = generator._generate_packs_for_channels(
             {"input_id": "x", "account_id": "socialbuilders"},
             {"tags": ["a"]},

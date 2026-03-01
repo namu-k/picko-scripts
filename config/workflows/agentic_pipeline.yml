@@ -1,0 +1,38 @@
+name: agentic_pipeline
+description: Source discovery to quality verification and publish
+
+steps:
+  - name: collect_candidates
+    action: collector.run
+    args:
+      account: socialbuilders
+
+  - name: dedup_candidates
+    action: embedding.check_duplicate
+    args:
+      source: "${{ steps.collect_candidates.outputs.items }}"
+      threshold: 0.9
+
+  - name: verify_quality
+    action: quality.verify
+    args:
+      account: socialbuilders
+      items: "${{ steps.collect_candidates.outputs.items }}"
+      threshold: 0.85
+    dynamic_steps:
+      - name: generate_longform
+        action: generator.run
+        args:
+          account: socialbuilders
+          type: longform
+          items: "${{ steps.verify_quality.outputs.verified }}"
+        condition: "${{ steps.verify_quality.outputs.verified }}"
+
+      - name: publish_twitter
+        action: publisher.run
+        args:
+          account: socialbuilders
+          source_path: Content/Packs/twitter
+          filter: derivative_status=approved
+          publish_platform: twitter
+        condition: "${{ steps.verify_quality.outputs.verified }}"

@@ -19,6 +19,177 @@ class TestDefaultActions:
         assert "renderer.run" in actions
         assert "publisher.run" in actions
         assert "engagement.sync" in actions
+        assert "quality.verify" in actions
+
+    @patch("picko.quality.graph.QualityGraph")
+    def test_quality_verify_calls_quality_graph(self, MockQualityGraph):
+        mock_graph = MagicMock()
+        mock_graph.verify.return_value = {
+            "item_id": "item_1",
+            "final_verdict": "approved",
+            "final_confidence": 0.93,
+        }
+        MockQualityGraph.return_value = mock_graph
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "quality.verify",
+            {
+                "item_id": "item_1",
+                "title": "Sample title",
+                "content": "Sample content",
+                "enhanced_verification": True,
+                "thread_id": "thread-item-1",
+            },
+        )
+
+        assert result.success is True
+        assert result.outputs["result"]["final_verdict"] == "approved"
+        mock_graph.verify.assert_called_once_with(
+            item_id="item_1",
+            title="Sample title",
+            content="Sample content",
+            enhanced_verification=True,
+            thread_id="thread-item-1",
+        )
+
+    @patch("picko.source_manager.SourceManager")
+    @patch("picko.quality.graph.QualityGraph")
+    def test_quality_verify_auto_enhanced_for_new_source(self, MockQualityGraph, MockSourceManager):
+        """New source (auto_discovered && collected_count < 5) should auto-enable enhanced_verification."""
+        # Setup mock source manager
+        mock_source = MagicMock()
+        mock_source.auto_discovered = True
+        mock_source.collected_count = 2
+        mock_source.enhanced_verification = {
+            "enabled": True,
+            "collections_remaining": 3,
+        }
+
+        mock_manager = MagicMock()
+        mock_manager.get_by_id.return_value = mock_source
+        MockSourceManager.return_value = mock_manager
+
+        # Setup mock quality graph
+        mock_graph = MagicMock()
+        mock_graph.verify.return_value = {
+            "item_id": "item_1",
+            "final_verdict": "approved",
+            "final_confidence": 0.95,
+        }
+        MockQualityGraph.return_value = mock_graph
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "quality.verify",
+            {
+                "item_id": "item_1",
+                "source_id": "new_source_123",
+                "title": "Test title",
+                "content": "Test content",
+            },
+        )
+
+        assert result.success is True
+        # Verify enhanced_verification was auto-enabled
+        mock_graph.verify.assert_called_once()
+        call_kwargs = mock_graph.verify.call_args[1]
+        assert call_kwargs["enhanced_verification"] is True
+
+    @patch("picko.source_manager.SourceManager")
+    @patch("picko.quality.graph.QualityGraph")
+    def test_quality_verify_no_auto_enhanced_for_established_source(self, MockQualityGraph, MockSourceManager):
+        """Established source (collected_count >= 5) should not auto-enable enhanced_verification."""
+        # Setup mock source manager
+        mock_source = MagicMock()
+        mock_source.auto_discovered = True
+        mock_source.collected_count = 10  # Established source
+        mock_source.enhanced_verification = None
+
+        mock_manager = MagicMock()
+        mock_manager.get_by_id.return_value = mock_source
+        MockSourceManager.return_value = mock_manager
+
+        # Setup mock quality graph
+        mock_graph = MagicMock()
+        mock_graph.verify.return_value = {
+            "item_id": "item_1",
+            "final_verdict": "approved",
+            "final_confidence": 0.95,
+        }
+        MockQualityGraph.return_value = mock_graph
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "quality.verify",
+            {
+                "item_id": "item_1",
+                "source_id": "established_source",
+                "title": "Test title",
+                "content": "Test content",
+            },
+        )
+
+        assert result.success is True
+        # Verify enhanced_verification was NOT auto-enabled
+        mock_graph.verify.assert_called_once()
+        call_kwargs = mock_graph.verify.call_args[1]
+        assert call_kwargs["enhanced_verification"] is False
+
+    @patch("picko.source_manager.SourceManager")
+    @patch("picko.quality.graph.QualityGraph")
+    def test_quality_verify_decrements_collections_remaining(self, MockQualityGraph, MockSourceManager):
+        """After verification, collections_remaining should be decremented."""
+        # Setup mock source manager
+        mock_source = MagicMock()
+        mock_source.auto_discovered = True
+        mock_source.collected_count = 2
+        mock_source.enhanced_verification = {
+            "enabled": True,
+            "collections_remaining": 3,
+        }
+
+        mock_manager = MagicMock()
+        mock_manager.get_by_id.return_value = mock_source
+        MockSourceManager.return_value = mock_manager
+
+        # Setup mock quality graph
+        mock_graph = MagicMock()
+        mock_graph.verify.return_value = {
+            "item_id": "item_1",
+            "final_verdict": "approved",
+            "final_confidence": 0.95,
+        }
+        MockQualityGraph.return_value = mock_graph
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "quality.verify",
+            {
+                "item_id": "item_1",
+                "source_id": "new_source_123",
+                "title": "Test title",
+                "content": "Test content",
+            },
+        )
+
+        assert result.success is True
+        # Verify update_stats was called to decrement collections_remaining
+        mock_manager.update_stats.assert_called_once()
+        call_args = mock_manager.update_stats.call_args
+        assert call_args[0][0] == "new_source_123"  # source_id
+        # Check that enhanced_verification was updated with decremented count
+        update_kwargs = call_args[1]
+        assert "enhanced_verification" in update_kwargs
+        assert update_kwargs["enhanced_verification"]["collections_remaining"] == 2
 
     @patch("scripts.daily_collector.DailyCollector")
     def test_collector_run_calls_daily_collector(self, MockCollector):

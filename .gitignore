@@ -65,6 +65,12 @@ mock_vault/config/
 .cache/
 .cursor/
 .sisyphus/
+# Plan documents (계획문서)
+**/plan.md
+**/plans/
+implementation_plan.md
+task.md
+
 # Docs (evaluation and market analysis kept local)
 docs/
 docs/evaluation_0226.md

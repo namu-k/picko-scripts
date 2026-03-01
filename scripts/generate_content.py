@@ -16,6 +16,7 @@ from picko.prompt_composer import get_effective_prompt
 from picko.prompt_loader import get_prompt_loader
 from picko.templates import get_renderer
 from picko.vault_io import VaultIO
+from scripts.validate_output import OutputValidator
 
 logger = setup_logger("generate_content")
 
@@ -79,7 +80,7 @@ class ContentGenerator:
         self.prompt_loader = get_prompt_loader()
         self.dry_run = dry_run
         self.weekly_slot = weekly_slot
-
+        self.validator = OutputValidator()  # 자동 검증용
         logger.info("ContentGenerator initialized")
 
     def run(
@@ -534,6 +535,18 @@ class ContentGenerator:
             self.vault.write_note(output_path, body, metadata=meta, overwrite=True)
             logger.info(f"Created longform: {output_path}")
 
+            # 자동 검증
+            try:
+                report = self.validator.validate_path(output_path, recursive=False)
+                if report.results:
+                    result = report.results[0]
+                    if not result.valid:
+                        logger.error(f"Longform validation FAILED: {result.errors}")
+                    else:
+                        logger.info(f"Longform validation passed: {output_path}")
+            except Exception as e:
+                logger.warning(f"Validation error: {e}")
+
         return True
 
     def _parse_generated_sections(self, text: str) -> dict[str, Any]:
@@ -657,11 +670,22 @@ class ContentGenerator:
             self.vault.write_note(output_path, body, metadata=meta, overwrite=True)
             logger.info(f"Created image prompt: {output_path}")
 
+            # 자동 검증
+            try:
+                report = self.validator.validate_path(output_path, recursive=False)
+                if report.results:
+                    result = report.results[0]
+                    if not result.valid:
+                        logger.error(f"Image prompt validation FAILED: {result.errors}")
+                    else:
+                        logger.debug(f"Image prompt validation passed: {output_path}")
+            except Exception as e:
+                logger.warning(f"Image prompt validation error: {e}")
+
         return True
 
     def _generate_packs_with_approval(self, item: dict[str, Any], input_content: dict[str, Any]) -> int:
         """파생 승인 확인 후 팩 생성"""
-        # 롱폼 노트에서 파생 승인 상태 확인
         derivative_status = self._check_derivative_approval(item["input_id"])
 
         if derivative_status.get("status") != "approved":
@@ -834,7 +858,19 @@ class ContentGenerator:
                     self.vault.write_note(output_path, body, metadata=meta, overwrite=True)
                     logger.info(f"Created pack: {output_path}")
 
-                created_count += 1
+                    # 자동 검증
+                    try:
+                        report = self.validator.validate_path(output_path, recursive=False)
+                        if report.results:
+                            result = report.results[0]
+                            if not result.valid:
+                                logger.error(f"Pack validation FAILED: {result.errors}")
+                            else:
+                                logger.debug(f"Pack validation passed: {output_path}")
+                    except Exception as e:
+                        logger.warning(f"Pack validation error: {e}")
+
+                created_count += 1  # Increment count after successful creation
 
             except Exception as e:
                 logger.warning(f"Failed to create {channel} pack: {e}")
