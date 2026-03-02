@@ -4,15 +4,20 @@ Human Review Bot for Telegram/Slack notifications
 Provides async human review workflow for quality verification and source discovery.
 """
 
+import json
 import os
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta
 from enum import Enum
+from pathlib import Path
 from typing import Any
 
 from picko.logger import get_logger
 
 logger = get_logger("notification")
+
+# Default cache directory for pending reviews persistence
+DEFAULT_CACHE_DIR = Path("cache")
 
 
 class ReviewType(Enum):
@@ -34,22 +39,50 @@ class ReviewRequest:
     created_at: datetime
     metadata: dict[str, Any] | None = None
 
+    def to_dict(self) -> dict[str, Any]:
+        """Convert to dictionary for JSON serialization"""
+        return {
+            "item_id": self.item_id,
+            "review_type": self.review_type.value,
+            "title": self.title,
+            "confidence": self.confidence,
+            "reason": self.reason,
+            "created_at": self.created_at.isoformat(),
+            "metadata": self.metadata,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "ReviewRequest":
+        """Create from dictionary (JSON deserialization)"""
+        return cls(
+            item_id=data["item_id"],
+            review_type=ReviewType(data["review_type"]),
+            title=data["title"],
+            confidence=data["confidence"],
+            reason=data["reason"],
+            created_at=datetime.fromisoformat(data["created_at"]),
+            metadata=data.get("metadata"),
+        )
+
 
 class HumanReviewBot:
     """
     Telegram/Slack을 통한 비동기 Human Review 처리
 
     Polling 방식으로 동작하며, 파이프라인과 독립적으로 실행됩니다.
+    Pending reviews are persisted to JSON file to survive restarts.
     """
 
     DEFAULT_TIMEOUT_HOURS = 72
     DEFAULT_REMINDER_HOURS = 24
+    PENDING_REVIEWS_FILE = "pending_reviews.json"
 
     def __init__(
         self,
         provider: str | None = None,
         timeout_hours: int | None = None,
         reminder_hours: int | None = None,
+        cache_dir: Path | str | None = None,
     ):
         """
         Initialize HumanReviewBot
@@ -58,12 +91,17 @@ class HumanReviewBot:
             provider: "telegram" or "slack" (default: from env NOTIFICATION_PROVIDER)
             timeout_hours: 리뷰 만료 시간 (default: 72)
             reminder_hours: 재알림 간격 (default: 24)
+            cache_dir: 캐시 디렉토리 (default: cache/)
         """
         self.provider = provider or os.getenv("NOTIFICATION_PROVIDER", "telegram")
         self.timeout_hours = timeout_hours or int(os.getenv("REVIEW_TIMEOUT_HOURS", str(self.DEFAULT_TIMEOUT_HOURS)))
         self.reminder_hours = reminder_hours or int(
             os.getenv("REVIEW_REMINDER_HOURS", str(self.DEFAULT_REMINDER_HOURS))
         )
+
+        # Cache directory for persistence
+        self.cache_dir = Path(cache_dir) if cache_dir else DEFAULT_CACHE_DIR
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
 
         # Telegram credentials
         self.telegram_token = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -73,15 +111,54 @@ class HumanReviewBot:
         self.slack_token = os.getenv("SLACK_BOT_TOKEN")
         self.slack_channel = os.getenv("SLACK_CHANNEL_ID")
 
-        # Pending reviews tracking
+        # Pending reviews tracking (loaded from file)
         self._pending_reviews: dict[str, ReviewRequest] = {}
+        self._load_pending_reviews()
 
         self._validate_config()
 
         logger.info(
             f"HumanReviewBot initialized: provider={self.provider}, "
-            f"timeout={self.timeout_hours}h, reminder={self.reminder_hours}h"
+            f"timeout={self.timeout_hours}h, reminder={self.reminder_hours}h, "
+            f"pending_reviews={len(self._pending_reviews)}"
         )
+
+    def _get_reviews_file_path(self) -> Path:
+        """Get the path to the pending reviews JSON file"""
+        return self.cache_dir / self.PENDING_REVIEWS_FILE
+
+    def _load_pending_reviews(self) -> None:
+        """Load pending reviews from JSON file"""
+        file_path = self._get_reviews_file_path()
+        if not file_path.exists():
+            logger.debug("No existing pending reviews file")
+            return
+
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            self._pending_reviews = {
+                item_id: ReviewRequest.from_dict(req_data) for item_id, req_data in data.items()
+            }
+            logger.info(f"Loaded {len(self._pending_reviews)} pending reviews from {file_path}")
+
+        except (json.JSONDecodeError, KeyError, ValueError) as e:
+            logger.warning(f"Failed to load pending reviews: {e}. Starting fresh.")
+            self._pending_reviews = {}
+
+    def _save_pending_reviews(self) -> None:
+        """Save pending reviews to JSON file"""
+        file_path = self._get_reviews_file_path()
+
+        try:
+            data = {item_id: req.to_dict() for item_id, req in self._pending_reviews.items()}
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            logger.debug(f"Saved {len(self._pending_reviews)} pending reviews to {file_path}")
+
+        except Exception as e:
+            logger.error(f"Failed to save pending reviews: {e}")
 
     def _validate_config(self) -> None:
         """설정 검증"""
@@ -139,6 +216,7 @@ class HumanReviewBot:
 
         if success:
             self._pending_reviews[item_id] = request
+            self._save_pending_reviews()
             logger.info(f"Quality review notification sent: {item_id}")
 
         return success
@@ -181,6 +259,7 @@ class HumanReviewBot:
 
         if success:
             self._pending_reviews[source_id] = request
+            self._save_pending_reviews()
             logger.info(f"Source discovery notification sent: {source_id}")
 
         return success
@@ -203,12 +282,14 @@ class HumanReviewBot:
                 status_key = "status" if action == "approve" else "source_status"
                 vault_adapter.update_frontmatter(item_id, {status_key: "approved"})
                 self._pending_reviews.pop(item_id, None)
+                self._save_pending_reviews()
                 logger.info(f"Approved: {item_id}")
                 return f"✅ 승인됨: {item_id}"
             elif action in ("reject", "source_reject"):
                 status_key = "status" if action == "reject" else "source_status"
                 vault_adapter.update_frontmatter(item_id, {status_key: "rejected"})
                 self._pending_reviews.pop(item_id, None)
+                self._save_pending_reviews()
                 logger.info(f"Rejected: {item_id}")
                 return f"❌ 거절됨: {item_id}"
             else:
@@ -241,6 +322,9 @@ class HumanReviewBot:
                 del self._pending_reviews[item_id]
                 expired.append(item_id)
                 logger.warning(f"Review timeout, auto-rejected: {item_id}")
+
+        if expired:
+            self._save_pending_reviews()
 
         return expired
 
