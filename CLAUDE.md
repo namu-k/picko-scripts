@@ -143,19 +143,27 @@ export OPENAI_API_KEY=your_api_key_here  # macOS/Linux
 - **source_manager.py**: RSS source quality management and curation
 - **proposal_generator.py**: Media proposal generation from content templates
 - **layout_config.py**: Layout preset and theme configuration for multimedia rendering
+- **publisher.py**: Social media publishing abstraction (Twitter API integration)
+- **collectors/****: Modular collector architecture
+  - `BaseCollector`: Abstract base class for all collectors
+  - `CollectedItem`: Unified data structure for collected content
+  - `RSSCollector`: RSS feed collector extracted from daily_collector
+  - `PerplexityCollector`: Perplexity Tasks result collector with file watching
 - **notification/bot.py**: Human review bot (Telegram/Slack) with timeout/reminder handling
 - **discovery/base.py**: `SourceCandidate` model and `BaseDiscoveryCollector` interface
 - **discovery/gates.py**: Human confirmation gate (social sources always require review)
 - **discovery/orchestrator.py**: Multi-adapter source discovery orchestration and source registration
-- **discovery/adapters/**: Threads, Reddit, Mastodon discovery adapters
+- **discovery/adapters/****: Threads, Reddit, Mastodon discovery adapters
 - **quality/graph.py**: LangGraph-based quality state machine (`QualityGraph`, `QualityState`)
 - **quality/confidence.py**: Confidence normalization and verdict thresholds
 - **quality/feedback.py**: Human feedback loop and accuracy metrics
-- **quality/validators/**: Primary and cross-check validators
+- **quality/validators/****: Primary and cross-check validators
 - **orchestrator/actions.py**: Action registry + typed action config/fallback config
 - **orchestrator/engine.py**: Workflow engine with dynamic steps and fallback execution
 - **orchestrator/default_actions.py**: Built-in workflow actions (collector/fetcher/nlp/embed/score/generate/publish/quality.verify)
 - **orchestrator/expr.py**: Safe expression evaluator with workflow operators
+- **orchestrator/vault_adapter.py**: Vault frontmatter query interface (count, list, field)
+- **orchestrator/batch.py**: Batch processing support for workflow items
 
 ### LLM Architecture (Task-Specific)
 
