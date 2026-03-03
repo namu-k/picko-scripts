@@ -45,9 +45,11 @@
 5. **피해야 할 표현**: {{ boundaries | join(", ") }}
 {% endif %}
 
+{% if weekly_cta or weekly_outcome %}
 ## 🎯 이번 주 목표 (Weekly Context)
 {% if weekly_cta %}- **CTA**: {{ weekly_cta }}{% endif %}
 {% if weekly_outcome %}- **고객 Outcome**: {{ weekly_outcome }}{% endif %}
+{% endif %}
 
 ## 📋 품질 체크리스트
 - [ ] 레퍼런스의 톤과 스타일이 자연스럽게 녹아있는가?
