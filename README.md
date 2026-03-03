@@ -2,7 +2,7 @@
 
 [![Release](https://img.shields.io/github/v/release/namu-k/picko-scripts?label=version)](https://github.com/namu-k/picko-scripts/releases)
 [![Test](https://github.com/namu-k/picko-scripts/actions/workflows/test.yml/badge.svg)](https://github.com/namu-k/picko-scripts/actions/workflows/test.yml)
-[![Security](https://img.shields.io/badge/Security-Policy-blue)](SECURITY.md)
+[![Security](https://img.shields.io/badge/Security-Policy-blue)](docs/security.md)
 
 > RSS 피드와 웹 소스에서 콘텐츠를 자동 수집하고, AI를 활용해 블로그 포스트와 소셜 미디어 콘텐츠를 생성하는 파이프라인 시스템
 
@@ -43,7 +43,7 @@ set OPENAI_API_KEY=sk-your-key-here  # Windows
 export OPENAI_API_KEY=sk-your-key-here  # macOS/Linux
 ```
 
-> 💡 **Need help with API key setup?** See [**DEPLOYMENT.md**](DEPLOYMENT.md) for detailed instructions including GitHub Actions Secrets setup.
+> 💡 **Need help with API key setup?** See [**deployment guide**](docs/deployment.md) for detailed instructions including GitHub Actions Secrets setup.
 
 ### 3. 설정
 
@@ -67,7 +67,7 @@ python -m scripts.generate_content
 
 ## 📖 상세 가이드
 
-처음 사용하시나요? [**USER_GUIDE.md**](USER_GUIDE.md)에서 다음을 확인하세요:
+처음 사용하시나요? [**User Guide**](docs/user-guide.md)에서 다음을 확인하세요:
 
 - 단계별 설치 및 설정 방법
 - 콘텐츠 파이프라인 상세 설명
@@ -270,12 +270,12 @@ Apache License 2.0
 ## 📞 지원
 
 - 문제 신고: [GitHub Issues](https://github.com/namu-k/picko-scripts/issues)
-- 📛 보안 취약점 신고: [SECURITY.md](SECURITY.md)
-- 사용자 가이드: [USER_GUIDE.md](USER_GUIDE.md)
+- 📛 보안 취약점 신고: [security.md](docs/security.md)
+- 사용자 가이드: [user-guide.md](docs/user-guide.md)
 - 개발자 가이드: [CLAUDE.md](CLAUDE.md)
 - 에이전트 가이드: 로컬 참고용 (AGENT_GUIDE.md, 저장소 미포함)
-- 배포 가이드: [DEPLOYMENT.md](DEPLOYMENT.md)
-- 변경 로그: [CHANGELOG.md](CHANGELOG.md)
-- 코드 리뷰 체크리스트: [REVIEW_CHECKLIST.md](REVIEW_CHECKLIST.md)
-- 모니터링: [MONITORING.md](MONITORING.md)
+- 배포 가이드: [deployment.md](docs/deployment.md)
+- 변경 로그: [changelog.md](docs/changelog.md)
+- 코드 리뷰 체크리스트: [review-checklist.md](docs/review-checklist.md)
+- 모니터링: [monitoring.md](docs/monitoring.md)
 - 후속 작업: [FOLLOWUPS.md](FOLLOWUPS.md)

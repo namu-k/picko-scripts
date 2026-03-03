@@ -105,7 +105,7 @@
 - ⬜ `CLAUDE.md` 업데이트 (새 CLI 옵션)
 - ✅ `.env.example` 업데이트 (UNSPLASH_ACCESS_KEY)
 - ✅ `FOLLOWUPS.md` 업데이트 (006 작업 추가)
-- ✅ `DEPLOYMENT.md` 업데이트 (Unsplash/Pexels API)
+- ✅ `docs/deployment.md` 업데이트 (Unsplash/Pexels API)
 - ✅ `specs/006-multimedia-styles/plan.md` 구현 계획 작성
 
 ---

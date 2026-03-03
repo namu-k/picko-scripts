@@ -70,7 +70,7 @@ This document tracks follow-up items from the hardening plan execution. Each ite
 - **Priority**: P3
 - **Owner**: Complete
 - **Description**: Tag commit 34d10e1 as v0.2.0 and create GitHub release
-- **Changelog**: Used CHANGELOG.md v0.2.0 section
+- **Changelog**: Used docs/changelog.md v0.2.0 section
 - **Result**: Tag created successfully on commit 34d10e1
 - **Note**: Push tag with `git push origin v0.2.0` and create release on GitHub
 
@@ -78,7 +78,7 @@ This document tracks follow-up items from the hardening plan execution. Each ite
 - **Priority**: P3
 - **Owner**: Complete
 - **Description**: Add detailed instructions for setting up GitHub Actions Secrets
-- **Location**: Created DEPLOYMENT.md
+- **Location**: Created docs/deployment.md
 - **Result**: Comprehensive deployment guide covering local setup, GitHub Actions Secrets, troubleshooting, and security best practices
 
 ### [x] 10. Test Windows Task Scheduler script
@@ -97,7 +97,7 @@ This document tracks follow-up items from the hardening plan execution. Each ite
 - **Result**: Enhanced workflow with labels setup, success reporting, and auto-close of resolved issues
 - **Schedule**: Daily at 8:00 AM UTC (4:00 PM KST)
 
-### [x] 12. Create SECURITY.md policy
+### [x] 12. Create docs/security.md policy
 - **Priority**: P4
 - **Owner**: Complete
 - **Description**: Document security policy, vulnerability reporting, and secret management

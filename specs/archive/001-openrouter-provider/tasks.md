@@ -72,7 +72,7 @@
 **Purpose**: Documentation and validation
 
 - [x] T011 [P] Update CLAUDE.md with OpenRouter provider in LLM Architecture table
-- [x] T012 [P] Update USER_GUIDE.md with OpenRouter setup instructions
+- [x] T012 [P] Update docs/user-guide.md with OpenRouter setup instructions
 - [x] T013 Run full pytest suite to verify no regressions
 - [x] T014 Update spec.md status from "Draft" to "Approved"
 
