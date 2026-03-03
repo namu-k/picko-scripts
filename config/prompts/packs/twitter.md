@@ -24,8 +24,11 @@ SNS 사용자
 2. **비유/예시**: 구체적인 비유나 예시 하나
 3. **핵심 한 문장**: 기억에 남을 인용문 형태의 한 줄
 4. **CTA 질문**: 독자가 스스로 답하게 만드는 질문
+{% if weekly_outcome %}
+5. **이번 주 목표**: {{ weekly_outcome }} 달성에 도움이 되는 내용
+{% endif %}
 {% if boundaries and boundaries | length > 0 %}
-5. **피해야 할 표현**: {{ boundaries | join(", ") }}
+6. **피해야 할 표현**: {{ boundaries | join(", ") }}
 {% endif %}
 
 ## 품질 체크리스트
