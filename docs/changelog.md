@@ -210,8 +210,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 - README.md with quick start guide
-- USER_GUIDE.md with detailed usage instructions
-- CLAUDE.md for developer guidance
+- user-guide.md with detailed usage instructions
 - implementation_plan.md with technical design
 
 [0.4.0]: https://github.com/namu-k/picko-scripts/compare/v0.3.0...v0.4.0
