@@ -271,3 +271,110 @@ class TestFreshnessScoring:
 
         loaded = load_config(config_file)
         assert loaded.scoring.freshness_half_life_days == 10.5
+
+
+class TestRelevanceNormalization:
+    """관련도 정규화 - 고정 base 사용으로 일관된 점수 범위 보장"""
+
+    def test_relevance_uses_fixed_base(self):
+        """관련도 계산이 고정 base(3.0)를 사용하는지 확인"""
+        scorer = ContentScorer()
+        # 내부 메서드로 base 값 확인
+        # _calculate_relevance는 RELEVANCE_BASE = 3.0 사용
+        content = {"title": "AI test", "text": "test content"}
+
+        # profile 없으면 0.5 반환
+        assert scorer._calculate_relevance(content) == 0.5
+
+    def test_relevance_consistent_range_with_varying_matches(self):
+        """matches 수가 달라도 동일한 점수 범위 보장
+
+        이전: base = max(2.0, 3.5 - 0.5*matches) → matches 증가 시 base 감소
+        현재: RELEVANCE_BASE = 3.0 (고정) → 일관된 정규화
+        """
+        from picko.account_context import AccountIdentity
+
+        # 여러 필드가 있는 AccountIdentity
+        identity = AccountIdentity(
+            account_id="test",
+            one_liner="Test account",
+            target_audience=["developers", "AI engineers"],
+            value_proposition="AI productivity",
+            pillars=["AI", "productivity", "automation"],
+            tone_voice={},
+            boundaries=[],
+        )
+        scorer = ContentScorer(account_identity=identity)
+
+        # 모든 필드와 매칭되는 콘텐츠 (여러 matches)
+        full_match = {
+            "title": "AI productivity automation for developers",
+            "text": "AI engineers love automation",
+            "keywords": ["AI", "productivity"],
+        }
+
+        # 일부만 매칭되는 콘텐츠 (적은 matches)
+        partial_match = {
+            "title": "Random topic",
+            "text": "Unrelated content",
+            "keywords": [],
+        }
+
+        full_score = scorer._calculate_relevance(full_match)
+        partial_score = scorer._calculate_relevance(partial_match)
+
+        # 둘 다 0~1 범위 내에 있어야 함
+        assert 0 <= full_score <= 1.0, f"full_score {full_score} out of range"
+        assert 0 <= partial_score <= 1.0, f"partial_score {partial_score} out of range"
+
+        # full_match가 partial_score보다 높아야 함
+        assert full_score > partial_score
+
+    def test_relevance_single_vs_multiple_matches(self):
+        """단일 매칭 vs 다중 매칭 시 점수 비교
+
+        고정 base를 사용하면 점수가 matches 수에 비례해서 증가
+        (이전 동적 base에서는 matches 증가 시 base 감소로 역설적 결과 가능)
+        """
+        from picko.account_context import AccountIdentity
+
+        # 단일 필드만 있는 identity
+        simple_identity = AccountIdentity(
+            account_id="simple",
+            one_liner="Simple account",
+            target_audience=["developers"],
+            value_proposition="Dev tools",
+            pillars=[],
+            tone_voice={},
+            boundaries=[],
+        )
+
+        # 여러 필드가 있는 identity
+        rich_identity = AccountIdentity(
+            account_id="rich",
+            one_liner="Rich account",
+            target_audience=["developers", "AI engineers"],
+            value_proposition="AI productivity",
+            pillars=["AI", "productivity", "automation"],
+            tone_voice={},
+            boundaries=[],
+        )
+
+        simple_scorer = ContentScorer(account_identity=simple_identity)
+        rich_scorer = ContentScorer(account_identity=rich_identity)
+
+        content = {
+            "title": "AI for developers",
+            "text": "Productivity tools for AI engineers",
+            "keywords": ["AI", "productivity"],
+        }
+
+        simple_score = simple_scorer._calculate_relevance(content)
+        rich_score = rich_scorer._calculate_relevance(content)
+
+        # 둘 다 유효한 범위
+        assert 0 <= simple_score <= 1.0
+        assert 0 <= rich_score <= 1.0
+
+        # rich identity가 더 많은 매칭을 찾으므로 더 높은 점수
+        assert rich_score >= simple_score

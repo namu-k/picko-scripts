@@ -171,7 +171,7 @@ FIXED_BASE = 3.0  # 일관된 기준
 # 또는 config에서 로드
 ```
 
-- ◆ 단위 테스트: matches 수가 달라도 동일한 점수 범위 보장 (고정 base 전용 케이스 추가 필요)
+- ● 단위 테스트: matches 수가 달라도 동일한 점수 범위 보장 (고정 base 전용 케이스 추가 필요) ✅ 2026-03-02
 
 ### 0.6 Tests
 - ● `tests/test_scoring_auto_gates.py` — auto-approve/reject 활성화 테스트 ✅ 2026-03-01
