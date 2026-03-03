@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 from typing import Any
 
-from picko.account_context import WeeklySlot, get_weekly_slot
+from picko.account_context import WeeklySlot, get_identity, get_weekly_slot
 from picko.config import get_config
 from picko.llm_client import get_writer_client
 from picko.logger import setup_logger
@@ -600,6 +600,9 @@ class ContentGenerator:
         # WeeklySlot 컨텍스트 준비
         weekly_context = self._prepare_weekly_context()
 
+        # 계정 컨텍스트 준비
+        account_context = self._prepare_account_context(account_id)
+
         created_count = 0
 
         for channel, channel_config in channels.items():
@@ -611,6 +614,7 @@ class ContentGenerator:
                     channel_config=channel_config,
                     account_id=account_id,
                     weekly_context=weekly_context,
+                    account_context=account_context,
                 )
 
                 text = self.llm.generate(prompt, max_tokens=500)
@@ -811,6 +815,9 @@ class ContentGenerator:
         # WeeklySlot 컨텍스트 준비
         weekly_context = self._prepare_weekly_context()
 
+        # 계정 컨텍스트 준비
+        account_context = self._prepare_account_context(account_id)
+
         created_count = 0
 
         for channel in channels:
@@ -828,6 +835,7 @@ class ContentGenerator:
                     channel_config=channel_config,
                     account_id=account_id,
                     weekly_context=weekly_context,
+                    account_context=account_context,
                 )
 
                 text = self.llm.generate(prompt, max_tokens=500)
@@ -906,6 +914,26 @@ class ContentGenerator:
             "customer_outcome": self.weekly_slot.customer_outcome,
             "operator_kpi": self.weekly_slot.operator_kpi,
             "pillar_distribution": self.weekly_slot.pillar_distribution,
+        }
+
+    def _prepare_account_context(self, account_id: str) -> dict[str, Any] | None:
+        """
+        계정 정체성에서 target_audience, tone_voice, boundaries 추출
+
+        Args:
+            account_id: 계정 ID
+
+        Returns:
+            account_context 딕셔너리 또는 None
+        """
+        identity = get_identity(account_id)
+        if not identity:
+            return None
+
+        return {
+            "target_audience": identity.target_audience or [],
+            "tone_voice": identity.tone_voice or {},
+            "boundaries": identity.boundaries or [],
         }
 
     def _parse_frontmatter(self, content: str) -> dict[str, Any]:
