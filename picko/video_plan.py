@@ -26,7 +26,10 @@ VideoPlatform = Literal[
     "linkedin_video",
 ]
 
-# 입력 소스 타입
+# 영상 의도 (3축 중 하나 — why)
+VideoIntent = Literal["ad", "explainer", "brand", "trend"]
+
+# 입력 소스 타입 (3축 중 하나 — what)
 SourceType = Literal[
     "account_only",  # 계정 설정만으로 아이디어 기획 (서비스 기반)
     "longform",  # 기존 longform 결과물 기반
@@ -129,10 +132,16 @@ class VideoPlan:
 
     이 객체 하나가 하나의 영상(또는 영상 시리즈)에 대한
     완전한 기획서를 담는다.
+
+    3축 유형 결정:
+    - source (what): account_only | longform | pack | digest
+    - intent (why): ad | explainer | brand | trend
+    - weekly_context (when): WeeklySlot에서 주입 (별도 필드 없이 generator에서 처리)
     """
 
     id: str
     account: str
+    intent: VideoIntent  # 3축 중 의도 (why)
     goal: str
     source: VideoSource
     brand_style: BrandStyle
@@ -156,6 +165,7 @@ class VideoPlan:
         return {
             "id": self.id,
             "account": self.account,
+            "intent": self.intent,
             "goal": self.goal,
             "source": self.source.to_dict(),
             "brand_style": self.brand_style.to_dict(),
@@ -174,6 +184,7 @@ class VideoPlan:
         return cls(
             id=d["id"],
             account=d["account"],
+            intent=d.get("intent", "ad"),  # 기본값: ad
             goal=d["goal"],
             source=VideoSource.from_dict(d.get("source", {"type": "account_only"})),
             brand_style=BrandStyle.from_dict(d.get("brand_style", {})),
@@ -197,6 +208,7 @@ class VideoPlan:
             f"# VideoPlan: {self.id}",
             "",
             f"**계정**: {self.account}",
+            f"**의도**: {self.intent}",
             f"**목표**: {self.goal}",
             f"**플랫폼**: {', '.join(self.platforms)}",
             f"**대상 서비스**: {', '.join(self.target_services)}",
