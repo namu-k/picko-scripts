@@ -109,7 +109,7 @@ class ContentGenerator:
             date = datetime.now().strftime("%Y-%m-%d")
 
         if content_types is None:
-            content_types = ["longform", "packs", "images"]
+            content_types = ["longform", "packs", "images", "videos"]
 
         logger.info(f"Starting content generation for {date}, types: {content_types}")
 
@@ -119,6 +119,7 @@ class ContentGenerator:
             "longform_created": 0,
             "packs_created": 0,
             "image_prompts_created": 0,
+            "video_prompts_created": 0,
             "errors": [],
         }
 
@@ -271,6 +272,11 @@ class ContentGenerator:
         if "images" in content_types:
             if self._generate_image_with_approval(item, input_content):
                 results["image_prompts_created"] += 1
+
+        # Video Prompts 생성 (파생 승인 확인)
+        if "videos" in content_types:
+            if self._generate_video_with_approval(item, input_content):
+                results["video_prompts_created"] = results.get("video_prompts_created", 0) + 1
 
     # ─────────────────────────────────────────────────────────────
     # Digest 파싱
@@ -736,6 +742,63 @@ class ContentGenerator:
 
         return self._generate_image_prompt(item, input_content)
 
+    def _generate_video_with_approval(self, item: dict[str, Any], input_content: dict[str, Any]) -> bool:
+        """파생 승인 확인 후 영상 프롬프트 생성"""
+        derivative_status = self._check_derivative_approval(item["input_id"])
+
+        if derivative_status.get("status") != "approved":
+            logger.debug(f"Skipping videos - derivative not approved: {item['input_id']}")
+            return False
+
+        if not derivative_status.get("videos_approved", False):
+            logger.debug(f"Videos not approved: {item['input_id']}")
+            return False
+
+        longform_content = self._load_longform_content(item["input_id"])
+        if longform_content:
+            input_content = {**input_content, **longform_content}
+
+        return self._generate_video_prompt(item, input_content)
+
+    def _generate_video_prompt(self, item: dict[str, Any], input_content: dict[str, Any]) -> bool:
+        """영상 프롬프트 생성 (VideoGenerator 사용)"""
+        logger.info(f"Generating video prompt for: {item['input_id']}")
+
+        try:
+            from picko.video.generator import VideoGenerator
+
+            account_id = item.get("account_id") or "socialbuilders"
+
+            generator = VideoGenerator(
+                account_id=account_id,
+                services=["luma", "sora"],
+                platforms=["instagram_reel", "youtube_short"],
+                intent="ad",
+                content_id=item["input_id"],
+                week_of=self.weekly_slot.week_of if self.weekly_slot else "",
+            )
+
+            plan = generator.generate(validate=True)
+            plan_dict = plan.to_dict()
+            plan_dict["source_content_id"] = item["input_id"]
+
+            content = self.renderer.render_video_prompt(plan_dict)
+
+            if not self.dry_run:
+                video_id = f"video_{item['input_id']}"
+                output_path = f"{self.config.vault.videos_prompts}/{video_id}.md"
+                meta = self._parse_frontmatter(content)
+                body = content.split("---", 2)[2].strip() if content.startswith("---") else content
+                self.vault.write_note(output_path, body, metadata=meta, overwrite=True)
+                logger.info(f"Created video prompt: {output_path}")
+                self._run_validation_if_enabled(output_path, "Video prompt")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to generate video prompt: {e}")
+            return False
+
     def _check_derivative_approval(self, input_id: str) -> dict[str, Any]:
         """롱폼 노트에서 파생 승인 상태 및 채널 선택 확인"""
         longform_path = f"{self.config.vault.longform}/longform_{input_id}.md"
@@ -770,22 +833,37 @@ class ContentGenerator:
                 ]
             )
 
+            videos_approved = any(
+                pattern in content
+                for pattern in [
+                    "[x] **영상 프롬프트**",
+                    "[x] 영상 프롬프트",
+                    "[x] **영상 생성**",
+                    "[x] 영상 생성",
+                ]
+            )
+
             # frontmatter에서 채널 목록 확인 (체크박스보다 우선)
             packs_channels = meta.get("packs_channels", [])
             if not packs_channels:
                 packs_channels = selected_channels
 
             # 승인 상태 결정
-            status = "approved" if (packs_channels or images_approved) else meta.get("derivative_status", "pending")
+            status = (
+                "approved"
+                if (packs_channels or images_approved or videos_approved)
+                else meta.get("derivative_status", "pending")
+            )
 
             return {
                 "status": status,
                 "packs_channels": packs_channels,
                 "images_approved": images_approved,
+                "videos_approved": videos_approved,
             }
         except FileNotFoundError:
             logger.debug(f"Longform not found for derivative check: {input_id}")
-            return {"status": "pending", "packs_channels": [], "images_approved": False}
+            return {"status": "pending", "packs_channels": [], "images_approved": False, "videos_approved": False}
 
     def _load_longform_content(self, input_id: str) -> dict[str, Any] | None:
         """롱폼 노트 내용 로드"""
@@ -957,7 +1035,7 @@ def main():
         "--type",
         "-t",
         nargs="+",
-        choices=["longform", "packs", "images", "all"],
+        choices=["longform", "packs", "images", "videos", "all"],
         default=["all"],
         help="생성할 콘텐츠 타입",
     )
@@ -975,7 +1053,7 @@ def main():
     # 타입 처리
     content_types = args.type
     if "all" in content_types:
-        content_types = ["longform", "packs", "images"]
+        content_types = ["longform", "packs", "images", "videos"]
 
     # WeeklySlot 로드
     weekly_slot = None

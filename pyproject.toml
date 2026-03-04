@@ -52,6 +52,7 @@ dev = [
 [project.scripts]
 picko-collect = "picko.__main__:main"
 picko-generate = "picko.__main__:main"
+picko = "picko.__main__:main"
 
 [build-system]
 requires = ["hatchling"]

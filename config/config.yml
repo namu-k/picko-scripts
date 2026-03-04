@@ -7,7 +7,14 @@ vault:
   longform: "Content/Longform"
   packs: "Content/Packs"
   assets: "Assets"
+  # 멀티미디어 프롬프트 및 결과물
   images_prompts: "Assets/Images/_prompts"
+  images_output: "Assets/Images/_output"
+  videos_prompts: "Assets/Videos/_prompts"
+  videos_output: "Assets/Videos/_output"
+  # 참고 자료
+  references: "Assets/References"
+  explorations: "Inbox/Explorations"
   archive: "Archive"
   logs_publish: "Logs/Publish"
 

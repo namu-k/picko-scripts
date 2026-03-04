@@ -19,6 +19,10 @@ REFERENCE_PATHS = {
     "reference_style": "Assets/References/{id}.md",
     "exploration": "Inbox/Explorations/{id}.md",
     "image_style": "mock_vault/config/Folders_to_operate_social-media_copied_from_Vault/0. 프레임워크/이미지 스타일 프리셋 라이브러리.md",
+    "image_prompt": "Assets/Images/_prompts/{id}.md",
+    "image_output": "Assets/Images/_output/{id}.png",
+    "video_prompt": "Assets/Videos/_prompts/{id}.md",
+    "video_output": "Assets/Videos/_output/{id}.mp4",
 }
 
 
