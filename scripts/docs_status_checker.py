@@ -20,12 +20,20 @@ class DocsStatusChecker:
         self.docs_root = Path(docs_root)
         self.readme_path = self.docs_root / "README.md"
         self.required_sections = {
-            "PRD": "제품 요구사항",
-            "아키텍처": "시스템 아키텍처",
-            "API": "API 명세",
-            "개발": "개발 가이드",
-            "운영": "운영 가이드",
-            "사용자": "사용자 매뉴얼",
+            "PRD": {"type": "file", "path": "PRD.md", "description": "제품 요구사항"},
+            "아키텍처": {
+                "type": "dir",
+                "path": "architecture",
+                "description": "시스템 아키텍처",
+            },
+            "API": {"type": "dir", "path": "api", "description": "API 명세"},
+            "개발": {
+                "type": "dir",
+                "path": "development",
+                "description": "개발 가이드",
+            },
+            "운영": {"type": "dir", "path": "operations", "description": "운영 가이드"},
+            "사용자": {"type": "dir", "path": "user", "description": "사용자 매뉴얼"},
         }
 
     def check_broken_links(self) -> List[Dict]:
@@ -73,19 +81,21 @@ class DocsStatusChecker:
         """누락된 섹션 확인"""
         missing = {}
 
-        for section_name, description in self.required_sections.items():
-            section_path = self.docs_root / section_name.lower()
-            if section_name == "PRD":
-                prd_path = self.docs_root / "PRD.md"
-                if not prd_path.exists():
-                    missing[section_name] = ["PRD.md"]
-            else:
+        for section_name, section_info in self.required_sections.items():
+            section_path = self.docs_root / section_info["path"]
+
+            if section_info["type"] == "file":
                 if not section_path.exists():
-                    missing[section_name] = ["디렉터리 생성 필요"]
-                else:
-                    # 디렉터리가 비어있는지 확인
-                    if not any(section_path.iterdir()):
-                        missing[section_name] = ["파일 생성 필요"]
+                    missing[section_name] = [f"{section_info['path']} 생성 필요"]
+                continue
+
+            if not section_path.exists():
+                missing[section_name] = ["디렉터리 생성 필요"]
+                continue
+
+            # 디렉터리가 비어있는지 확인
+            if not any(section_path.iterdir()):
+                missing[section_name] = ["파일 생성 필요"]
 
         return missing
 
@@ -107,18 +117,23 @@ class DocsStatusChecker:
                         }
                     )
 
-                # 2. 빈 줄로 시작하는지 확인
-                if content and content[0] != "\n":
+                # 2. 파일 시작 불필요 공백 확인
+                if content.startswith("\n"):
                     format_issues.append(
                         {
                             "file": str(md_file.relative_to(self.docs_root)),
-                            "issue": "파일 시작에 빈 줄이 없음",
+                            "issue": "파일 시작에 불필요한 빈 줄이 있음",
                             "severity": "info",
                         }
                     )
 
-                # 3. 첫 번째 헤딩 확인
-                first_heading = re.search(r"^# ", content)
+                # 3. 첫 번째 헤딩 확인 (frontmatter 허용)
+                normalized = content.lstrip("\ufeff")
+                frontmatter_match = re.match(r"^---\n.*?\n---\n?", normalized, flags=re.DOTALL)
+                if frontmatter_match:
+                    normalized = normalized[frontmatter_match.end() :]
+
+                first_heading = re.search(r"^#{1,6}\s+", normalized, flags=re.MULTILINE)
                 if not first_heading:
                     format_issues.append(
                         {
@@ -128,13 +143,12 @@ class DocsStatusChecker:
                         }
                     )
 
-                # 4. 마지막 줄 확인
-                lines = content.split("\n")
-                if lines and lines[-1].strip():
+                # 4. 파일 끝 개행 확인
+                if content and not content.endswith("\n"):
                     format_issues.append(
                         {
                             "file": str(md_file.relative_to(self.docs_root)),
-                            "issue": "파일 끝에 빈 줄이 없음",
+                            "issue": "파일 끝 개행이 없음",
                             "severity": "info",
                         }
                     )
@@ -154,30 +168,22 @@ class DocsStatusChecker:
         """문서 일관성 점검"""
         consistency_issues = []
 
-        # 1. 용어 일관성
-        terms = {
-            "파이프라인": ["pipeline", "파이프라인"],
-            "워크플로우": ["workflow", "워크플로우"],
-            "API": ["API", "애피"],
-            "컴포넌트": ["component", "컴포넌트"],
+        # 1. 용어 일관성 (실제 오탈자/비권장 표현 위주)
+        discouraged_terms = {
+            "애피": "API",
         }
 
         for md_file in self.docs_root.rglob("*.md"):
             try:
                 content = md_file.read_text(encoding="utf-8")
 
-                for term, variations in terms.items():
-                    # 여러 용어가 혼용되어 있는지 확인
-                    found_terms = []
-                    for variation in variations:
-                        if variation.lower() in content.lower():
-                            found_terms.append(variation)
-
-                    if len(found_terms) > 1:
+                lowered = content.lower()
+                for bad_term, preferred in discouraged_terms.items():
+                    if bad_term.lower() in lowered:
                         consistency_issues.append(
                             {
                                 "file": str(md_file.relative_to(self.docs_root)),
-                                "issue": f"'{term}' 용어가 여러 형태로 사용됨: {found_terms}",
+                                "issue": f"비권장 용어 '{bad_term}' 발견 (권장: '{preferred}')",
                                 "severity": "warning",
                             }
                         )
@@ -289,7 +295,7 @@ class DocsStatusChecker:
             report.append("3. 포맷 문제를 수정하세요")
             report.append("4. 용어 일관성을 유지하세요")
 
-        return "\n".join(report)
+        return "\n".join(report) + "\n"
 
     def run_check(self):
         """점검 실행"""
