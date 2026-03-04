@@ -20,6 +20,7 @@ from picko.video_plan import (
     LumaParams,
     PikaParams,
     RunwayParams,
+    SoraParams,
     VeoParams,
     VideoIntent,
     VideoPlan,
@@ -297,6 +298,13 @@ class VideoGenerator:
                         prompt=service_params.get("prompt", ""),
                         negative_prompt=service_params.get("negative_prompt", ""),
                         generate_audio=service_params.get("generate_audio", True),
+                    )
+                elif service == "sora":
+                    shot.sora = SoraParams(
+                        prompt=service_params.get("prompt", ""),
+                        negative_prompt=service_params.get("negative_prompt", ""),
+                        style=service_params.get("style", "cinematic"),
+                        camera_motion=service_params.get("camera_motion", ""),
                     )
 
             shots.append(shot)

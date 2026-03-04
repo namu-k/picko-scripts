@@ -226,6 +226,36 @@ class VeoParams(ServiceParams):
         )
 
 
+@dataclass
+class SoraParams(ServiceParams):
+    """OpenAI Sora 2 전용 파라미터"""
+
+    style: str = ""  # cinematic | natural | artistic
+    camera_motion: str = ""  # slow pan | tracking | static | drone
+
+    def to_dict(self) -> dict[str, Any]:
+        d = super().to_dict()
+        d.update(
+            {
+                "style": self.style,
+                "camera_motion": self.camera_motion,
+            }
+        )
+        return d
+
+    @classmethod
+    def from_dict(cls, d: dict[str, Any]) -> "SoraParams":
+        base = super().from_dict(d)
+        return cls(
+            prompt=base.prompt,
+            negative_prompt=base.negative_prompt,
+            aspect_ratio=base.aspect_ratio,
+            duration_sec=base.duration_sec,
+            style=d.get("style", ""),
+            camera_motion=d.get("camera_motion", ""),
+        )
+
+
 # ──────────────────────────────────────────────
 # 오디오/텍스트 사양
 # ──────────────────────────────────────────────
@@ -346,6 +376,7 @@ class VideoShot:
     pika: PikaParams | None = None
     kling: KlingParams | None = None
     veo: VeoParams | None = None
+    sora: SoraParams | None = None
 
     # 오디오/텍스트 (NEW)
     audio: AudioSpec | None = None
@@ -376,6 +407,8 @@ class VideoShot:
             result["kling"] = self.kling.to_dict()
         if self.veo:
             result["veo"] = self.veo.to_dict()
+        if self.sora:
+            result["sora"] = self.sora.to_dict()
         # 오디오/텍스트
         if self.audio:
             result["audio"] = self.audio.to_dict()
@@ -396,6 +429,7 @@ class VideoShot:
         pika = PikaParams.from_dict(d["pika"]) if "pika" in d else None
         kling = KlingParams.from_dict(d["kling"]) if "kling" in d else None
         veo = VeoParams.from_dict(d["veo"]) if "veo" in d else None
+        sora = SoraParams.from_dict(d["sora"]) if "sora" in d else None
 
         # 오디오/텍스트 로드
         audio = AudioSpec.from_dict(d["audio"]) if "audio" in d else None
@@ -414,6 +448,7 @@ class VideoShot:
             pika=pika,
             kling=kling,
             veo=veo,
+            sora=sora,
             audio=audio,
             text_overlays=text_overlays,
             transition_in=d.get("transition_in", ""),

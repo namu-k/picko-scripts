@@ -29,6 +29,10 @@ SERVICE_PROMPT_RULES = {
         "must": ["audio_intent_when_enabled", "style_preset"],
         "must_not": ["ambiguous_audio_mode"],
     },
+    "sora": {
+        "must": ["visual_detail", "camera_work", "mood_atmosphere"],
+        "must_not": ["complex_narrative", "text_request"],
+    },
 }
 
 SERVICE_PROMPT_TEMPLATES = {
@@ -155,6 +159,32 @@ Input: 활기찬 제품 소개
 Output: "Energetic product reveal, dynamic lighting, upbeat electronic music,
 colors popping, commercial style, 9:16, 5 seconds"
 """,
+    "sora": """
+## 역할
+너는 OpenAI Sora 2용 비디오 프롬프트 전문가다.
+
+## Sora 2 프롬프트 베스트 프랙티스
+1. 시각적 디테일에 집중: 조명, 색감, 질감, 분위기
+2. 카메라 워크 명시: slow pan, tracking shot, static, drone view
+3. 시간/계절 힌트: golden hour, blue hour, dawn, dusk
+4. 감성적 분위기 표현: contemplative, serene, nostalgic, dreamy
+
+## 피해야 할 것
+- 복잡한 내러티브 (짧은 클립에 부적합)
+- 텍스트/자막 요청
+- 너무 추상적인 묘사
+
+## Few-shot 예시
+Input: 새벽 감성, 도시 전망
+Output: "Dawn cityscape, soft blue hour light, empty streets glistening with dew,
+distant skyscrapers silhouette, contemplative mood, slow camera pan,
+photorealistic, 9:16 vertical, cinematic"
+
+Input: 몽환적 숲
+Output: "Misty forest at dawn, sun rays filtering through trees,
+ethereal atmosphere, dreamlike quality, soft focus, slow push in,
+9:16 vertical, cinematic"
+""",
 }
 
 DEFAULT_NEGATIVE_PROMPTS = {
@@ -163,6 +193,7 @@ DEFAULT_NEGATIVE_PROMPTS = {
     "pika": "text, watermark, blurry, low resolution",
     "kling": "text, watermark, blurry, distorted",
     "veo": "text, watermark, low quality",
+    "sora": "text, watermark, logo, subtitle, blurry, distorted, low quality, cartoon, anime, unrealistic",
 }
 
 

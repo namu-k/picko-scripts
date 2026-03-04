@@ -67,6 +67,15 @@ SERVICE_CONSTRAINTS = {
         supports_start_image=True,
         supports_end_image=False,
     ),
+    "sora": ServiceConstraints(
+        max_duration_sec=20,
+        min_duration_sec=1,
+        supported_ratios=["16:9", "9:16", "1:1"],
+        max_prompt_length=500,
+        supports_audio=True,
+        supports_start_image=True,
+        supports_end_image=True,
+    ),
 }
 
 
