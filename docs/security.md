@@ -260,8 +260,8 @@ llm:
 
 ## Related Documentation
 
-- [DEPLOYMENT.md](DEPLOYMENT.md) - Deployment and secret setup guide
-- [CHANGELOG.md](CHANGELOG.md) - Security updates in release notes
+- [deployment.md](./deployment.md) - Deployment and secret setup guide
+- [changelog.md](./changelog.md) - Security updates in release notes
 - [GitHub Security Advisories](https://github.com/namu-k/picko-scripts/security/advisories)
 
 ---
