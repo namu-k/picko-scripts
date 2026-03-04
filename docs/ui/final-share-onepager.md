@@ -42,21 +42,29 @@
 - 런타임 보조 `status`: `rejected`, `duplicate`, `generated`
 - UI에 `processing/skipped`를 표시하면 내부 상태 매핑 규칙을 함께 정의해야 한다.
 
-## 6) FE 마무리 체크리스트
+## 6) account 정보 입력/전달 경로
+
+- Collect: CLI/어댑터에서 `--account` 입력 (`scripts/daily_collector.py`)
+- Collect 런타임: `DailyCollector(account_id=...)` -> `self.account_id` 저장 -> `config.get_account(self.account_id)` 로 계정 프로필 로드
+- Export 시점: 수집 아이템에 `item["account_id"] = self.account_id` 주입 후 Input 노트 생성
+- Generate: Digest/입력 노트에서 `account_id`를 읽고, 없으면 `socialbuilders` 폴백
+- Prompt/채널 생성: `get_effective_prompt(account_id=...)`, `config.get_account(account_id)` 경로로 계정별 톤/채널 설정 반영
+
+## 7) FE 마무리 체크리스트
 
 - `/` 대시보드 인라인 Collect 모달: `max_items` 기본값 100 표기
 - `/status`에서 collect/generate 공통 진행 로그 재사용
 - `/inbox`에서 `writing_status` 필터와 배치 generate 액션 연결
 - generate 실행 시 `type` 강제 선택 및 payload 명시 전송
 
-## 7) BE 마무리 체크리스트
+## 8) BE 마무리 체크리스트
 
 - UI 요청을 CLI 실행으로 매핑하는 어댑터 계층 확정
 - collect/generate 결과 JSON 키를 문서 계약과 동일하게 반환
 - dry-run 경로에서 저장/생성 미수행 보장
 - `week_of` 입력을 `YYYY-MM-DD`로 일관 처리
 
-## 8) 최종 DoD (Definition of Done)
+## 9) 최종 DoD (Definition of Done)
 
 - 문서 4종(`io-first`, `input-output-artifacts`, `mvp-wireframes`, `wireframes-and-flow`) 간 파라미터/상태/기본값 충돌 없음
 - 프론트 payload와 백엔드 런타임 키가 1:1 대응
