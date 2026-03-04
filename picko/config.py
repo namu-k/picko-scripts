@@ -37,7 +37,12 @@ class VaultConfig:
     longform: str = "Content/Longform"
     packs: str = "Content/Packs"
     assets: str = "Assets"
+    # 멀티미디어 프롬프트 및 결과물
     images_prompts: str = "Assets/Images/_prompts"
+    images_output: str = "Assets/Images/_output"
+    videos_prompts: str = "Assets/Videos/_prompts"
+    videos_output: str = "Assets/Videos/_output"
+    # 참고 자료
     references: str = "Assets/References"
     archive: str = "Archive"
     logs_publish: str = "Logs/Publish"
