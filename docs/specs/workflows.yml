@@ -1,0 +1,944 @@
+# Picko 워크플로우 스펙 (Workflow Specifications)
+
+> **버전**: 1.0.0
+> **최종 수정**: 2026-03-04
+> **대상 독자**: 개발자, 시스템 아키텍트, DevOps
+
+---
+
+## 개요
+
+워크플로우 스펙은 Picko 시스템의 워크플로우 실행 엔진에 대한 상세 명세입니다. YAML 기반의 선언적 워크플로우를 정의하고 실행할 수 있는 강력한 오케스트레이션 시스템입니다.
+
+---
+
+## 1. 워크플로우 아키텍처
+
+### 1.1 핵심 구성 요소
+
+```yaml
+워크플로우 시스템 구조
+├── WorkflowEngine         # 워크플로우 실행 엔진
+├── ActionRegistry        # 액션 레지스트리
+├── Step                  # 단계
+├── ExpressionEvaluator   # 표현식 평가기
+└── BatchProcessor        # 배치 처리기
+```
+
+### 1.2 WorkflowEngine 클래스
+
+```python
+class WorkflowEngine:
+    """워크플로우 실행 엔진"""
+
+    def __init__(self, registry: ActionRegistry):
+        self.registry = registry
+        self.execution_context = ExecutionContext()
+        self.state_machine = WorkflowStateMachine()
+
+    async def run(
+        self,
+        workflow_path: str,
+        args: Dict[str, Any] = None,
+        dry_run: bool = False,
+        timeout_seconds: int = 3600
+    ) -> WorkflowResult:
+        """
+        워크플로우 실행
+
+        Args:
+            workflow_path: 워크플로우 YAML 파일 경로
+            args: 실행 인자
+            dry_run: 실제 실행 없이 테스트 모드
+            timeout_seconds: 타임아웃 (초)
+
+        Returns:
+            WorkflowResult 실행 결과
+        """
+        # 1. 워크플로우 로드
+        workflow = self._load_workflow(workflow_path)
+
+        # 2. 실행 컨텍스트 초기화
+        self.execution_context.initialize(workflow, args or {})
+
+        # 3. 단계 실행
+        for step in workflow.steps:
+            await self._execute_step(step)
+
+        # 4. 결과 반환
+        return self.execution_context.get_result()
+```
+
+### 1.3 ActionRegistry
+
+```python
+class ActionRegistry:
+    """액션 레지스트리"""
+
+    def __init__(self):
+        self.actions = {}
+
+    def register(self, name: str, handler: Callable):
+        """액션 등록"""
+        self.actions[name] = handler
+
+    def get_action(self, name: str) -> Callable:
+        """액션 조회"""
+        if name not in self.actions:
+            raise ValueError(f"Unknown action: {name}")
+        return self.actions[name]
+
+# 기본 액션 등록
+register_default_actions(registry)
+```
+
+---
+
+## 2. 워크플로우 YAML 구조
+
+### 2.1 기본 구조
+
+```yaml
+name: workflow_name                    # 워크플로우 이름 (필수)
+description: 워크플로우 설명          # 설명 (선택)
+version: "1.0.0"                     # 버전 (선택)
+
+# 실행 설정
+execution:
+  timeout_seconds: 3600              # 타임아웃 (초)
+  max_retries: 3                      # 최대 재시도 횟수
+  retry_delay_seconds: 10            # 재시도 지연 (초)
+  parallel_steps: 5                  # 병렬 실행 최대 단계 수
+
+# 단계 정의
+steps:
+  - name: step_name                   # 단계 이름 (필수)
+    action: action.name              # 실행 액션 (필수)
+    args:                            # 인자 (선택)
+      key1: value1
+      key2: value2
+    condition: "${{ expression }}"   # 조건부 실행 (선택)
+    batch:                          # 배치 처리 (선택)
+      source: "${{ vault.list(...) }}"
+      size: 10
+      delay: "10s"
+    dynamic_steps:                  # 동적 단계 (선택)
+      - name: dynamic_step
+        action: action.name
+        args: {...}
+    fallback:                      # 폴백 액션 (선택)
+      action: fallback.action
+      args: {...}
+```
+
+### 2.2 고급 구조
+
+```yaml
+name: advanced_pipeline
+description: 고급 워크플로우 예시
+
+# 전역 변수
+variables:
+  account: socialbuilders
+  threshold: 0.85
+  batch_size: 5
+
+# 단계 정의
+steps:
+  # 1. 컬렉션 (배치 처리)
+  - name: collect_items
+    action: collector.run
+    args:
+      account: "${{ variables.account }}"
+    batch:
+      source: "${{ vault.list('Inbox/Inputs', 'status=pending') }}"
+      size: "${{ variables.batch_size }}"
+      delay: "10s"
+    timeout_seconds: 300
+
+  # 2. 중복 제거
+  - name: deduplicate
+    action: embedding.check_duplicate
+    args:
+      source: "${{ steps.collect_items.outputs.items }}"
+      threshold: 0.9
+    condition: "${{ steps.collect_items.outputs.success }}"
+
+  # 3. 품질 검증 (동적 단계)
+  - name: verify_quality
+    action: quality.verify
+    args:
+      account: "${{ variables.account }}"
+      items: "${{ steps.dedup.outputs.items }}"
+      threshold: "${{ variables.threshold }}"
+    dynamic_steps:
+      # 승인된 항목만 처리
+      - name: generate_approved
+        action: generator.run
+        args:
+          account: "${{ variables.account }}"
+          type: longform
+          items: "${{ steps.verify_quality.outputs.approved }}"
+        condition: "${{ steps.verify_quality.outputs.verified }}"
+
+      - name: publish_approved
+        action: publisher.run
+        args:
+          account: "${{ variables.account }}"
+          source_path: Content/Packs
+          filter: derivative_status=approved
+        condition: "${{ steps.verify_quality.outputs.verified }}"
+
+  # 4. 스킵된 항목 아카이브
+  - name: archive_skipped
+    action: archive_manager.archive
+    args:
+      items: "${{ steps.verify_quality.outputs.rejected }}"
+      reason: "quality_verification_failed"
+    fallback:
+      action: notification.send
+      args:
+        message: "아카이브 실패: ${{ steps.archive_skipped.outputs.error }}"
+```
+
+---
+
+## 3. 표현식 시스템
+
+### 3.1 표현식 구문
+
+```yaml
+# 기본 표현식
+condition: "{{ vault.count('Inbox/Inputs', 'status=pending') > 0 }}"
+
+# 변수 참조
+condition: "{{ steps.collect_items.outputs.items.length > 10 }}"
+
+# 이전 단계 출력 참조
+args:
+  items: "${{ steps.dedup.outputs.items }}"
+
+# 복합 조건
+condition: "{{
+  steps.collect.outputs.success &&
+  steps.dedup.outputs.items.length > 0
+}}"
+
+# 헬퍼 함수 사용
+condition: "{{ contains_topic(steps.verify.outputs.items, 'AI') }}"
+```
+
+### 3.2 지원 표현식
+
+| 표현식 | 설명 | 예시 |
+|--------|------|------|
+| `vault.count(path, filter)` | Vault 노트 개수 | `${{ vault.count('Inbox/Inputs', 'writing_status=auto_ready') }}` |
+| `vault.list(path, filter)` | Vault 노트 목록 | `${{ vault.list('Content/Longform', 'status=published') }}` |
+| `vault.field(path, field)` | 프론트매터 필드 | `${{ vault.field('Content/article.md', 'score') }}` |
+| `steps.<name>.outputs.<key>` | 이전 단계 출력 | `${{ steps.collect.outputs.items }}` |
+| `variables.<key>` | 전역 변수 | `${{ variables.account }}` |
+| `contains_topic(items, topic)` | 토픽 포함 여부 | `${{ contains_topic(steps.outputs.items, 'AI') }}` |
+| `score_range(items, min, max)` | 점수 범위 필터링 | `${{ score_range(steps.outputs.items, 0.8, 1.0) }}` |
+| `has_quality_flag(items, flag)` | 품질 플래그 확인 | `${{ has_quality_flag(steps.outputs.items, 'high_quality') }}` |
+
+### 3.3 표현식 평가기
+
+```python
+class ExpressionEvaluator:
+    """표현식 평가기"""
+
+    def __init__(self, vault: VaultIO, execution_context: ExecutionContext):
+        self.vault = vault
+        self.context = execution_context
+
+    def evaluate(self, expression: str) -> Any:
+        """
+        표현식 평가
+
+        Args:
+            expression: 평가할 표현식
+
+        Returns:
+            평가 결과
+        """
+        # 전처리
+        expr = expression.replace('${{', '').replace('}}', '').strip()
+
+        # 평가
+        try:
+            # 1. Vault 표현식 처리
+            if expr.startswith('vault.'):
+                return self._evaluate_vault_expression(expr)
+
+            # 2. 단계 출력 처리
+            elif expr.startswith('steps.'):
+                return self._evaluate_step_expression(expr)
+
+            # 3. 변수 처리
+            elif expr.startswith('variables.'):
+                return self._evaluate_variable_expression(expr)
+
+            # 4. 헬퍼 함수 처리
+            elif '(' in expr:
+                return self._evaluate_helper_function(expr)
+
+            # 5. 리터럴
+            else:
+                return eval(expr)
+
+        except Exception as e:
+            raise ValueError(f"Expression evaluation failed: {expr} - {str(e)}")
+```
+
+---
+
+## 4. 기본 액션
+
+### 4.1 수집 관리 액션
+
+#### `collector.run`
+```yaml
+- name: collect
+  action: collector.run
+  args:
+    account: socialbuilders        # 계정 ID
+    sources:                      # 소스 목록 (선택)
+      - url: "https://techcrunch.com/feed/"
+        type: "rss"
+      - url: "https://ai-news.com/rss/"
+        type: "rss"
+    dry_run: false               # 드라이런 모드
+    max_items: 50                # 최대 아이템 수
+```
+
+#### `embedding.check_duplicate`
+```yaml
+- name: dedup
+  action: embedding.check_duplicate
+  args:
+    source: "${{ steps.collect.outputs.items }}"  # 대상 아이템
+    threshold: 0.9              # 유사도 임계값
+    cache_enabled: true        # 캐시 활성화
+```
+
+### 4.2 콘텐츠 생성 액션
+
+#### `generator.run`
+```yaml
+- name: generate_longform
+  action: generator.run
+  args:
+    account: socialbuilders
+    type: longform              # longform, packs, image
+    items: "${{ steps.verify.outputs.approved }}"
+    options:
+      use_exploration: true
+      apply_reference_style: true
+      target_length: "2000"
+```
+
+#### `generator.packs`
+```yaml
+- name: generate_packs
+  action: generator.packs
+  args:
+    account: socialbuilders
+    content_id: "content_123"
+    types: ["twitter", "linkedin"]
+    options:
+      twitter:
+        max_length: 280
+        hashtag_count: 3
+```
+
+### 4.3 품질 검증 액션
+
+#### `quality.verify`
+```yaml
+- name: verify
+  action: quality.verify
+  args:
+    account: socialbuilders
+    items: "${{ steps.dedup.outputs.items }}"
+    threshold: 0.85
+    enhanced_mode: false
+    track_feedback: true
+```
+
+#### `quality.graph`
+```yaml
+- name: verify_graph
+  action: quality.graph
+  args:
+    account: socialbuilders
+    item_id: "item_123"
+    enhanced_verification: false
+  outputs:
+    verdict: "${{ result.verdict }}"
+    confidence: "${{ result.confidence }}"
+```
+
+### 4.4 게시 액션
+
+#### `publisher.run`
+```yaml
+- name: publish_twitter
+  action: publisher.run
+  args:
+    account: socialbuilders
+    source_path: Content/Packs/twitter
+    filter: derivative_status=approved
+    platform: twitter
+    dry_run: false
+```
+
+### 4.5 관리 액션
+
+#### `archive_manager.archive`
+```yaml
+- name: archive_old
+  action: archive_manager.archive
+  args:
+    path: "Inbox/Inputs"
+    days: 30                  # 30일 이전 아이템
+    dry_run: false
+```
+
+#### `health_check`
+```yaml
+- name: check_health
+  action: health_check.run
+  args:
+    check_all: true
+    verbose: false
+```
+
+---
+
+## 5. 워크플로우 유형
+
+### 5.1 에이전틱 워크플로우 (Agentic)
+
+```yaml
+name: agentic_pipeline
+description: AI 자율 판단 기반 워크플로우
+
+steps:
+  # 소스 발견
+  - name: discover_sources
+    action: discovery.run
+    args:
+      account: socialbuilders
+      keywords: ["AI", "startup", "technology"]
+      platforms: ["reddit", "mastodon"]
+
+  # 품질 검증 (QualityGraph)
+  - name: verify_quality
+    action: quality.verify
+    dynamic_steps:
+      # 품질 검증 결과에 따라 동적으로 단계 생성
+      - name: generate_approved
+        action: generator.run
+        condition: "${{ steps.verify_quality.outputs.verified }}"
+
+      - name: publish_approved
+        action: publisher.run
+        condition: "${{ steps.verify_quality.outputs.verified }}"
+```
+
+**특징**:
+- QualityGraph를 통한 AI 자율 판단
+- 동적 단계 생성
+- 자동 분기 처리
+- 신뢰도 기한 의사결정
+
+### 5.2 일반 워크플로우 (Standard)
+
+```yaml
+name: daily_pipeline
+description: 고정 순서 일일 파이프라인
+
+steps:
+  # 1. 수집
+  - name: collect
+    action: collector.run
+    args:
+      account: socialbuilders
+
+  # 2. 중복 제거
+  - name: dedup
+    action: embedding.check_duplicate
+    args:
+      source: "${{ steps.collect.outputs.items }}"
+
+  # 3. 생성 (조건부)
+  - name: generate
+    action: generator.run
+    condition: "${{ vault.count('Inbox/Inputs', 'writing_status=auto_ready') > 0 }}"
+    batch:
+      source: "${{ vault.list('Inbox/Inputs', 'writing_status=auto_ready') }}"
+      size: 5
+      delay: 10s
+```
+
+**특징**:
+- 순차적 실행
+- 고정된 단계 순서
+- 배치 처리 지원
+- 조건부 실행
+
+### 5.3 병렬 워크플로우
+
+```yaml
+name: parallel_processing
+description: 병렬 처리 워크플로우
+
+steps:
+  # 병렬 처리 시작
+  - name: process_longform
+    action: generator.run
+    args:
+      account: socialbuilders
+      type: longform
+      items: "${{ vault.list('Inbox/Inputs', 'type=longform') }}"
+    parallel: true
+
+  - name: process_packs
+    action: generator.run
+    args:
+      account: socialbuilders
+      type: packs
+      items: "${{ vault.list('Inbox/Inputs', 'type=packs') }}"
+    parallel: true
+
+  # 결과 집계
+  - name: aggregate_results
+    action: results.aggregate
+    args:
+      sources: [
+        "${{ steps.process_longform.outputs.results }}",
+        "${{ steps.process_packs.outputs.results }}"
+      ]
+```
+
+---
+
+## 6. 내장 워크플로우
+
+### 6.1 `daily_pipeline.yml`
+
+```yaml
+name: daily_pipeline
+description: 일일 콘텐츠 수집 → 중복 제거 → auto_ready 항목 longform 생성
+
+steps:
+  # 1. 수집
+  - name: collect
+    action: collector.run
+    args:
+      account: socialbuilders
+
+  # 2. 중복 제거
+  - name: dedup
+    action: embedding.check_duplicate
+    args:
+      source: "${{ steps.collect.outputs.items }}"
+      threshold: 0.9
+
+  # 3. auto_ready 항목 longform 생성
+  - name: generate_longform
+    action: generator.run
+    args:
+      account: socialbuilders
+      type: longform
+    condition: "${{ vault.count('Inbox/Inputs', 'writing_status=auto_ready') > 0 }}"
+    batch:
+      source: "${{ vault.list('Inbox/Inputs', 'writing_status=auto_ready') }}"
+      size: 5
+      delay: 10s
+```
+
+### 6.2 `agentic_pipeline.yml`
+
+```yaml
+name: agentic_pipeline
+description: Source discovery to quality verification and publish
+
+steps:
+  - name: collect_candidates
+    action: collector.run
+    args:
+      account: socialbuilders
+
+  - name: dedup_candidates
+    action: embedding.check_duplicate
+    args:
+      source: "${{ steps.collect_candidates.outputs.items }}"
+      threshold: 0.9
+
+  - name: verify_quality
+    action: quality.verify
+    args:
+      account: socialbuilders
+      items: "${{ steps.collect_candidates.outputs.items }}"
+      threshold: 0.85
+    dynamic_steps:
+      - name: generate_longform
+        action: generator.run
+        args:
+          account: socialbuilders
+          type: longform
+          items: "${{ steps.verify_quality.outputs.verified }}"
+        condition: "${{ steps.verify_quality.outputs.verified }}"
+
+      - name: publish_twitter
+        action: publisher.run
+        args:
+          account: socialbuilders
+          source_path: Content/Packs/twitter
+          filter: derivative_status=approved
+          publish_platform: twitter
+        condition: "${{ steps.verify_quality.outputs.verified }}"
+```
+
+### 6.3 `approved_packs.yml`
+
+```yaml
+name: approved_packs
+description: 승인된 롱폼 → 소셜 팩 생성 (배치 처리)
+
+steps:
+  # 1. 승인된 롱폼 목록 조회
+  - name: list_approved
+    action: vault.list
+    args:
+      path: "Content/Longform"
+      filter: "status=approved"
+    outputs:
+      approved_contents: "${{ outputs.items }}"
+
+  # 2. 소셜 팩 생성
+  - name: generate_packs
+    action: generator.packs
+    args:
+      account: socialbuilders
+      contents: "${{ steps.list_approved.outputs.approved_contents }}"
+      types: ["twitter", "linkedin", "newsletter"]
+    batch:
+      source: "${{ steps.list_approved.outputs.approved_contents }}"
+      size: 3
+      delay: 5s
+
+  # 3. 게시 준비
+  - name: prepare_publish
+    action: publisher.prepare
+    args:
+      source_path: "Content/Packs"
+      filter: "derivative_status=approved"
+```
+
+### 6.4 `twitter_publish.yml`
+
+```yaml
+name: twitter_publish
+description: 트위터 팩 게시
+
+steps:
+  # 1. 게시 대상 조회
+  - name: get_publishable
+    action: vault.list
+    args:
+      path: "Content/Packs/twitter"
+      filter: "derivative_status=approved"
+    outputs:
+      publishable_posts: "${{ outputs.items }}"
+
+  # 2. 게시 실행
+  - name: publish_to_twitter
+    action: publisher.run
+    args:
+      platform: twitter
+      posts: "${{ steps.get_publishable.outputs.publishable_posts }}"
+      dry_run: false
+
+  # 3. 게시 상태 업데이트
+  - name: update_status
+    action: vault.update
+    args:
+      items: "${{ steps.get_publishable.outputs.publishable_posts }}"
+      updates:
+        derivative_status: "published"
+        published_at: "${{ steps.publish_to_twitter.outputs.published_at }}"
+```
+
+---
+
+## 7. 워크플로우 실행
+
+### 7.1 실행 방법
+
+```bash
+# 기본 실행
+python -m scripts.run_workflow --workflow config/workflows/daily_pipeline.yml
+
+# 계정 지정
+python -m scripts.run_workflow --workflow config/workflows/daily_pipeline.yml --account socialbuilders
+
+# 드라이런 모드
+python -m scripts.run_workflow --workflow config/workflows/daily_pipeline.yml --dry-run
+
+# 특정 단계만 실행
+python -m scripts.run_workflow --workflow config/workflows/daily_pipeline.yml --steps collect,dedup
+
+# 타임아웃 설정
+python -m scripts.run_workflow --workflow config/workflows/daily_pipeline.yml --timeout 7200
+
+# JSON 출력
+python -m scripts.run_workflow --workflow config/workflows/daily_pipeline.yml --json
+```
+
+### 7.2 실행 상태
+
+```python
+from picko.orchestrator.engine import WorkflowEngine
+from picko.orchestrator.actions import ActionRegistry
+
+# 엔진 초기화
+registry = ActionRegistry()
+engine = WorkflowEngine(registry)
+
+# 실행
+result = engine.run(
+    "config/workflows/daily_pipeline.yml",
+    args={"account": "socialbuilders"},
+    dry_run=True
+)
+
+# 결과 확인
+print(f"Status: {result.status}")
+print(f"Duration: {result.duration_seconds}s")
+print(f"Steps executed: {len(result.executed_steps)}")
+```
+
+---
+
+## 8. 워크플로우 확장
+
+### 8.1 커스텀 액션 추가
+
+```python
+# picko/orchestrator/custom_actions.py
+from picko.orchestrator.actions import ActionRegistry, ActionResult
+
+def register_custom_actions(registry: ActionRegistry):
+    """커스텀 액션 등록"""
+
+    @registry.register("custom.action")
+    async def custom_action_handler(args: dict) -> ActionResult:
+        """커스텀 액션 핸들러"""
+        try:
+            # 액션 로직 구현
+            result = await perform_custom_action(args)
+
+            return ActionResult(
+                success=True,
+                outputs=result
+            )
+        except Exception as e:
+            return ActionResult(
+                success=False,
+                error=str(e)
+            )
+
+async def perform_custom_action(args: dict):
+    """실제 커스텀 액션"""
+    # 구현
+    pass
+```
+
+### 8.2 워크플로우 템플릿
+
+```yaml
+# templates/weekly_pipeline.yml
+name: weekly_pipeline
+description: 주간 워크플로우 템플릿
+
+steps:
+  - name: collect_weekly
+    action: collector.run
+    args:
+      account: "{{ account }}"
+      sources: "{{ sources }}"
+
+  # ... 기본 단계들 ...
+
+# 템플릿 사용
+name: custom_weekly
+extends: templates/weekly_pipeline.yml
+variables:
+  account: "tech_news"
+  sources:
+    - url: "https://techcrunch.com/feed/"
+      type: "rss"
+```
+
+---
+
+## 9. 모니터링 및 로깅
+
+### 9.1 워크플로우 로그
+
+```python
+# 워크플로우 실행 로그
+{
+  "workflow_id": "exec_123",
+  "workflow_name": "daily_pipeline",
+  "status": "running",
+  "started_at": "2026-03-04T12:00:00Z",
+  "steps": [
+    {
+      "name": "collect",
+      "status": "completed",
+      "started_at": "2026-03-04T12:00:00Z",
+      "completed_at": "2026-03-04T12:02:30Z",
+      "duration_ms": 150000,
+      "outputs": {
+        "items": 15,
+        "success": true
+      }
+    },
+    {
+      "name": "dedup",
+      "status": "running",
+      "started_at": "2026-03-04T12:02:30Z",
+      "progress": 0.5
+    }
+  ]
+}
+```
+
+### 9.2 메트릭
+
+```python
+# 워크플로우 메트릭
+class WorkflowMetrics:
+    def __init__(self):
+        self.total_executions = Counter('workflow_executions_total')
+        self.success_rate = Gauge('workflow_success_rate')
+        self.execution_time = Histogram('workflow_duration_seconds')
+        self.steps_counter = Counter('workflow_steps_total', ['step_name'])
+
+# 실행 시 메트릭 기록
+metrics = WorkflowMetrics()
+metrics.total_executions.inc()
+metrics.execution_time.observe(duration_seconds)
+```
+
+---
+
+## 10. 테스트 스펙
+
+### 10.1 워크플로우 테스트
+
+```python
+# tests/test_workflows.py
+import pytest
+from unittest.mock import AsyncMock, patch
+from picko.orchestrator.engine import WorkflowEngine
+from picko.orchestrator.actions import ActionRegistry
+
+@pytest.mark.asyncio
+async def test_workflow_execution():
+    """워크플로우 실행 테스트"""
+
+    # 워크플로우 정의
+    workflow = {
+        "name": "test_pipeline",
+        "steps": [
+            {
+                "name": "test_step",
+                "action": "test.mock_action",
+                "args": {"test_arg": "test_value"}
+            }
+        ]
+    }
+
+    # Mock 액션 설정
+    with patch('test.mock_action') as mock_action:
+        mock_action.return_value = AsyncMock(return_value={
+            "success": True,
+            "outputs": {"result": "success"}
+        })
+
+        # 실행
+        engine = WorkflowEngine(registry)
+        result = await engine.run(workflow)
+
+        # 검증
+        assert result.status == "completed"
+        assert result.steps[0].outputs["result"] == "success"
+```
+
+### 10.2 표현식 테스트
+
+```python
+# tests/test_expressions.py
+@pytest.mark.asyncio
+async def test_expression_evaluation():
+    """표현식 평가 테스트"""
+
+    evaluator = ExpressionEvaluator(mock_vault, mock_context)
+
+    # Vault 표현식
+    result = evaluator.evaluate("vault.count('Inbox/Inputs', 'status=pending')")
+    assert result == 5
+
+    # 단계 출력 참조
+    result = evaluator.evaluate("steps.collect.outputs.items.length")
+    assert result == 10
+
+    # 복합 조건
+    result = evaluator.evaluate("steps.collect.outputs.success && steps.dedup.outputs.items.length > 0")
+    assert result == True
+```
+
+---
+
+## 11. 보안 및 접근 제어
+
+### 11.1 워크플로우 접근 제어
+
+```python
+class WorkflowAccessControl:
+    """워크플로우 접근 제어"""
+
+    def __init__(self):
+        self.allowed_workflows = {
+            "socialbuilders": ["daily_pipeline", "agentic_pipeline"],
+            "tech_news": ["daily_pipeline"]
+        }
+
+    def can_execute(self, user: str, workflow: str) -> bool:
+        """사용자의 워크플로우 실행 권한 확인"""
+        if user in self.allowed_workflows:
+            return workflow in self.allowed_workflows[user]
+        return False
+```
+
+### 11.2 인자 검증
+
+```python
+def validate_workflow_args(workflow: dict, args: dict) -> bool:
+    """워크플로우 인자 검증"""
+    required_args = workflow.get('required_args', [])
+
+    for arg in required_args:
+        if arg not in args:
+            raise ValueError(f"Missing required argument: {arg}")
+
+    return True
+```
+
+---
+
+*워크플로우 스펙에 대한 문의나 개선 제안은 GitHub Issues에 등록해 주세요.*

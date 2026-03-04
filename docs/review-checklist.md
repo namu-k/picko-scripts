@@ -22,13 +22,13 @@ Before merging any PR to `main`, ensure all items below are checked.
 - [ ] Security scan passes: `safety check` and `pip-audit`
 
 ### Documentation
-- [ ] CHANGELOG.md updated with version entry
 - [ ] Version bumped in `pyproject.toml`
-- [ ] New features documented in README.md or USER_GUIDE.md
+- [ ] New features documented in README.md or ./user-guide.md
+- [ ] New features documented in README.md or ./user-guide.md
 - [ ] API changes documented in CLAUDE.md
 
 ### Breaking Changes
-- [ ] Breaking changes listed in CHANGELOG.md
+- [ ] Breaking changes listed in ./changelog.md
 - [ ] Migration guide provided if needed
 
 ## Post-Merge Actions

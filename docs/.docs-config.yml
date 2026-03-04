@@ -1,0 +1,257 @@
+# 문서 관리 설정 파일
+
+# 문서 섹션 정의
+sections:
+  PRD:
+    path: ""
+    pattern: "PRD\\.md"
+    icon: "📋"
+    description: "제품 요구사항 문서"
+    required: true
+    files:
+      - name: "PRD.md"
+        description: "제품 요구사항 문서"
+        status: "completed"
+
+  계획:
+    path: "plans/"
+    pattern: "\\.md$"
+    icon: "📅"
+    description: "개발 계획 문서"
+    required: true
+    files:
+      - name: "2026-02-25-fix-ci-test-failures.md"
+        description: "CI 테스트 실패 수정 계획"
+        status: "completed"
+      - name: "2026-02-25-orchestration-layer.md"
+        description: "오케스트레이션 레이어 설계"
+        status: "completed"
+      - name: "2026-02-28-agentic-framework-spec.md"
+        description: "에이전틱 프레임워크 명세"
+        status: "completed"
+      - name: "2026-02-28-hybrid-agentic-pipeline-design.md"
+        description: "하이브리드 에이전틱 파이프라인 설계"
+        status: "completed"
+      - name: "ui-parameter-gap-analysis-revised.md"
+        description: "UI 파라미터 갭 분석 (개정)"
+        status: "completed"
+
+  UI/UX:
+    path: "ui/"
+    pattern: "\\.md$"
+    icon: "🎨"
+    description: "UI/UX 설계 문서"
+    required: true
+    files:
+      - name: "wireframes-and-flow.md"
+        description: "와이어프레임 및 플로우"
+        status: "completed"
+      - name: "input-output-artifacts.md"
+        description: "입출력 아티팩트 정의"
+        status: "completed"
+      - name: "mvp-wireframes.md"
+        description: "MVP 와이어프레임"
+        status: "completed"
+
+  API:
+    path: "api/"
+    pattern: "README\\.md"
+    icon: "🔌"
+    description: "API 명세 문서"
+    required: true
+    files:
+      - name: "README.md"
+        description: "RESTful API 명세"
+        status: "completed"
+
+  명세:
+    path: "specs/"
+    pattern: "\\.yml$"
+    icon: "📝"
+    description: "기술 명세 문서"
+    required: true
+    files:
+      - name: "collectors.yml"
+        description: "컬렉터 스펙"
+        status: "completed"
+      - name: "workflows.yml"
+        description: "워크플로우 스펙"
+        status: "completed"
+      - name: "ui-components.yml"
+        description: "UI 컴포넌트 스펙"
+        status: "completed"
+
+  아키텍처:
+    path: "architecture/"
+    pattern: "\\.md$"
+    icon: "🏗️"
+    description: "시스템 아키텍처 문서"
+    required: true
+    files:
+      - name: "README.md"
+        description: "아키텍처 개요"
+        status: "completed"
+      - name: "components.md"
+        description: "컴포넌트 상세 설명"
+        status: "completed"
+      - name: "data.md"
+        description: "데이터 아키텍처"
+        status: "completed"
+      - name: "security.md"
+        description: "보안 아키텍처"
+        status: "completed"
+
+  개발:
+    path: "development/"
+    pattern: "\\.md$"
+    icon: "💻"
+    description: "개발 문서"
+    required: true
+    files:
+      - name: "setup.md"
+        description: "개발 환경 설정"
+        status: "completed"
+      - name: "guidelines.md"
+        description: "개발 가이드"
+        status: "completed"
+      - name: "debugging.md"
+        description: "디버깅 가이드"
+        status: "completed"
+
+  운영:
+    path: "operations/"
+    pattern: "\\.md$"
+    icon: "🚀"
+    description: "운영 문서"
+    required: true
+    files:
+      - name: "deployment.md"
+        description: "배포 가이드"
+        status: "completed"
+      - name: "monitoring.md"
+        description: "모니터링 가이드"
+        status: "completed"
+
+  사용자:
+    path: "user/"
+    pattern: "\\.md$"
+    icon: "👥"
+    description: "사용자 문서"
+    required: true
+    files:
+      - name: "getting-started.md"
+        description: "시작 가이드"
+        status: "completed"
+
+# 문서 템플릿
+templates:
+  section_template: |
+    ## {{section.icon}} {{section.name}}
+    {{section.description}}
+
+    {{#section.files}}
+    - [{{name}}]({{path}}{{name}}) - {{description}} ({{status}})
+    {{/section.files}}
+
+    {{^section.files}}
+    ⚠️ 파일 없음
+    {{/section.files}}
+
+  file_template: |
+    # {{name}}
+
+    {{description}}
+
+    ---
+
+    *생성일: {{created_date}}*
+    *상태: {{status}}*
+
+# 문서 관리 규칙
+rules:
+  # 필수 섹션 (존재해야 함)
+  required_sections:
+    - PRD
+    - 계획
+    - UI/UX
+    - API
+    - 명세
+    - 아키텍처
+    - 개발
+    - 운영
+    - 사용자
+
+  # 파일명 규칙
+  filename_patterns:
+    - "^.*\.md$"
+    - "^.*\.yml$"
+
+  # 상태 아이콘 매핑
+  status_icons:
+    completed: "✅"
+    in_progress: "🚧"
+    planned: "⏸️"
+    deprecated: "🗑️"
+
+  # 문서 생성 규칙
+  document_rules:
+    # UTF-8 인코딩 필수
+    encoding: "utf-8"
+
+    # 파일 시작에 빈 줄 필요
+    require_empty_line_start: true
+
+    # 파일 끝에 빈 줄 필요
+    require_empty_line_end: true
+
+    # 첫 번째 줄은 헤딩(# )이어야 함
+    require_first_heading: true
+
+    # 최소 길이
+    min_length: 50
+
+# CI/CD 설정
+ci:
+  # 자동 실행 주기
+  schedule:
+    - "0 9 * * 1"  # 매주 월요일 9시
+
+  # PR 시점검 항목
+  pr_checks:
+    - broken_links
+    - format
+    - consistency
+    - completeness
+
+  # 깨진 링크 체크
+  check_broken_links: true
+
+  # 포맷 검사
+  check_format: true
+
+  # 일관성 검사
+  check_consistency: true
+
+# 통계 설정
+statistics:
+  # 출력 형식
+  output_format: "markdown"
+
+  # 집계 단위
+  aggregation: "section"
+
+  # 비율 계산
+  include_percentages: true
+
+# 알림 설정
+notifications:
+  # Slack 웹훅 URL (환경 변수에서 가져오기)
+  slack_webhook_url: "${SLACK_WEBHOOK_URL}"
+
+  # 이메일 설정
+  email:
+    enabled: false
+    smtp_server: ""
+    port: 587
+    username: ""
+    password: ""

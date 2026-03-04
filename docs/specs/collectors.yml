@@ -1,0 +1,722 @@
+# Picko 컬렉터 스펙 (Collector Specifications)
+
+> **버전**: 1.0.0
+> **최종 수정**: 2026-03-04
+> **대상 독자**: 개발자, 시스템 아키텍트
+
+---
+
+## 개요
+
+컬렉터 스펙은 Picko 시스템의 콘텐츠 수집 레이어에 대한 상세 명세입니다. 모든 컬렉터는 `BaseCollector` 클래스를 상속받아 일관된 인터페이스를 제공합니다.
+
+---
+
+## 1. 컬렉터 아키텍처
+
+### 1.1 기본 구조
+
+```yaml
+# 컬렉터 계층 구조
+BaseCollector (추상 클래스)
+├── RSSCollector
+├── PerplexityCollector
+├── RedditCollector (미구현)
+├── MastodonCollector
+└── ThreadsCollector (미구현)
+```
+
+### 1.2 BaseCollector 인터페이스
+
+```python
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any
+from picko.collectors.base import CollectedItem, SourceMeta
+
+class BaseCollector(ABC):
+    """모든 컬렉터의 기본 클래스"""
+
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+        self.source_meta: SourceMeta = None
+
+    @abstractmethod
+    async def collect(self, source: SourceMeta) -> List[CollectedItem]:
+        """소스에서 콘텐츠 수집"""
+        pass
+
+    def validate_source(self, source: SourceMeta) -> bool:
+        """소스 유효성 검증"""
+        pass
+
+    def post_process(self, items: List[CollectedItem]) -> List[CollectedItem]:
+        """수집 후 처리 (정규화, 필터링 등)"""
+        pass
+```
+
+### 1.3 CollectedItem 데이터 모델
+
+```python
+@dataclass
+class CollectedItem:
+    """수집된 콘텐츠의 표준 데이터 구조"""
+
+    # 필수 필드
+    id: str                    # 고유 식별자
+    title: str                # 제목
+    content: str              # 전체 콘텐츠
+    url: str                  # 원본 URL
+    source_url: str           # 소스 URL (피드 URL 등)
+
+    # 선택 필드
+    summary: Optional[str] = None    # 자동 생성 요약
+    tags: List[str] = field(default_factory=list)  # 태그
+    author: Optional[str] = None      # 저자
+    published_at: Optional[datetime] = None  # 발행일
+    collected_at: datetime = field(default_factory=datetime.now)  # 수집일
+
+    # 메타데이터
+    source_type: str = "rss"    # 소스 타입 (rss, perplexity, reddit 등)
+    language: Optional[str] = None  # 언어 코드 (ko, en 등)
+    image_urls: List[str] = field(default_factory=list)  # 이미지 URL
+    video_urls: List[str] = field(default_factory=list)  # 비디오 URL
+
+    # 품질 점수 (컬렉터에서 계산)
+    quality_score: Optional[float] = None
+    relevance_score: Optional[float] = None
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Dictionary 변환"""
+        return asdict(self)
+```
+
+---
+
+## 2. RSS 컬렉터 스펙
+
+### 2.1 RSSCollector 클래스
+
+```python
+class RSSCollector(BaseCollector):
+    """RSS 피드에서 콘텐츠 수집"""
+
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.feed_parser = None
+
+    async def collect(self, source: SourceMeta) -> List[CollectedItem]:
+        """
+        RSS 피드에서 아이템 수집
+
+        Args:
+            source: SourceMeta 객체
+
+        Returns:
+            CollectedItem 리스트
+        """
+        # 1. 피드 다운로드
+        feed_content = await self._download_feed(source.url)
+
+        # 2. 피드 파싱
+        feed_items = self._parse_feed(feed_content)
+
+        # 3. CollectedItem으로 변환
+        collected_items = []
+        for item in feed_items:
+            # 중복 검사
+            if not await self._is_duplicate(item.link):
+                collected_item = self._create_collected_item(item, source)
+                collected_items.append(collected_item)
+
+        return collected_items
+
+    async def _download_feed(self, url: str) -> str:
+        """RSS 피드 다운로드"""
+        # HTTP 요청 및 파싱
+        pass
+
+    def _parse_feed(self, feed_content: str) -> List[Dict]:
+        """피드 파싱"""
+        # feedparser 사용
+        pass
+
+    def _create_collected_item(self, feed_item: Dict, source: SourceMeta) -> CollectedItem:
+        """CollectedItem 객체 생성"""
+        return CollectedItem(
+            id=generate_id(feed_item.link),
+            title=feed_item.title,
+            content=feed_item.description or "",
+            url=feed_item.link,
+            source_url=source.url,
+            published_at=parse_datetime(feed_item.published),
+            source_type="rss",
+            language=self._detect_language(feed_item.title),
+            author=getattr(feed_item, 'author', None)
+        )
+```
+
+### 2.2 지원 피드 형식
+
+| 형식 | 지원 여부 | 설명 |
+|------|----------|------|
+| RSS 2.0 | ✅ 완전 지원 | 표준 RSS 2.0 |
+| Atom 1.0 | ✅ 완전 지원 | Atom 1.0 피드 |
+| JSON Feed | ✅ 지원 | JSON 기반 피드 |
+| RDF/RSS 1.0 | ⚠️ 부분 지원 | 기능 제한 있음 |
+
+### 2.3 RSS 필드 매핑
+
+| RSS 필드 | CollectedItem 필드 | 설명 |
+|----------|-------------------|------|
+| title | title | 제목 |
+| link | url | 원본 링크 |
+| description | content | 설명/내용 |
+| pubDate | published_at | 발행일 |
+| author | author | 저자 |
+| category | tags | 카테고리/태그 |
+| enclosure.image_url | image_urls | 이미지 URL |
+
+---
+
+## 3. Perplexity 컬렉터 스펙
+
+### 3.1 PerplexityCollector 클래스
+
+```python
+class PerplexityCollector(BaseCollector):
+    """Perplexity Task 결과 수집"""
+
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.input_dir = config.get('input_dir', 'Inbox/Perplexity')
+        self.archive_dir = config.get('archive_dir', 'Archive/Perplexity')
+
+    async def collect(self, source: SourceMeta) -> List[CollectedItem]:
+        """
+        Perplexity 결과 파일에서 콘텐츠 수집
+
+        Args:
+            source: SourceMeta 객체 (실제로는 사용하지 않음)
+
+        Returns:
+            CollectedItem 리스트
+        """
+        # 1. 입력 디렉토리 스캔
+        files = await self._scan_input_dir()
+
+        # 2. 파일 파싱
+        collected_items = []
+        for file_path in files:
+            item = await self._parse_file(file_path)
+            if item:
+                collected_items.append(item)
+
+        # 3. 파일 아카이브
+        await self._archive_files(files)
+
+        return collected_items
+
+    async def _scan_input_dir(self) -> List[str]:
+        """입력 디렉토리에서 파일 스캔"""
+        # 지정된 패턴(.md, .html)으로 파일 검색
+        pass
+
+    async def _parse_file(self, file_path: str) -> Optional[CollectedItem]:
+        """파일 파싱 (HTML/MD)"""
+        # 파일 읽기 및 파싱
+        pass
+
+    async def _archive_files(self, files: List[str]):
+        """처리된 파일 아카이브"""
+        # 파일을 Archive/Perplexity로 이동
+        pass
+```
+
+### 3.2 지원 파일 형식
+
+| 형식 | 지원 여부 | 파서 | 추출 정보 |
+|------|----------|------|----------|
+| Markdown (.md) | ✅ 완전 지원 | frontmatter_parser | 제목, 내용, 메타데이터 |
+| HTML (.html) | ✅ 완전 지원 | BeautifulSoup | 제목, 내용, 메타데이터 |
+| PDF (.pdf) | ⚠️ 미구현 | PyPDF2 | 제목, 내용 (기능 제한) |
+
+---
+
+## 4. 디스커버리 컬렉터 스펙
+
+### 4.1 BaseDiscoveryCollector 인터페이스
+
+```python
+from abc import ABC, abstractmethod
+from picko.discovery.base import SourceCandidate
+
+class BaseDiscoveryCollector(ABC):
+    """소스 발견 컬렉터 기본 클래스"""
+
+    @abstractmethod
+    async def discover(self, keywords: List[str], platform: str) -> List[SourceCandidate]:
+        """새로운 소스 발견"""
+        pass
+```
+
+### 4.2 RedditCollector 스펙
+
+```python
+class RedditDiscoveryCollector(BaseDiscoveryCollector):
+    """Reddit 소스 발겕"""
+
+    async def discover(self, keywords: List[str], max_results: int = 10) -> List[SourceCandidate]:
+        """
+        Reddit에서 관련 커뮤니티 발견
+
+        Args:
+            keywords: 검색 키워드
+            max_results: 최대 결과 수
+
+        Returns:
+            SourceCandidate 리스트
+        """
+        # Reddit API 호출
+        search_results = await self._search_subreddits(keywords, max_results)
+
+        # SourceCandidate로 변환
+        candidates = []
+        for result in search_results:
+            candidate = SourceCandidate(
+                id=f"reddit_{result['subreddit']}",
+                platform="reddit",
+                handle=f"r/{result['subreddit']}",
+                name=result['title'],
+                description=result['description'],
+                url=f"https://reddit.com/r/{result['subreddit']}",
+                metadata={
+                    'subscribers': result['subscribers'],
+                    'active_users': result['active_users'],
+                    'created_at': result['created_at']
+                }
+            )
+            candidates.append(candidate)
+
+        return candidates
+```
+
+### 4.3 MastodonCollector 스펙
+
+```python
+class MastodonDiscoveryCollector(BaseDiscoveryCollector):
+    """Mastodon 소스 발견"""
+
+    async def discover(self, keywords: List[str], max_results: int = 10) -> List[SourceCandidate]:
+        """
+        Mastodon에서 관계 사용자 발견
+
+        Args:
+            keywords: 검색 키워드
+            max_results: 최대 결과 수
+
+        Returns:
+            SourceCandidate 리스트
+        """
+        # Mastodon API 호출
+        search_results = await self._search_users(keywords, max_results)
+
+        # SourceCandidate로 변환
+        candidates = []
+        for result in search_results:
+            candidate = SourceCandidate(
+                id=f"mastodon_{result['id']}",
+                platform="mastodon",
+                handle=result['username'],
+                name=result['display_name'],
+                description=result['note'],
+                url=result['url'],
+                metadata={
+                    'followers_count': result['followers_count'],
+                    'following_count': result['following_count'],
+                    'created_at': result['created_at']
+                }
+            )
+            candidates.append(candidate)
+
+        return candidates
+```
+
+### 4.4 ThreadsCollector 스펙 (Placeholder)
+
+```python
+class ThreadsDiscoveryCollector(BaseDiscoveryCollector):
+    """Threads 소스 발견 (Meta App Review 대기 중)"""
+
+    # 현재 Placeholder 상태
+    # Meta App Review 승인 대기 중
+
+    async def discover(self, keywords: List[str], max_results: int = 10) -> List[SourceCandidate]:
+        """
+        Threads에서 소스 발견 (미구현)
+
+        상태: Placeholder
+        블로커: Meta App Review 승인 대기
+        """
+        raise NotImplementedError("Threads API 접근 제한 - Meta App Review 필요")
+```
+
+---
+
+## 5. 컬렉터 설정
+
+### 5.1 컬렉터별 설정 예시
+
+```yaml
+# config/collectors.yml
+
+# RSS 컬렉터 설정
+rss:
+  enabled: true
+  timeout_seconds: 30
+  max_retries: 3
+  retry_delay_seconds: 5
+  user_agent: "Picko-Collector/1.0"
+
+  # 헤더 설정
+  headers:
+    Accept: "application/rss+xml, application/xml, text/xml"
+
+  # 인코딩
+  encoding: "utf-8"
+
+  # 파싱 옵션
+  parse_options:
+    extract_images: true
+    extract_videos: false
+    max_content_length: 100000  # 100KB
+
+# Perplexity 컬렉터 설정
+perplexity:
+  enabled: true
+  input_dir: "Inbox/Perplexity"
+  archive_dir: "Archive/Perplexity"
+  file_patterns:
+    - "*.md"
+    - "*.html"
+  archive_on_success: true
+
+  # 파싱 옵션
+  parse_options:
+    extract_frontmatter: true
+    remove_html_tags: true
+
+# 품질 관리 규칙
+quality_rules:
+  min_relevance_score: 0.6
+  min_quality_score: 0.5
+  max_inactive_days: 30
+  min_signal_noise_ratio: 0.2
+
+  # 신뢰 소스 임계값
+  trusted_threshold_quality: 0.9
+  trusted_threshold_count: 50
+```
+
+---
+
+## 6. 컬렉터 확장 가이드
+
+### 6.1 새 컬렉터 추가
+
+```python
+# picko/collectors/custom_collector.py
+from picko.collectors.base import BaseCollector, CollectedItem
+from picko.collectors.base import SourceMeta
+
+class CustomCollector(BaseCollector):
+    """새로운 컬렉터 예시"""
+
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.api_key = config.get('api_key')
+
+    async def collect(self, source: SourceMeta) -> List[CollectedItem]:
+        # 1. API 호출
+        response = await self._call_api(source.url)
+
+        # 2. 데이터 변환
+        items = []
+        for data in response['items']:
+            item = CollectedItem(
+                id=data['id'],
+                title=data['title'],
+                content=data['content'],
+                url=data['url'],
+                source_url=source.url,
+                published_at=datetime.fromisoformat(data['published_at'])
+            )
+            items.append(item)
+
+        return items
+
+    async def _call_api(self, url: str) -> Dict:
+        """API 호출 예시"""
+        pass
+```
+
+### 6.2 컬렉터 등록
+
+```python
+# picko/collectors/__init__.py
+from .rss import RSSCollector
+from .perplexity import PerplexityCollector
+from .custom_collector import CustomCollector
+
+# 컬렉터 매핑
+COLLECTORS = {
+    'rss': RSSCollector,
+    'perplexity': PerplexityCollector,
+    'custom': CustomCollector
+}
+
+def get_collector(collector_type: str, config: Dict[str, Any]) -> BaseCollector:
+    """컬렉터 인스턴스 생성"""
+    if collector_type not in COLLECTORS:
+        raise ValueError(f"Unknown collector type: {collector_type}")
+    return COLLECTORS[collector_type](config)
+```
+
+---
+
+## 7. 성능 최적화
+
+### 7.1 배치 처리
+
+```python
+# 컬렉터 배치 처리 예시
+async def collect_batch(sources: List[SourceMeta], batch_size: int = 10):
+    """여러 소스를 배치로 수집"""
+    tasks = []
+    for i in range(0, len(sources), batch_size):
+        batch = sources[i:i + batch_size]
+        task = asyncio.gather(*[
+            collect_source(source) for source in batch
+        ])
+        tasks.append(task)
+
+    results = []
+    for task in tasks:
+        batch_results = await task
+        results.extend(batch_results)
+
+    return results
+```
+
+### 7.2 캐싱 전략
+
+```python
+# 컬렉터 캐싱
+import hashlib
+from datetime import datetime, timedelta
+
+class CollectorCache:
+    def __init__(self, ttl_hours: int = 24):
+        self.ttl = timedelta(hours=ttl_hours)
+        self.cache = {}
+
+    def get_key(self, source_url: str, modified_since: datetime = None) -> str:
+        """캐시 키 생성"""
+        key_data = f"{source_url}_{modified_since.isoformat() if modified_since else ''}"
+        return hashlib.md5(key_data.encode()).hexdigest()
+
+    def get(self, key: str) -> Optional[List[CollectedItem]]:
+        """캐시에서 아이템 조회"""
+        if key in self.cache:
+            data, timestamp = self.cache[key]
+            if datetime.now() - timestamp < self.ttl:
+                return data
+        return None
+
+    def set(self, key: str, items: List[CollectedItem]):
+        """캐시에 아이템 저장"""
+        self.cache[key] = (items, datetime.now())
+```
+
+---
+
+## 8. 모니터링 및 로깅
+
+### 8.1 컬렉터 로깅
+
+```python
+import logging
+from picko.logger import get_logger
+
+logger = get_logger(__name__)
+
+class RSSCollector(BaseCollector):
+    def __init__(self, config: Dict[str, Any]):
+        super().__init__(config)
+        self.logger = logger
+
+    async def collect(self, source: SourceMeta) -> List[CollectedItem]:
+        self.logger.info(f"Starting RSS collection for {source.url}")
+
+        try:
+            feed_content = await self._download_feed(source.url)
+            feed_items = self._parse_feed(feed_content)
+
+            self.logger.info(f"Found {len(feed_items)} items in feed")
+
+            # 중복 제거 로깅
+            unique_items = [item for item in feed_items if not await self._is_duplicate(item.link)]
+            self.logger.info(f"Removed {len(feed_items) - len(unique_items)} duplicates")
+
+            return unique_items
+
+        except Exception as e:
+            self.logger.error(f"Failed to collect from {source.url}: {str(e)}")
+            raise
+```
+
+### 8.2 컬렉터 메트릭
+
+```python
+from prometheus_client import Counter, Histogram, Gauge
+
+# 메트릭 정의
+COLLECT_TOTAL = Counter('collector_total', 'Total collector executions', ['type'])
+COLLECT_ERRORS = Counter('collector_errors', 'Collector errors', ['type'])
+COLLECT_DURATION = Histogram('collector_duration_seconds', 'Collector execution time', ['type'])
+COLLECTED_ITEMS = Gauge('collector_items', 'Number of collected items', ['type'])
+
+class RSSCollector(BaseCollector):
+    async def collect(self, source: SourceMeta) -> List[CollectedItem]:
+        COLLECT_TOTAL.labels(type='rss').inc()
+
+        start_time = time.time()
+
+        try:
+            # ... 수집 로직 ...
+            duration = time.time() - start_time
+            COLLECT_DURATION.labels(type='rss').observe(duration)
+            COLLECTED_ITEMS.labels(type='rss').set(len(items))
+
+            return items
+
+        except Exception as e:
+            COLLECT_ERRORS.labels(type='rss').inc()
+            raise
+```
+
+---
+
+## 9. 테스트 스펙
+
+### 9.1 단위 테스트
+
+```python
+# tests/test_collectors.py
+import pytest
+from unittest.mock import AsyncMock, patch
+from picko.collectors.rss import RSSCollector
+from picko.collectors.base import CollectedItem
+
+@pytest.mark.asyncio
+async def test_rss_collector():
+    # 테스트 데이터
+    mock_feed = """
+    <rss version="2.0">
+        <channel>
+            <title>Test Feed</title>
+            <item>
+                <title>Test Item</title>
+                <link>https://example.com/test</link>
+                <description>Test content</description>
+                <pubDate>Mon, 01 Jan 2026 00:00:00 GMT</pubDate>
+            </item>
+        </channel>
+    </rss>
+    """
+
+    # 컬렉터 생성
+    collector = RSSCollector({'timeout': 30})
+
+    # Mock 설정
+    with patch('aiohttp.ClientSession.get') as mock_get:
+        mock_get.return_value.__aenter__.return_value.text = AsyncMock(return_value=mock_feed)
+
+        # 수집 실행
+        source = SourceMeta(url='https://example.com/feed')
+        items = await collector.collect(source)
+
+        # 결과 검증
+        assert len(items) == 1
+        assert items[0].title == 'Test Item'
+        assert items[0].url == 'https://example.com/test'
+```
+
+### 9.2 통합 테스트
+
+```python
+# tests/integration/test_collectors_integration.py
+import pytest
+from picko.collectors.rss import RSSCollector
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_real_rss_collection():
+    # 실제 RSS 피드 테스트
+    collector = RSSCollector({
+        'timeout': 30,
+        'user_agent': 'Test-User-Agent'
+    })
+
+    source = SourceMeta(url='https://techcrunch.com/feed/')
+    items = await collector.collect(source)
+
+    # 검증
+    assert len(items) > 0
+    assert all(isinstance(item, CollectedItem) for item in items)
+    assert all(item.url for item in items)
+```
+
+---
+
+## 10. 보안 고려사항
+
+### 10.1 입력 검증
+
+```python
+def validate_source_url(url: str) -> bool:
+    """URL 유효성 검증"""
+    try:
+        parsed = urlparse(url)
+        if not parsed.scheme in ['http', 'https']:
+            return False
+        if not parsed.netloc:
+            return False
+        return True
+    except:
+        return False
+
+def sanitize_content(content: str) -> str:
+    """XSS 방지를 위한 내용 정제"""
+    # HTML 태그 제거 또는 이스케이프
+    return bleach.clean(content, tags=[], strip=True)
+```
+
+### 10.2 API 키 관리
+
+```python
+# API 키는 환경 변수로 관리
+import os
+
+class CollectorConfig:
+    def __init__(self, config: Dict[str, Any]):
+        self.config = config
+
+        # API 키 설정
+        self.api_key = os.getenv('COLLECTOR_API_KEY')
+        if not self.api_key:
+            raise ValueError("COLLECTOR_API_KEY environment variable required")
+```
+
+---
+
+*컬렉터 스펙에 대한 문의나 개선 제안은 GitHub Issues에 등록해 주세요.*

@@ -1,0 +1,1512 @@
+# Picko UI 컴포넌트 스펙 (UI Component Specifications)
+
+> **버전**: 1.0.0
+> **최종 수정**: 2026-03-04
+> **대상 독자**: 프론트엔드 개발자, UI/UX 디자이너
+
+---
+
+## 개요
+
+UI 컴포넌트 스펙은 Picko 시스템의 웹 인터페이스에 사용되는 UI 컴포넌트에 대한 상세 명세입니다. React 기반의 단일 페이지 애플리케이션(SPA)으로 구성되며, 다양한 UI 컴포넌트와 레이아웃 시스템을 제공합니다.
+
+---
+
+## 1. UI 아키텍처
+
+### 1.1 기본 구조
+
+```javascript
+// UI 아키텍처 구조
+UI Framework: React 18+ + TypeScript
+├── State Management: Redux Toolkit + RTK Query
+├── Routing: React Router v6
+├── Styling: Tailwind CSS + Styled Components
+├── Components: Headless UI + 커스텀 컴포넌트
+├── Forms: React Hook Form + Zod 유효성 검사
+├── Charts: Recharts
+└── Notifications: React Hot Toast
+```
+
+### 1.2 폴더 구조
+
+```
+src/
+├── components/                 # 재사용 가능 컴포넌트
+│   ├── common/               # 공통 컴포넌트
+│   │   ├── Button/
+│   │   ├── Input/
+│   │   ├── Card/
+│   │   └── Modal/
+│   ├── layout/               # 레이아웃 컴포넌트
+│   │   ├── Header/
+│   │   ├── Sidebar/
+│   │   └── Footer/
+│   ├── forms/                # 폼 컴포넌트
+│   │   ├── LoginForm/
+│   │   ├── WorkflowForm/
+│   │   └── SettingsForm/
+│   ├── data/                 # 데이터 표시 컴포넌트
+│   │   ├── DataTable/
+│   │   ├── ItemCard/
+│   │   └── ProgressBar/
+│   └── workflow/             # 워크플로우 전용 컴포넌트
+│       ├── WorkflowBuilder/
+│       ├── WorkflowExecutor/
+│       └── WorkflowHistory/
+├── pages/                   # 페이지 컴포넌트
+├── hooks/                   # 커스텀 훅
+├── store/                   # Redux Store
+├── utils/                   # 유틸리티 함수
+└── types/                   # TypeScript 타입 정의
+```
+
+---
+
+## 2. 공통 컴포넌트
+
+### 2.1 Button 컴포넌트
+
+```typescript
+// components/common/Button/Button.tsx
+import React from 'react';
+import { Button as HeadlessButton } from '@headlessui/react';
+
+interface ButtonProps {
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
+  size?: 'sm' | 'md' | 'lg';
+  loading?: boolean;
+  disabled?: boolean;
+  children: React.ReactNode;
+  onClick?: () => void;
+  className?: string;
+  icon?: React.ReactNode;
+}
+
+export const Button: React.FC<ButtonProps> = ({
+  variant = 'primary',
+  size = 'md',
+  loading = false,
+  disabled = false,
+  children,
+  onClick,
+  className = '',
+  icon
+}) => {
+  return (
+    <HeadlessButton
+      onClick={onClick}
+      disabled={disabled || loading}
+      className={`
+        inline-flex items-center justify-center rounded-lg font-medium
+        transition-colors duration-200
+        ${variantStyles[variant]}
+        ${sizeStyles[size]}
+        ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'}
+        ${loading ? 'cursor-wait' : ''}
+        ${className}
+      `}
+    >
+      {loading && (
+        <svg className="animate-spin -ml-1 mr-2 h-4 w-4" ... />
+      )}
+      {icon && <span className="mr-2">{icon}</span>}
+      {children}
+    </HeadlessButton>
+  );
+};
+
+// 스타일 정의
+const variantStyles = {
+  primary: 'bg-blue-600 text-white',
+  secondary: 'bg-gray-200 text-gray-900',
+  outline: 'border border-gray-300 text-gray-700 bg-transparent',
+  ghost: 'text-gray-700 bg-transparent hover:bg-gray-100',
+  destructive: 'bg-red-600 text-white hover:bg-red-700'
+};
+
+const sizeStyles = {
+  sm: 'px-3 py-1.5 text-sm',
+  md: 'px-4 py-2 text-base',
+  lg: 'px-6 py-3 text-lg'
+};
+```
+
+### 2.2 Input 컴포넌트
+
+```typescript
+// components/common/Input/Input.tsx
+import React from 'react';
+import { useForm, UseFormRegister } from 'react-hook-form';
+import { ZodSchema } from 'zod';
+
+interface InputProps {
+  id: string;
+  label: string;
+  type?: 'text' | 'email' | 'password' | 'number' | 'url';
+  placeholder?: string;
+  required?: boolean;
+  error?: string;
+  register: UseFormRegister<any>;
+  schema?: ZodSchema;
+}
+
+export const Input: React.FC<InputProps> = ({
+  id,
+  label,
+  type = 'text',
+  placeholder,
+  required = false,
+  error,
+  register,
+  schema
+}) => {
+  return (
+    <div className="space-y-1">
+      <label htmlFor={id} className="block text-sm font-medium text-gray-700">
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+      </label>
+      <input
+        id={id}
+        type={type}
+        placeholder={placeholder}
+        className={`
+          w-full px-3 py-2 border rounded-lg
+          transition-colors duration-200
+          ${error
+            ? 'border-red-500 focus:ring-red-500 focus:border-red-500'
+            : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+          }
+        `}
+        {...register(id, {
+          required: required ? `${label} is required` : false,
+          pattern: type === 'email' ? /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i : undefined,
+          ...(schema && { validate: (value) => schema.safeParse(value).success })
+        })}
+      />
+      {error && (
+        <p className="text-sm text-red-600 mt-1">{error}</p>
+      )}
+    </div>
+  );
+};
+```
+
+### 2.3 Card 컴포넌트
+
+```typescript
+// components/common/Card/Card.tsx
+import React from 'react';
+import { XMarkIcon, EllipsisVerticalIcon } from '@heroicons/react/24/outline';
+
+interface CardProps {
+  title?: string;
+  children: React.ReactNode;
+  className?: string;
+  actions?: React.ReactNode;
+  closable?: boolean;
+  onClose?: () => void;
+}
+
+export const Card: React.FC<CardProps> = ({
+  title,
+  children,
+  className = '',
+  actions,
+  closable = false,
+  onClose
+}) => {
+  return (
+    <div className={`bg-white rounded-lg shadow-sm border border-gray-200 ${className}`}>
+      {title && (
+        <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+          <h3 className="text-lg font-medium text-gray-900">{title}</h3>
+          <div className="flex items-center space-x-2">
+            {actions}
+            {closable && (
+              <button
+                onClick={onClose}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <XMarkIcon className="w-5 h-5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      <div className="p-4">
+        {children}
+      </div>
+    </div>
+  );
+};
+```
+
+### 2.4 Modal 컴포넌트
+
+```typescript
+// components/common/Modal/Modal.tsx
+import React from 'react';
+import { Dialog } from '@headlessui/react';
+import { XMarkIcon } from '@heroicons/react/24/outline';
+
+interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+  size?: 'sm' | 'md' | 'lg';
+  footer?: React.ReactNode;
+}
+
+export const Modal: React.FC<ModalProps> = ({
+  isOpen,
+  onClose,
+  title,
+  children,
+  size = 'md',
+  footer
+}) => {
+  const sizeClasses = {
+    sm: 'max-w-md',
+    md: 'max-w-lg',
+    lg: 'max-w-2xl'
+  };
+
+  return (
+    <Dialog
+      open={isOpen}
+      onClose={onClose}
+      className="relative z-50"
+    >
+      <div className="fixed inset-0 bg-black bg-opacity-50" />
+      <div className="fixed inset-0 flex items-center justify-center p-4">
+        <Dialog.Panel className={`${sizeClasses[size]} bg-white rounded-lg shadow-xl`}>
+          <div className="flex items-center justify-between px-4 py-3 border-b">
+            <Dialog.Title className="text-lg font-medium text-gray-900">
+              {title}
+            </Dialog.Title>
+            <button
+              onClick={onClose}
+              className="p-1 text-gray-400 hover:text-gray-600"
+            >
+              <XMarkIcon className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="p-4">
+            {children}
+          </div>
+          {footer && (
+            <div className="border-t px-4 py-3 flex justify-end space-x-2">
+              {footer}
+            </div>
+          )}
+        </Dialog.Panel>
+      </div>
+    </Dialog>
+  );
+};
+```
+
+---
+
+## 3. 레이아웃 컴포넌트
+
+### 3.1 Header 컴포넌트
+
+```typescript
+// components/layout/Header/Header.tsx
+import React from 'react';
+import { BellIcon, UserCircleIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
+import { Button } from '../common/Button';
+
+interface HeaderProps {
+  user?: {
+    name: string;
+    email: string;
+    avatar?: string;
+  };
+  notifications?: number;
+}
+
+export const Header: React.FC<HeaderProps> = ({ user, notifications = 0 }) => {
+  return (
+    <header className="bg-white border-b border-gray-200">
+      <div className="px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center">
+          <h1 className="text-xl font-bold text-gray-900">Picko</h1>
+        </div>
+
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" size="sm">
+            <BellIcon className="w-5 h-5" />
+            {notifications > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                {notifications}
+              </span>
+            )}
+          </Button>
+
+          <Button variant="ghost" size="sm">
+            <Cog6ToothIcon className="w-5 h-5" />
+          </Button>
+
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-700">{user?.name}</span>
+            {user?.avatar ? (
+              <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full" />
+            ) : (
+              <UserCircleIcon className="w-8 h-8 text-gray-400" />
+            )}
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+};
+```
+
+### 3.2 Sidebar 컴포넌트
+
+```typescript
+// components/layout/Sidebar/Sidebar.tsx
+import React from 'react';
+import Link from 'next/link';
+import {
+  HomeIcon,
+  NewspaperIcon,
+  ChartBarIcon,
+  Cog6ToothIcon,
+  InboxIcon
+} from '@heroicons/react/24/outline';
+
+interface NavItem {
+  name: string;
+  href: string;
+  icon: React.ReactNode;
+  badge?: number;
+}
+
+export const Sidebar: React.FC = () => {
+  const navItems: NavItem[] = [
+    {
+      name: '대시보드',
+      href: '/',
+      icon: <HomeIcon className="w-5 h-5" />
+    },
+    {
+      name: '수집 모니터링',
+      href: '/collect',
+      icon: <InboxIcon className="w-5 h-5" />,
+      badge: 5
+    },
+    {
+      name: '콘텐츠 생성',
+      href: '/content',
+      icon: <NewspaperIcon className="w-5 h-5" />
+    },
+    {
+      name: '워크플로우',
+      href: '/workflows',
+      icon: <ChartBarIcon className="w-5 h-5" />
+    },
+    {
+      name: '설정',
+      href: '/settings',
+      icon: <Cog6ToothIcon className="w-5 h-5" />
+    }
+  ];
+
+  return (
+    <aside className="w-64 bg-gray-50 border-r border-gray-200 min-h-screen">
+      <nav className="p-4 space-y-1">
+        {navItems.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`
+              flex items-center px-3 py-2 text-sm font-medium rounded-lg
+              transition-colors duration-200
+              ${
+                window.location.pathname === item.href
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }
+            `}
+          >
+            {item.icon}
+            <span className="ml-3">{item.name}</span>
+            {item.badge && (
+              <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
+                {item.badge}
+              </span>
+            )}
+          </Link>
+        ))}
+      </nav>
+    </aside>
+  );
+};
+```
+
+---
+
+## 4. 데이터 표시 컴포넌트
+
+### 4.1 DataTable 컴포넌트
+
+```typescript
+// components/data/DataTable/DataTable.tsx
+import React from 'react';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@radix-ui/react-table';
+import { Button } from '../common/Button';
+
+interface DataTableProps<T> {
+  data: T[];
+  columns: {
+    key: string;
+    label: string;
+    render?: (value: any, row: T) => React.ReactNode;
+  }[];
+  onRowClick?: (row: T) => void;
+  actions?: (row: T) => React.ReactNode;
+  pagination?: {
+    page: number;
+    total: number;
+    pageSize: number;
+    onPageChange: (page: number) => void;
+  };
+}
+
+export const DataTable = <T,>({
+  data,
+  columns,
+  onRowClick,
+  actions,
+  pagination
+}: DataTableProps<T>) => {
+  return (
+    <div className="bg-white rounded-lg shadow">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            {columns.map((column) => (
+              <TableHead key={column.key}>{column.label}</TableHead>
+            ))}
+            <TableHead className="w-32">액션</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.map((row, index) => (
+            <TableRow
+              key={index}
+              onClick={onRowClick ? () => onRowClick(row) : undefined}
+              className={onRowClick ? 'cursor-pointer hover:bg-gray-50' : ''}
+            >
+              {columns.map((column) => (
+                <TableCell key={column.key}>
+                  {column.render
+                    ? column.render(row[column.key], row)
+                    : row[column.key]
+                  }
+                </TableCell>
+              ))}
+              <TableCell>
+                <div className="flex space-x-2">
+                  {actions?.(row)}
+                </div>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+
+      {pagination && (
+        <div className="flex items-center justify-between px-4 py-3 border-t">
+          <div className="text-sm text-gray-700">
+            총 {pagination.total}개 항목
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pagination.page === 1}
+              onClick={() => pagination.onPageChange(pagination.page - 1)}
+            >
+              이전
+            </Button>
+            <span className="text-sm">
+              {pagination.page} / {Math.ceil(pagination.total / pagination.pageSize)}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pagination.page * pagination.pageSize >= pagination.total}
+              onClick={() => pagination.onPageChange(pagination.page + 1)}
+            >
+              다음
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
+### 4.2 ItemCard 컴포넌트
+
+```typescript
+// components/data/ItemCard/ItemCard.tsx
+import React from 'react';
+import { CheckCircleIcon, XCircleIcon, ClockIcon } from '@heroicons/react/24/outline';
+
+interface ItemCardProps {
+  id: string;
+  title: string;
+  summary: string;
+  tags: string[];
+  status: 'pending' | 'approved' | 'rejected' | 'processing';
+  score?: number;
+  createdAt: string;
+  onClick?: () => void;
+}
+
+export const ItemCard: React.FC<ItemCardProps> = ({
+  id,
+  title,
+  summary,
+  tags,
+  status,
+  score,
+  createdAt,
+  onClick
+}) => {
+  const statusConfig = {
+    pending: {
+      icon: <ClockIcon className="w-5 h-5 text-yellow-500" />,
+      label: '대기 중',
+      color: 'border-yellow-200 bg-yellow-50'
+    },
+    approved: {
+      icon: <CheckCircleIcon className="w-5 h-5 text-green-500" />,
+      label: '승인됨',
+      color: 'border-green-200 bg-green-50'
+    },
+    rejected: {
+      icon: <XCircleIcon className="w-5 h-5 text-red-500" />,
+      label: '거부됨',
+      color: 'border-red-200 bg-red-50'
+    },
+    processing: {
+      icon: <ClockIcon className="w-5 h-5 text-blue-500 animate-spin" />,
+      label: '처리 중',
+      color: 'border-blue-200 bg-blue-50'
+    }
+  };
+
+  const config = statusConfig[status];
+
+  return (
+    <div
+      className={`rounded-lg border ${config.color} cursor-pointer transition-all duration-200 hover:shadow-md`}
+      onClick={onClick}
+    >
+      <div className="p-4">
+        <div className="flex items-start justify-between mb-2">
+          <h3 className="font-medium text-gray-900 flex-1">{title}</h3>
+          {config.icon}
+        </div>
+
+        <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+          {summary}
+        </p>
+
+        <div className="flex items-center justify-between">
+          <div className="flex flex-wrap gap-1">
+            {tags.map((tag, index) => (
+              <span
+                key={index}
+                className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+
+          {score && (
+            <span className="text-xs font-medium text-gray-700">
+              점수: {score.toFixed(2)}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="px-4 py-2 border-t border-gray-200 bg-white/50">
+        <div className="flex items-center justify-between text-xs text-gray-500">
+          <span>ID: {id}</span>
+          <span>{new Date(createdAt).toLocaleDateString('ko-KR')}</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+```
+
+### 4.3 ProgressIndicator 컴포넌트
+
+```typescript
+// components/data/ProgressIndicator/ProgressIndicator.tsx
+import React from 'react';
+
+interface ProgressIndicatorProps {
+  steps: Array<{
+    name: string;
+    status: 'completed' | 'current' | 'pending';
+  }>;
+}
+
+export const ProgressIndicator: React.FC<ProgressIndicatorProps> = ({ steps }) => {
+  return (
+    <div className="flex items-center">
+      {steps.map((step, index) => {
+        const isLast = index === steps.length - 1;
+        const isCompleted = step.status === 'completed';
+        const isCurrent = step.status === 'current';
+
+        return (
+          <React.Fragment key={index}>
+            <div className="flex items-center">
+              <div className={`
+                flex items-center justify-center w-8 h-8 rounded-full border-2
+                ${isCompleted
+                  ? 'bg-blue-600 border-blue-600 text-white'
+                  : isCurrent
+                    ? 'bg-blue-100 border-blue-600 text-blue-600'
+                    : 'bg-white border-gray-300 text-gray-400'
+                }
+              `}>
+                {isCompleted ? (
+                  <CheckCircleIcon className="w-5 h-5" />
+                ) : (
+                  <span className="text-sm font-medium">{index + 1}</span>
+                )}
+              </div>
+              <span className={`
+                ml-2 text-sm font-medium
+                ${isCompleted || isCurrent ? 'text-gray-900' : 'text-gray-500'}
+              `}>
+                {step.name}
+              </span>
+            </div>
+
+            {!isLast && (
+              <div className={`
+                flex-1 h-0.5 mx-4
+                ${isCompleted ? 'bg-blue-600' : 'bg-gray-200'}
+              `} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+};
+```
+
+---
+
+## 5. 워크플로우 컴포넌트
+
+### 5.1 WorkflowBuilder 컴포넌트
+
+```typescript
+// components/workflow/WorkflowBuilder/WorkflowBuilder.tsx
+import React, { useState } from 'react';
+import { Card } from '../common/Card';
+import { Button } from '../common/Button';
+
+interface WorkflowBuilderProps {
+  workflow?: {
+    name: string;
+    description: string;
+    steps: Array<{
+      name: string;
+      action: string;
+      args: Record<string, any>;
+    }>;
+  };
+  onSave?: (workflow: any) => void;
+}
+
+export const WorkflowBuilder: React.FC<WorkflowBuilderProps> = ({
+  workflow,
+  onSave
+}) => {
+  const [steps, setSteps] = useState(workflow?.steps || []);
+  const [selectedStep, setSelectedStep] = useState<number | null>(null);
+
+  const addStep = () => {
+    const newStep = {
+      name: `Step ${steps.length + 1}`,
+      action: 'action.name',
+      args: {}
+    };
+    setSteps([...steps, newStep]);
+  };
+
+  const removeStep = (index: number) => {
+    setSteps(steps.filter((_, i) => i !== index));
+  };
+
+  const updateStep = (index: number, updates: any) => {
+    const newSteps = [...steps];
+    newSteps[index] = { ...newSteps[index], ...updates };
+    setSteps(newSteps);
+  };
+
+  const handleSave = () => {
+    if (onSave) {
+      onSave({
+        name: 'Custom Workflow',
+        description: '사용자 정의 워크플로우',
+        steps
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <Card title="워크플로우 설정">
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              워크플로우 이름
+            </label>
+            <input
+              type="text"
+              className="w-full px-3 py-2 border rounded-lg"
+              defaultValue={workflow?.name || ''}
+              onChange={(e) => setSteps([{ ...steps[0], name: e.target.value }])}
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              설명
+            </label>
+            <textarea
+              className="w-full px-3 py-2 border rounded-lg"
+              rows={3}
+              defaultValue={workflow?.description || ''}
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card title="단계 설정">
+        <div className="space-y-4">
+          {steps.map((step, index) => (
+            <div key={index} className="border rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-medium">Step {index + 1}</h4>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => removeStep(index)}
+                >
+                  삭제
+                </Button>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    단계 이름
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full px-3 py-2 border rounded-lg"
+                    value={step.name}
+                    onChange={(e) => updateStep(index, { name: e.target.value })}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    액션
+                  </label>
+                  <select
+                    className="w-full px-3 py-2 border rounded-lg"
+                    value={step.action}
+                    onChange={(e) => updateStep(index, { action: e.target.value })}
+                  >
+                    <option value="collector.run">collector.run</option>
+                    <option value="generator.run">generator.run</option>
+                    <option value="quality.verify">quality.verify</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          <Button onClick={addStep} variant="outline">
+            단계 추가
+          </Button>
+        </div>
+      </Card>
+
+      <div className="flex justify-end space-x-2">
+        <Button variant="outline">미리보기</Button>
+        <Button onClick={handleSave}>저장</Button>
+      </div>
+    </div>
+  );
+};
+```
+
+### 5.2 WorkflowExecutor 컴포넌트
+
+```typescript
+// components/workflow/WorkflowExecutor/WorkflowExecutor.tsx
+import React, { useEffect, useState } from 'react';
+import { Card } from '../common/Card';
+import { ProgressIndicator } from '../data/ProgressIndicator';
+
+interface WorkflowExecutorProps {
+  workflowId: string;
+  workflowName: string;
+  steps: Array<{
+    name: string;
+    status: 'pending' | 'running' | 'completed' | 'failed';
+  }>;
+}
+
+export const WorkflowExecutor: React.FC<WorkflowExecutorProps> = ({
+  workflowId,
+  workflowName,
+  steps
+}) => {
+  const [currentStep, setCurrentStep] = useState(0);
+  const [executionLog, setExecutionLog] = useState<string[]>([]);
+
+  useEffect(() => {
+    // 워크플로우 실행 로그 업데이트
+    const timer = setTimeout(() => {
+      if (currentStep < steps.length) {
+        setExecutionLog(prev => [
+          ...prev,
+          `[${new Date().toLocaleTimeString()}] ${steps[currentStep].name} 시작`
+        ]);
+
+        // 단계 완료 시뮬레이션
+        setTimeout(() => {
+          setExecutionLog(prev => [
+            ...prev,
+            `[${new Date().toLocaleTimeString()}] ${steps[currentStep].name} 완료`
+          ]);
+
+          if (currentStep < steps.length - 1) {
+            setCurrentStep(prev => prev + 1);
+          }
+        }, 2000);
+      }
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [currentStep, steps]);
+
+  return (
+    <div className="space-y-6">
+      <Card title={`워크플로우 실행: ${workflowName}`}>
+        <div className="space-y-4">
+          <div>
+            <div className="text-sm text-gray-600 mb-2">
+              실행 ID: {workflowId}
+            </div>
+            <ProgressIndicator steps={steps} />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="text-sm text-gray-600">총 단계</div>
+              <div className="text-2xl font-bold">{steps.length}</div>
+            </div>
+            <div className="bg-gray-50 rounded-lg p-4">
+              <div className="text-sm text-gray-600">진행률</div>
+              <div className="text-2xl font-bold">
+                {Math.round((currentStep / steps.length) * 100)}%
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      <Card title="실행 로그">
+        <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm h-64 overflow-y-auto">
+          {executionLog.length > 0 ? (
+            executionLog.map((log, index) => (
+              <div key={index}>{log}</div>
+            ))
+          ) : (
+            <div>로그가 표시됩니다...</div>
+          )}
+        </div>
+      </Card>
+    </div>
+  );
+};
+```
+
+---
+
+## 6. 폼 컴포넌트
+
+### 6.1 SettingsForm 컴포넌트
+
+```typescript
+// components/forms/SettingsForm/SettingsForm.tsx
+import React from 'react';
+import { useForm } from 'react-hook-form';
+import { Input } from '../common/Input';
+import { Button } from '../common/Button';
+
+interface SettingsFormProps {
+  settings: {
+    llm: {
+      provider: string;
+      model: string;
+      temperature: number;
+    };
+    vault: {
+      root: string;
+    };
+  };
+  onSubmit: (settings: any) => void;
+}
+
+export const SettingsForm: React.FC<SettingsFormProps> = ({
+  settings,
+  onSubmit
+}) => {
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    defaultValues: settings
+  });
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <div className="grid grid-cols-2 gap-6">
+        {/* LLM 설정 */}
+        <Card title="LLM 설정">
+          <div className="space-y-4">
+            <Input
+              id="provider"
+              label="제공업체"
+              type="select"
+              register={register}
+            >
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="ollama">Ollama</option>
+            </Input>
+
+            <Input
+              id="model"
+              label="모델"
+              type="text"
+              register={register}
+              placeholder="gpt-4o-mini"
+            />
+
+            <Input
+              id="temperature"
+              label="온도"
+              type="number"
+              register={register}
+              min="0"
+              max="2"
+              step="0.1"
+            />
+          </div>
+        </Card>
+
+        {/* Vault 설정 */}
+        <Card title="Vault 설정">
+          <div className="space-y-4">
+            <Input
+              id="root"
+              label="루트 경로"
+              type="text"
+              register={register}
+              placeholder="mock_vault"
+            />
+          </div>
+        </Card>
+      </div>
+
+      <div className="flex justify-end space-x-2">
+        <Button type="button" variant="outline">
+          초기화
+        </Button>
+        <Button type="submit">
+          저장
+        </Button>
+      </div>
+    </form>
+  );
+};
+```
+
+---
+
+## 7. 디자인 시스템
+
+### 7.1 컬러 테마
+
+```typescript
+// 디자인 토큰
+export const theme = {
+  // 주요 컬러
+  primary: {
+    50: '#eff6ff',
+    100: '#dbeafe',
+    200: '#bfdbfe',
+    300: '#93c5fd',
+    400: '#60a5fa',
+    500: '#3b82f6',
+    600: '#2563eb',
+    700: '#1d4ed8',
+    800: '#1e40af',
+    900: '#1e3a8a',
+  },
+
+  // 성공/오류 컬러
+  success: {
+    50: '#f0fdf4',
+    500: '#22c55e',
+    700: '#15803d',
+  },
+
+  error: {
+    50: '#fef2f2',
+    500: '#ef4444',
+    700: '#dc2626',
+  },
+
+  // 중성 컬러
+  gray: {
+    50: '#f9fafb',
+    100: '#f3f4f6',
+    200: '#e5e7eb',
+    300: '#d1d5db',
+    400: '#9ca3af',
+    500: '#6b7280',
+    600: '#4b5563',
+    700: '#374151',
+    800: '#1f2937',
+    900: '#111827',
+  }
+};
+```
+
+### 7.2 타이포그래피
+
+```typescript
+// 타이포그래피 시스템
+export const typography = {
+  fontFamily: {
+    sans: ['Inter', 'system-ui', 'sans-serif'],
+    mono: ['JetBrains Mono', 'monospace']
+  },
+
+  fontSize: {
+    xs: '0.75rem',
+    sm: '0.875rem',
+    base: '1rem',
+    lg: '1.125rem',
+    xl: '1.25rem',
+    '2xl': '1.5rem',
+    '3xl': '1.875rem'
+  },
+
+  fontWeight: {
+    light: '300',
+    normal: '400',
+    medium: '500',
+    semibold: '600',
+    bold: '700'
+  },
+
+  lineHeight: {
+    tight: '1.25',
+    normal: '1.5',
+    relaxed: '1.75'
+  }
+};
+```
+
+### 7.3 간격 시스템
+
+```typescript
+// 간격 토큰 (8px 기준)
+export const spacing = {
+  px: '1px',
+  0.5: '2px',
+  1: '4px',
+  1.5: '6px',
+  2: '8px',
+  3: '12px',
+  4: '16px',
+  5: '20px',
+  6: '24px',
+  8: '32px',
+  10: '40px',
+  12: '48px',
+  16: '64px',
+  20: '80px',
+  24: '96px',
+  32: '128px'
+};
+```
+
+---
+
+## 8. 상태 관리
+
+### 8.1 Redux Store 구조
+
+```typescript
+// store/index.ts
+import { configureStore } from '@reduxjs/toolkit';
+import { workflowsSlice } from './workflowsSlice';
+import { settingsSlice } from './settingsSlice';
+
+export const store = configureStore({
+  reducer: {
+    workflows: workflowsSlice.reducer,
+    settings: settingsSlice.reducer,
+  },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: ['persist/PERSIST', 'persist/REHYDRATE']
+      }
+    })
+});
+
+export type RootState = ReturnType<typeof store.getState>;
+export type AppDispatch = typeof store.dispatch;
+```
+
+### 8.2 Workflow Slice
+
+```typescript
+// store/workflowsSlice.ts
+import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { Workflow } from '@/types/workflow';
+
+interface WorkflowsState {
+  workflows: Workflow[];
+  currentWorkflow: Workflow | null;
+  loading: boolean;
+  error: string | null;
+}
+
+const initialState: WorkflowsState = {
+  workflows: [],
+  currentWorkflow: null,
+  loading: false,
+  error: null
+};
+
+const workflowsSlice = createSlice({
+  name: 'workflows',
+  initialState,
+  reducers: {
+    fetchWorkflowsStart: (state) => {
+      state.loading = true;
+      state.error = null;
+    },
+    fetchWorkflowsSuccess: (state, action: PayloadAction<Workflow[]>) => {
+      state.workflows = action.payload;
+      state.loading = false;
+    },
+    fetchWorkflowsError: (state, action: PayloadAction<string>) => {
+      state.loading = false;
+      state.error = action.payload;
+    },
+    setCurrentWorkflow: (state, action: PayloadAction<Workflow>) => {
+      state.currentWorkflow = action.payload;
+    }
+  }
+});
+
+export const {
+  fetchWorkflowsStart,
+  fetchWorkflowsSuccess,
+  fetchWorkflowsError,
+  setCurrentWorkflow
+} = workflowsSlice.actions;
+
+export default workflowsSlice.reducer;
+```
+
+---
+
+## 9. API 통합
+
+### 9.1 API 클라이언트
+
+```typescript
+// utils/api.ts
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  }
+});
+
+// 인터셉터 설정
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+api.interceptors.response.use(
+  (response) => response.data,
+  (error) => {
+    if (error.response?.status === 401) {
+      // 인증 실패 시 로그아웃
+      localStorage.removeItem('token');
+      window.location.href = '/login';
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default api;
+```
+
+### 9.2 RTK Query API
+
+```typescript
+// api/workflowsApi.ts
+import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+
+export const workflowsApi = createApi({
+  reducerPath: 'workflowsApi',
+  baseQuery: fetchBaseQuery({
+    baseUrl: '/api/v1',
+    prepareHeaders: (headers, { getState }) => {
+      const token = (getState() as RootState).auth.token;
+      if (token) {
+        headers.set('authorization', `Bearer ${token}`);
+      }
+      return headers;
+    },
+  }),
+  tagTypes: ['Workflow'],
+  endpoints: (builder) => ({
+    getWorkflows: builder.query<Workflow[], void>({
+      query: () => '/workflows',
+      providesTags: ['Workflow']
+    }),
+    getWorkflow: builder.query<Workflow, string>({
+      query: (id) => `/workflows/${id}`,
+      providesTags: (result, error, id) => [{ type: 'Workflow', id }]
+    }),
+    createWorkflow: builder.mutation<Workflow, Partial<Workflow>>({
+      query: (workflow) => ({
+        url: '/workflows',
+        method: 'POST',
+        body: workflow
+      }),
+      invalidatesTags: ['Workflow']
+    }),
+    executeWorkflow: builder.mutation<ExecutionResult, string>({
+      query: (id) => ({
+        url: `/workflows/${id}/execute`,
+        method: 'POST'
+      }),
+      onQueryStarted: async (id, { queryFulfilled }) => {
+        // 워크플로우 실행 시작 시 캐시 무효화
+        await queryFulfilled;
+        dispatch(workflowsApi.util.invalidateTags(['Workflow']));
+      }
+    })
+  })
+});
+
+export const {
+  useGetWorkflowsQuery,
+  useGetWorkflowQuery,
+  useCreateWorkflowMutation,
+  useExecuteWorkflowMutation
+} = workflowsApi;
+```
+
+---
+
+## 10. 테스트 스펙
+
+### 10.1 컴포넌트 테스트
+
+```typescript
+// tests/components/Button.test.tsx
+import { render, screen } from '@testing-library/react';
+import { Button } from '@/components/common/Button';
+import userEvent from '@testing-library/user-event';
+
+describe('Button', () => {
+  it('renders correctly', () => {
+    render(<Button>Click me</Button>);
+    expect(screen.getByText('Click me')).toBeInTheDocument();
+  });
+
+  it('handles click events', async () => {
+    const handleClick = jest.fn();
+    render(<Button onClick={handleClick}>Click me</Button>);
+
+    await userEvent.click(screen.getByText('Click me'));
+    expect(handleClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows loading state', () => {
+    render(<Button loading>Click me</Button>);
+    expect(screen.getByText('Click me')).toHaveAttribute('disabled');
+  });
+});
+```
+
+### 10.2 통합 테스트
+
+```typescript
+// tests/integration/workflow-execution.test.ts
+import { render, waitFor } from '@testing-library/react';
+import { WorkflowExecutor } from '@/components/workflow/WorkflowExecutor';
+import { api } from '@/utils/api';
+
+jest.mock('@/utils/api');
+
+describe('WorkflowExecutor', () => {
+  it('executes workflow and shows progress', async () => {
+    const mockSteps = [
+      { name: 'Collect', status: 'completed' },
+      { name: 'Generate', status: 'current' },
+      { name: 'Publish', status: 'pending' }
+    ];
+
+    (api.get as jest.Mock).mockResolvedValue({
+      data: { id: '123', name: 'Test Workflow', steps: mockSteps }
+    });
+
+    render(
+      <WorkflowExecutor
+        workflowId="123"
+        workflowName="Test Workflow"
+        steps={mockSteps}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Generate')).toBeInTheDocument();
+      expect(screen.getByText('66%')).toBeInTheDocument();
+    });
+  });
+});
+```
+
+---
+
+## 11. 접근성 (Accessibility)
+
+### 11.1 ARIA 속성
+
+```typescript
+// 컴포넌트 접근성 속성 예시
+export const Button: React.FC<ButtonProps> = ({
+  children,
+  loading = false,
+  disabled = false,
+  ...props
+}) => {
+  return (
+    <button
+      {...props}
+      disabled={disabled || loading}
+      aria-disabled={disabled || loading}
+      aria-busy={loading}
+      aria-label={loading ? 'Loading...' : undefined}
+    >
+      {loading && <span className="sr-only">Loading...</span>}
+      {children}
+    </button>
+  );
+};
+```
+
+### 11.2 키보드 네비게이션
+
+```typescript
+// 키보드 네비게이션 구현
+import React, { useRef, useEffect } from 'react';
+
+export const FocusTrap: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const focusableElements = useRef<(HTMLElement | null)[]>([]);
+  const firstElement = useRef<HTMLElement | null>(null);
+  const lastElement = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    focusableElements.current = Array.from(
+      document.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+    );
+
+    firstElement.current = focusableElements.current[0];
+    lastElement.current = focusableElements.current[focusableElements.current.length - 1];
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement.current) {
+            e.preventDefault();
+            lastElement.current?.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement.current) {
+            e.preventDefault();
+            firstElement.current?.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  return <>{children}</>;
+};
+```
+
+---
+
+*UI 컴포넌트 스펙에 대한 문의나 개선 제안은 GitHub Issues에 등록해 주세요.*
