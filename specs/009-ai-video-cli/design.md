@@ -26,6 +26,11 @@
 **프롬프트 작성 가이드:**
 
 ```
+
+**공식 가이드 반영 포인트:**
+- 자연어 기반으로 장면을 구체적으로 묘사한다(추상 키워드 단독 사용 금지)
+- 조명/무드/카메라 움직임/비율을 함께 명시해 재현성을 높인다
+- `style_preset`, `camera_motion`, `motion_intensity`를 프롬프트와 파라미터에서 일관되게 유지한다
 ✅ 좋은 예시:
 "Dawn bedroom window view, blue hour cityscape outside, soft curtains gently moving,
 single desk lamp warm glow, contemplative mood, 9:16 vertical format, cinematic lighting,
@@ -72,6 +77,11 @@ class LumaParams:
 **프롬프트 작성 가이드:**
 
 ```
+
+**공식 가이드 반영 포인트:**
+- 대화형("please make ...")/명령형("add ...") 문장 대신 시각적 기술 문장 사용
+- 레퍼런스 이미지를 사용하는 경우 이미지 재설명보다 "원하는 움직임"을 중심으로 작성
+- "camera doesn't move" 같은 부정형 지시 대신 `static shot` 같은 긍정형 지시 사용
 ✅ 좋은 예시:
 "Cinematic product shot, minimalist studio lighting, slow camera push in,
 soft shadows, professional commercial style, 9:16"
@@ -191,6 +201,23 @@ class VeoParams:
 
 ---
 
+### 1.6 서비스별 프롬프팅 룰셋 (공식 가이드 반영)
+
+| 서비스 | 작성 원칙 (Do) | 금지/주의 (Don't) |
+|--------|----------------|--------------------|
+| Luma | 자연어 + 구체 장면 묘사 + 카메라/조명/무드 명시 | "beautiful scene" 같은 추상 단문, 스타일/비율 미기재 |
+| Runway | 직접적 시각 기술 문장, 움직임 중심 작성, `motion/camera_move` 명시 | 대화형/명령형 문장, 부정형 카메라 지시("don't move") |
+| Pika | 핵심 동작 + `pikaffect` + 스타일 프리셋 결합 | 효과 키워드만 나열하고 장면 문맥 누락 |
+| Kling | 장면 목적 + 카메라 모션 + 스타일을 분명히 기술 | 장문 서사로 프롬프트 길이만 늘리고 제어 파라미터 미입력 |
+| Veo | 장면 + 오디오 의도(`generate_audio`, `audio_mood`)를 함께 설계 | 오디오 생성 on/off 의도 불명확, 음향 톤 미지정 |
+
+**광고(ad) 공통 룰:**
+- Hook-Body-CTA 구조 강제 (초반 훅, 중반 가치 제시, 후반 CTA)
+- 첫 1-3초 시선 정지 요소(움직임/텍스트/사운드 큐) 명시
+- 마지막 3-5초 CTA 오버레이/내레이션을 명확한 행동 문구로 고정
+
+---
+
 ## 2. 품질 보증 체계
 
 ### 2.1 3계층 품질 보증 구조
@@ -220,6 +247,11 @@ class VeoParams:
 
 ### 2.2 Layer 1: 프롬프트 템플릿
 
+**템플릿 공통 원칙:**
+- 서비스별 룰셋(위 1.6)을 템플릿 수준에서 강제한다.
+- ad intent는 Hook-Body-CTA 슬롯을 고정 필드로 사용한다.
+- 프롬프트 본문과 구조화 파라미터(`camera_motion`, `motion`, `style_preset`)가 서로 모순되지 않도록 생성한다.
+
 **템플릿 구조:**
 ```python
 SERVICE_PROMPT_TEMPLATES = {
@@ -243,6 +275,20 @@ SERVICE_PROMPT_TEMPLATES = {
 Input: "새벽 감성"
 Output: "Dawn bedroom window, blue hour cityscape, soft curtains moving,
 single desk lamp warm glow, contemplative mood, 9:16 vertical, cinematic"
+""",
+    "runway": """
+## 역할
+너는 Runway Gen-3/Gen-4용 비디오 프롬프트 전문가다.
+
+## Runway 공식 가이드 반영 규칙
+1. 프롬프트는 직접적이고 시각적인 문장으로 작성한다.
+2. 대화형/명령형 문장("please", "add")을 사용하지 않는다.
+3. 레퍼런스 이미지 사용 시 이미지 설명보다 원하는 움직임을 우선 기술한다.
+4. 부정형 카메라 지시("camera doesn't move") 대신 긍정형 지시(`static shot`)를 사용한다.
+
+## Few-shot 예시
+Input: "제품 클로즈업, 차분한 분위기"
+Output: "Static shot, close-up product on matte surface, soft side lighting, subtle shadow falloff, 9:16 vertical, clean commercial look"
 """,
     # runway, pika, kling, veo 템플릿...
 }
