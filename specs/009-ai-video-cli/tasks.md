@@ -14,7 +14,7 @@
 - [x] `specs/009-ai-video-cli/spec.md` — 산출물 사용성 및 품질 보증 요구사항 추가
 - [x] `specs/009-ai-video-cli/design.md` — 서비스별 상세 스펙 및 품질 체계 추가
 - [x] `specs/009-ai-video-cli/plan.md` — 8개 Task로 재구성 (품질 시스템 포함)
-- [x] `specs/009-ai-video-cli/tasks.md` — Task 체크리스트 업데이
+- [x] `specs/009-ai-video-cli/tasks.md` — Task 체크리스트 업데이트
 
 ---
 
@@ -58,7 +58,7 @@ _없음_
 
 - [ ] **Task 7: __main__.py** — CLI 디스패처
   - `picko/__main__.py` 생성
-  - `pyproject.toml` 수정 (엔트리포인)
+  - `pyproject.toml` 수정 (엔트리포인트)
   - `tests/test_main.py` 생성
 
 - [ ] **Task 8: __init__.py** — 패키지 마커
