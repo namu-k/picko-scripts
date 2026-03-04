@@ -8,6 +8,14 @@ Picko is a content pipeline automation system that curates, generates, and publi
 
 **Key Design Decision**: The system uses different LLMs for different tasks - local LLMs (Ollama) for high-volume NLP tasks (summary, tagging, embedding) and cloud LLMs (OpenAI, Anthropic, OpenRouter, Relay) for creative writing requiring higher quality.
 
+## Cursor Commands
+
+Custom workflows available via `.cursor/commands/`:
+
+- **commit**: Atomic conventional commits - groups changes logically, creates properly formatted commit messages
+- **review-and-suggest-actions**: Reviews content and proposes concrete next actions
+- **execute-plan-with-spec-kit**: Validates plans against spec-kit documents before execution
+
 ## Development Commands
 
 ### Daily Content Collection
@@ -87,6 +95,18 @@ python -m scripts.simple_rss_collector --hours 24 --max-items 50
 python -m scripts.simple_rss_collector --dry-run
 ```
 
+### Workflow Orchestration (Agentic)
+```bash
+# Run a workflow YAML
+python -m scripts.run_workflow --workflow config/workflows/daily_pipeline.yml
+
+# Run agentic pipeline example
+python -m scripts.run_workflow --workflow config/workflows/agentic_pipeline.yml
+
+# Dry-run mode
+python -m scripts.run_workflow --workflow config/workflows/agentic_pipeline.yml --dry-run
+```
+
 ### Environment Setup
 
 **Requirements**: Python 3.13+
@@ -131,6 +151,27 @@ export OPENAI_API_KEY=your_api_key_here  # macOS/Linux
 - **source_manager.py**: RSS source quality management and curation
 - **proposal_generator.py**: Media proposal generation from content templates
 - **layout_config.py**: Layout preset and theme configuration for multimedia rendering
+- **publisher.py**: Social media publishing abstraction (Twitter API integration)
+- **collectors/****: Modular collector architecture
+  - `BaseCollector`: Abstract base class for all collectors
+  - `CollectedItem`: Unified data structure for collected content
+  - `RSSCollector`: RSS feed collector extracted from daily_collector
+  - `PerplexityCollector`: Perplexity Tasks result collector with file watching
+- **notification/bot.py**: Human review bot (Telegram/Slack) with timeout/reminder handling
+- **discovery/base.py**: `SourceCandidate` model and `BaseDiscoveryCollector` interface
+- **discovery/gates.py**: Human confirmation gate (social sources always require review)
+- **discovery/orchestrator.py**: Multi-adapter source discovery orchestration and source registration
+- **discovery/adapters/****: Threads, Reddit, Mastodon discovery adapters
+- **quality/graph.py**: LangGraph-based quality state machine (`QualityGraph`, `QualityState`)
+- **quality/confidence.py**: Confidence normalization and verdict thresholds
+- **quality/feedback.py**: Human feedback loop and accuracy metrics
+- **quality/validators/****: Primary and cross-check validators
+- **orchestrator/actions.py**: Action registry + typed action config/fallback config
+- **orchestrator/engine.py**: Workflow engine with dynamic steps and fallback execution
+- **orchestrator/default_actions.py**: Built-in workflow actions (collector/fetcher/nlp/embed/score/generate/publish/quality.verify)
+- **orchestrator/expr.py**: Safe expression evaluator with workflow operators
+- **orchestrator/vault_adapter.py**: Vault frontmatter query interface (count, list, field)
+- **orchestrator/batch.py**: Batch processing support for workflow items
 
 ### LLM Architecture (Task-Specific)
 
@@ -205,6 +246,9 @@ The multimedia rendering system converts content templates into images/videos:
 #### Phase 4: Multimedia Scripts
 - **render_media.py**: Multimedia rendering pipeline - renders HTML templates to images/videos using Playwright
 
+#### Phase 5: Orchestration & Agentic Scripts
+- **run_workflow.py**: Workflow YAML execution CLI (`WorkflowEngine` + `ActionRegistry`)
+
 ### Configuration Structure
 
 ```
@@ -212,6 +256,12 @@ config/
 ├── config.yml          # Main configuration
 ├── sources.yml         # RSS feed sources and categories
 ├── collectors.yml      # Collector-specific configuration
+├── workflows/          # Orchestration workflow definitions
+│   ├── daily_pipeline.yml
+│   ├── approved_packs.yml
+│   ├── image_generation.yml
+│   ├── twitter_publish.yml
+│   └── agentic_pipeline.yml
 ├── prompts/            # Externalized LLM prompts
 │   ├── longform/
 │   │   ├── default.md
@@ -262,23 +312,19 @@ config/
 ### Code Style & Linting
 
 ```bash
-# Format code (black, line length: 120)
+# Format and sort imports
 black picko/ scripts/ tests/
-
-# Sort imports (isort)
 isort picko/ scripts/ tests/
 
-# Lint (flake8)
+# Lint and type check
 flake8 picko/ scripts/ tests/
-
-# Type checking (mypy)
 mypy picko/
 
-# Run all linting (via pre-commit)
+# Run all via pre-commit
 pre-commit run --all-files
 ```
 
-**Configuration**: See `pyproject.toml` for tool settings (black, isort, pytest, mypy, coverage).
+**Config**: `pyproject.toml` (black line-length: 120, isort profile: black)
 
 ## Content Flow
 
@@ -301,6 +347,23 @@ pre-commit run --all-files
 - **Account Profiles**: Different audiences with customized relevance scoring
 - **Layout System**: Preset-based layouts with theme support for multimedia rendering
 - **Proposal-Review Workflow**: Media proposals require review before final rendering
+
+### Agentic Workflow Patterns
+
+**WorkflowEngine** (`picko/orchestrator/engine.py`): YAML-defined workflows with:
+- Conditional step execution via `condition` expressions
+- Dynamic step insertion via `dynamic_steps`
+- Fallback actions when primary fails
+- Batch processing with delay support
+
+**QualityGraph** (`picko/quality/graph.py`): LangGraph-based state machine for content verification:
+- Primary validation → cross-check → confidence calculation
+- Routes based on confidence thresholds (0.7/0.9)
+- Enhanced verification mode for new sources
+
+**ActionRegistry** (`picko/orchestrator/actions.py`): Registry pattern for pluggable actions:
+- Built-in actions: collector, fetcher, nlp, embed, score, generate, publish, quality.verify
+- Custom actions via registration
 
 ## Important File Locations
 
@@ -334,7 +397,11 @@ picko-scripts/
 │   ├── multimedia_io.py     # Multimedia content I/O management
 │   ├── source_manager.py    # Source quality management
 │   ├── proposal_generator.py # Media proposal generation
-│   └── layout_config.py     # Layout preset and theme configuration
+│   ├── layout_config.py     # Layout preset and theme configuration
+│   ├── notification/        # Human review bot
+│   ├── discovery/           # Source discovery subsystem
+│   ├── quality/             # Quality verification subsystem
+│   └── orchestrator/        # Workflow orchestration layer
 ├── scripts/                 # Executable CLI scripts
 │   ├── daily_collector.py   # Main ingestion pipeline
 │   ├── generate_content.py  # Content generation from digests
@@ -349,6 +416,7 @@ picko-scripts/
 │   ├── source_discovery.py  # Automatic source discovery
 │   ├── simple_rss_collector.py  # Standalone RSS collector
 │   ├── render_media.py      # Multimedia rendering pipeline
+│   ├── run_workflow.py      # Workflow orchestrator CLI
 │   ├── engagement_sync.py   # Platform metrics sync (Phase 3)
 │   ├── score_calibrator.py  # Score weight analysis (Phase 3)
 │   ├── duplicate_checker.py # Duplicate detection (Phase 3)
@@ -382,10 +450,10 @@ pytest
 # Run specific test file
 pytest tests/test_config.py
 
-# Run by marker (unit/integration/slow)
-pytest -m unit
-pytest -m integration
-pytest -m slow
+# Run by marker
+pytest -m unit        # Fast, isolated tests
+pytest -m integration # External service tests
+pytest -m slow        # Long-running tests
 
 # Run with coverage
 pytest --cov=picko --cov-report=html
@@ -397,78 +465,37 @@ pytest tests/test_config.py::test_load_config
 python -m scripts.daily_collector --date 2026-02-09 --dry-run
 ```
 
-**Pytest Markers**:
-- `unit`: Fast, isolated unit tests
-- `integration`: Tests that interact with external services (APIs, vault I/O)
-- `slow`: Long-running tests (embedding, full pipeline)
-
-**Test Fixtures** (see `tests/conftest.py`):
-- `temp_vault_dir`: Creates temporary vault directory structure
-- `mock_config`: Provides mocked Config object
-- `sample_input_data`: Sample input content for testing
+**Test Fixtures** (see `tests/conftest.py`): `temp_vault_dir`, `mock_config`, `sample_input_data`
 
 ### Account Context Module
-
-The `account_context.py` module provides account persona loading for personalized content:
 
 ```python
 from picko.account_context import get_identity, get_weekly_slot, get_style_for_account
 
-# Load account identity
-identity = get_identity("builders_social_club")
-print(identity.one_liner)  # "예비창업자~초기창업자가..."
-
-# Load weekly slot preset
-weekly_slot = get_weekly_slot("2026-02-16")
-print(weekly_slot.pillar_distribution)  # {"P1": 2, "P2": 2, "P3": 2, "P4": 1}
-
-# Load style profile
-style = get_style_for_account("builders_social_club")
-print(style["tone"])  # Style characteristics
+identity = get_identity("builders_social_club")  # Account persona
+weekly_slot = get_weekly_slot("2026-02-16")       # Weekly content preset
+style = get_style_for_account("builders_social_club")  # Style profile
 ```
 
-**Data Structures:**
-- `AccountIdentity`: Account persona (one_liner, target_audience, pillars, tone_voice, boundaries)
-- `WeeklySlot`: Weekly content preset (pillar_distribution, customer_outcome, CTA)
-- `StyleProfile`: Writing style characteristics from reference analysis
+**Data Structures:** `AccountIdentity` (persona), `WeeklySlot` (content preset), `StyleProfile` (writing style)
 
 ## Environment Variables
 
-**Required (at least one):**
-- `OPENAI_API_KEY`: OpenAI API key (used by openai provider, default fallback)
-- `OPENROUTER_API_KEY`: OpenRouter API key (for openrouter provider)
-- `RELAY_API_KEY`: Relay API key (for relay provider)
-- `ANTHROPIC_API_KEY`: Anthropic API key (for anthropic provider)
+**Required (at least one LLM provider key):** `OPENAI_API_KEY`, `OPENROUTER_API_KEY`, `RELAY_API_KEY`, `ANTHROPIC_API_KEY`
 
-**Setup via .env file (recommended):**
-```bash
-# Copy example .env
-cp .env.example .env
+**Optional adapters:** `THREADS_ACCESS_TOKEN`, `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`, `MASTODON_ACCESS_TOKEN`, `MASTODON_INSTANCE`
 
-# Edit with your keys
-OPENAI_API_KEY=sk-your-key-here
-OPENROUTER_API_KEY=sk-or-your-key-here
-RELAY_API_KEY=your-relay-key-here
-```
+**Optional review bot:** `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `REVIEW_TIMEOUT_HOURS`
 
-The `.env` file is automatically loaded when the `picko.config` module is imported. Each LLM config section (`summary_llm`, `writer_llm`, `embedding`) has an `api_key_env` field that specifies which environment variable to use.
+**Setup:** Copy `.env.example` to `.env` and fill in keys. Auto-loaded when `picko.config` is imported.
 
 ## Local LLM Setup
 
-For local LLM usage (summary/tagging/embedding):
-
 1. **Install Ollama**: [https://ollama.ai/download](https://ollama.ai/download)
-2. **Pull models**:
-   ```bash
-   ollama pull deepseek-r1:7b      # Summary/tagging
-   ollama pull qwen2.5:7b          # Alternative for summary/tagging
-   ollama pull mxbai-embed-large:1024   # Embedding (Ollama)
-   ollama pull qwen3-embedding:0.6b     # Alternative embedding
-   ```
+2. **Pull models**: `ollama pull deepseek-r1:7b` (summary), `ollama pull mxbai-embed-large:1024` (embedding)
 3. **Configure**: Set `provider: ollama` in `config.yml` for `summary_llm` or `embedding`
-4. **Install dependencies**: `pip install ollama sentence-transformers`
 
 **Supported local models:**
-- **Summary/Tagging (Ollama)**: deepseek-r1:7b, qwen2.5:7b, qwen2.5:3b
+- **Summary/Tagging**: deepseek-r1:7b, qwen2.5:7b, qwen2.5:3b
 - **Embedding (Ollama)**: mxbai-embed-large:1024, qwen3-embedding:0.6b
 - **Embedding (sentence-transformers)**: BAAI/bge-m3, BAAI/bge-base-en-v1.5, all-MiniLM-L6-v2

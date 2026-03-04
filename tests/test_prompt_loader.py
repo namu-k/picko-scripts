@@ -462,3 +462,200 @@ class TestPromptLoaderEdgeCases:
             summary="Summary with\nnewlines\nand\ttabs",
         )
         assert "Title with" in result
+
+    def test_render_with_special_characters_unicode(self, temp_prompts_dir):
+        """Test rendering with unicode characters"""
+        loader = PromptLoader(prompts_dir=temp_prompts_dir)
+
+        result = loader.render(
+            "longform",
+            "default",
+            title="제목 with 한글 and 이모지 😊",
+            summary="요약 with émojis 🎉",
+        )
+        assert "제목" in result
+        assert "😊" in result
+
+
+class TestPromptLoaderAccountContext:
+    """Test account_context integration"""
+
+    @pytest.fixture
+    def temp_prompts_with_account_vars(self, tmp_path):
+        """Create prompts directory with account_context variables"""
+        prompts_dir = tmp_path / "prompts"
+        prompts_dir.mkdir()
+
+        # Create longform prompt with account context variables
+        longform_dir = prompts_dir / "longform"
+        longform_dir.mkdir()
+        (longform_dir / "default.md").write_text(
+            "Title: {{ title }}\n"
+            "Summary: {{ summary }}\n"
+            "{% if target_audience %}Audience: {{ target_audience | join(', ') }}\n{% endif %}"
+            "{% if tone_voice %}Tone: {{ tone_voice.tone }}\n{% endif %}"
+            "{% if boundaries %}Boundaries: {{ boundaries | join(', ') }}\n{% endif %}"
+            "{% if weekly_outcome %}Weekly Goal: {{ weekly_outcome }}\n{% endif %}"
+        )
+
+        # Create pack prompt with account context and weekly_outcome
+        packs_dir = prompts_dir / "packs"
+        packs_dir.mkdir()
+        (packs_dir / "twitter.md").write_text(
+            "Channel: {{ channel }}\n"
+            "Title: {{ title }}\n"
+            "{% if weekly_outcome %}Weekly Goal: {{ weekly_outcome }}\n{% endif %}"
+            "{% if target_audience %}Audience: {{ target_audience | join(', ') }}\n{% endif %}"
+            "{% if tone_voice %}Tone: {{ tone_voice.tone }}\n{% endif %}"
+            "{% if boundaries %}Boundaries: {{ boundaries | join(', ') }}\n{% endif %}"
+        )
+        (packs_dir / "linkedin.md").write_text(
+            "LinkedIn: {{ title }}\n"
+            "{% if weekly_outcome %}Weekly Goal: {{ weekly_outcome }}\n{% endif %}"
+            "{% if target_audience %}Audience: {{ target_audience | join(', ') }}\n{% endif %}"
+        )
+
+        # Create with_reference prompt for get_longform_with_reference_prompt
+        (longform_dir / "with_reference.md").write_text(
+            "Title: {{ title }}\n"
+            "Style: {{ style_analysis }}\n"
+            "{% if target_audience %}Audience: {{ target_audience | join(', ') }}\n{% endif %}"
+            "{% if tone_voice %}Tone: {{ tone_voice.tone }}\n{% endif %}"
+            "{% if boundaries %}Boundaries: {{ boundaries | join(', ') }}\n{% endif %}"
+        )
+
+        return prompts_dir
+
+    def test_get_longform_prompt_with_account_context(self, temp_prompts_with_account_vars, sample_input_content):
+        """Test get_longform_prompt extracts and uses account_context"""
+        loader = PromptLoader(prompts_dir=temp_prompts_with_account_vars)
+
+        account_context = {
+            "target_audience": ["developers", "startups"],
+            "tone_voice": {"tone": "친근하고 실용적인"},
+            "boundaries": ["jargon", "salesy language"],
+        }
+
+        result = loader.get_longform_prompt(
+            sample_input_content,
+            account_context=account_context,
+        )
+
+        assert "developers, startups" in result
+        assert "친근하고 실용적인" in result
+        assert "jargon, salesy language" in result
+
+    def test_get_longform_prompt_without_account_context(self, temp_prompts_with_account_vars, sample_input_content):
+        """Test get_longform_prompt without account_context renders without account vars"""
+        loader = PromptLoader(prompts_dir=temp_prompts_with_account_vars)
+
+        result = loader.get_longform_prompt(sample_input_content)
+
+        # Should not contain account context sections
+        assert "Audience:" not in result
+        assert "Tone:" not in result
+        assert "Boundaries:" not in result
+
+    def test_get_longform_prompt_with_weekly_context(self, temp_prompts_with_account_vars, sample_input_content):
+        """Test get_longform_prompt with weekly_context renders weekly_outcome"""
+        loader = PromptLoader(prompts_dir=temp_prompts_with_account_vars)
+
+        weekly_context = {
+            "cta": "Subscribe now",
+            "customer_outcome": "Launch their MVP faster",
+        }
+
+        result = loader.get_longform_prompt(
+            sample_input_content,
+            weekly_context=weekly_context,
+        )
+
+        assert "Launch their MVP faster" in result
+
+    def test_get_pack_prompt_with_account_context(self, temp_prompts_with_account_vars, sample_input_content):
+        """Test get_pack_prompt extracts and uses account_context"""
+        loader = PromptLoader(prompts_dir=temp_prompts_with_account_vars)
+
+        account_context = {
+            "target_audience": ["founders", "PMs"],
+            "tone_voice": {"tone": "간결하고 임팩트 있는"},
+            "boundaries": ["hype", "clickbait"],
+        }
+
+        result = loader.get_pack_prompt(
+            "twitter",
+            sample_input_content,
+            account_context=account_context,
+        )
+
+        assert "founders, PMs" in result
+        assert "간결하고 임팩트 있는" in result
+        assert "hype, clickbait" in result
+
+    def test_get_pack_prompt_with_weekly_outcome(self, temp_prompts_with_account_vars, sample_input_content):
+        """Test get_pack_prompt with weekly_context renders weekly_outcome"""
+        loader = PromptLoader(prompts_dir=temp_prompts_with_account_vars)
+
+        weekly_context = {
+            "cta": "Sign up today",
+            "customer_outcome": "Ship their first feature in 2 weeks",
+        }
+
+        result = loader.get_pack_prompt(
+            "linkedin",
+            sample_input_content,
+            weekly_context=weekly_context,
+        )
+
+        assert "Ship their first feature in 2 weeks" in result
+
+    def test_get_pack_prompt_linkedin_with_weekly_outcome(self, temp_prompts_with_account_vars, sample_input_content):
+        """Test LinkedIn prompt specifically includes weekly_outcome"""
+        loader = PromptLoader(prompts_dir=temp_prompts_with_account_vars)
+
+        weekly_context = {
+            "customer_outcome": "Validate their idea with 10 customers",
+        }
+
+        result = loader.get_pack_prompt(
+            "linkedin",
+            sample_input_content,
+            weekly_context=weekly_context,
+        )
+
+        assert "Validate their idea with 10 customers" in result
+
+    def test_get_pack_prompt_twitter_with_weekly_outcome(self, temp_prompts_with_account_vars, sample_input_content):
+        """Test Twitter prompt specifically includes weekly_outcome"""
+        loader = PromptLoader(prompts_dir=temp_prompts_with_account_vars)
+
+        weekly_context = {
+            "customer_outcome": "Get 5 beta users",
+        }
+
+        result = loader.get_pack_prompt(
+            "twitter",
+            sample_input_content,
+            weekly_context=weekly_context,
+        )
+
+        assert "Get 5 beta users" in result
+
+    def test_get_longform_with_reference_with_account_context(self, temp_prompts_with_account_vars, sample_input_content):
+        """Test get_longform_with_reference_prompt with account_context"""
+        loader = PromptLoader(prompts_dir=temp_prompts_with_account_vars)
+
+        account_context = {
+            "target_audience": ["engineers"],
+            "tone_voice": {"tone": "technical"},
+            "boundaries": ["simplified explanations"],
+        }
+
+        result = loader.get_longform_with_reference_prompt(
+            sample_input_content,
+            style_analysis="Style: concise",
+            account_context=account_context,
+        )
+
+        assert "engineers" in result
+        assert "technical" in result

@@ -3,7 +3,7 @@
 
 import pytest
 
-from picko.orchestrator.actions import ActionRegistry, ActionResult
+from picko.orchestrator.actions import ActionConfig, ActionRegistry, ActionResult, FallbackConfig
 
 
 class TestActionRegistry:
@@ -45,3 +45,37 @@ class TestActionRegistry:
         registry.register("b.run", lambda **kw: ActionResult(success=True))
 
         assert sorted(registry.list_actions()) == ["a.run", "b.run"]
+
+
+class TestActionConfig:
+    def test_action_config_from_dict_with_fallback(self):
+        config = ActionConfig.from_dict(
+            {
+                "name": "discover",
+                "action": "fetch.primary",
+                "args": {"account": "socialbuilders"},
+                "fallback": {
+                    "action": "fetch.backup",
+                    "args": {"source": "rss"},
+                },
+            }
+        )
+
+        assert config.name == "discover"
+        assert config.action == "fetch.primary"
+        assert config.args == {"account": "socialbuilders"}
+        assert isinstance(config.fallback, FallbackConfig)
+        assert config.fallback is not None
+        assert config.fallback.action == "fetch.backup"
+        assert config.fallback.args == {"source": "rss"}
+
+    def test_action_config_from_dict_requires_name_and_action(self):
+        with pytest.raises(ValueError, match="step.name"):
+            ActionConfig.from_dict({"action": "collector.run"})
+
+        with pytest.raises(ValueError, match="step.action"):
+            ActionConfig.from_dict({"name": "collect"})
+
+    def test_fallback_config_requires_action(self):
+        with pytest.raises(ValueError, match="fallback.action"):
+            FallbackConfig.from_dict({"args": {"x": 1}})

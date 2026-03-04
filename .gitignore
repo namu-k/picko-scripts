@@ -14,8 +14,11 @@ venv/
 logs/
 *.log
 
-# Claude Code settings (local)
-.claude/settings.local.json
+# Local/tooling (not shared)
+.claude/
+.specify/
+# docs/plans: 계획문서는 로컬만 (docs/ 전체 무시로 이미 제외)
+docs/plans/
 
 # IDE
 .vscode/
@@ -57,15 +60,28 @@ htmlcov/
 .env
 .env.local
 
-# Test content in mock_vault
-mock_vault/Content/
-mock_vault/Inbox/
-mock_vault/Assets/
-mock_vault/config/
+# mock_vault (로컬 테스트/실행용, 저장소 미포함)
+mock_vault/
 .cache/
 .cursor/
 .sisyphus/
-# Docs (evaluation and market analysis kept local)
-docs/
-docs/evaluation_0226.md
-docs/market_analysis.md
+# Plan documents (계획문서)
+**/plan.md
+**/plans/
+implementation_plan.md
+task.md
+
+# Docs - keep most, ignore only specific local-only files
+# docs/plans/ already ignored above
+# evaluation_0226.md and market_analysis.md are local analysis files
+
+
+# Agent guide (local reference only)
+AGENT_GUIDE.md
+
+# Local scratch/test notes
+기술력보다 비전 공유가 중요하다
+
+
+# Worktrees
+.worktrees/

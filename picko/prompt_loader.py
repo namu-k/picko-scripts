@@ -135,6 +135,7 @@ class PromptLoader:
         account_id: str | None = None,
         exploration: dict | None = None,
         weekly_context: dict | None = None,
+        account_context: dict | None = None,
     ) -> str:
         """
         롱폼용 프롬프트 생성
@@ -145,6 +146,7 @@ class PromptLoader:
             account_id: 계정 ID
             exploration: 탐색 결과 (선택적, 있으면 with_exploration 템플릿 사용)
             weekly_context: 주간 슬롯 컨텍스트 (cta, customer_outcome 등)
+            account_context: 계정 컨텍스트 (target_audience, tone_voice, boundaries)
 
         Returns:
             렌더링된 프롬프트
@@ -155,6 +157,16 @@ class PromptLoader:
 
         # weekly_context 준비
         weekly = weekly_context or {}
+
+        # 계정 컨텍스트에서 추가 변수 추출
+        if account_context:
+            target_audience = account_context.get("target_audience", [])
+            tone_voice = account_context.get("tone_voice", {})
+            boundaries = account_context.get("boundaries", [])
+        else:
+            target_audience = []
+            tone_voice = {}
+            boundaries = []
 
         return self.render(
             "longform",
@@ -170,6 +182,9 @@ class PromptLoader:
             weekly_outcome=weekly.get("customer_outcome", ""),
             weekly_kpi=weekly.get("operator_kpi", ""),
             weekly_pillar_distribution=weekly.get("pillar_distribution", {}),
+            target_audience=target_audience,
+            tone_voice=tone_voice,
+            boundaries=boundaries,
         )
 
     def get_pack_prompt(
@@ -179,6 +194,7 @@ class PromptLoader:
         channel_config: dict | None = None,
         account_id: str | None = None,
         weekly_context: dict | None = None,
+        account_context: dict | None = None,
     ) -> str:
         """
         채널별 팩용 프롬프트 생성
@@ -189,6 +205,7 @@ class PromptLoader:
             channel_config: 채널 설정 (max_length, tone, hashtags)
             account_id: 계정 ID
             weekly_context: 주간 슬롯 컨텍스트 (cta, customer_outcome 등)
+            account_context: 계정 컨텍스트 (target_audience, tone_voice, boundaries)
 
         Returns:
             렌더링된 프롬프트
@@ -197,6 +214,16 @@ class PromptLoader:
 
         # weekly_context 준비
         weekly = weekly_context or {}
+
+        # 계정 컨텍스트에서 추가 변수 추출
+        if account_context:
+            target_audience = account_context.get("target_audience", [])
+            tone_voice = account_context.get("tone_voice", {})
+            boundaries = account_context.get("boundaries", [])
+        else:
+            target_audience = []
+            tone_voice = {}
+            boundaries = []
 
         return self.render(
             "packs",
@@ -211,6 +238,9 @@ class PromptLoader:
             tags=input_content.get("tags", []),
             weekly_cta=weekly.get("cta", ""),
             weekly_outcome=weekly.get("customer_outcome", ""),
+            target_audience=target_audience,
+            tone_voice=tone_voice,
+            boundaries=boundaries,
         )
 
     def get_image_prompt(self, input_content: dict, name: str = "default", account_id: str | None = None) -> str:
@@ -360,6 +390,8 @@ class PromptLoader:
         style_analysis: str,
         name: str = "with_reference",
         account_id: str | None = None,
+        account_context: dict | None = None,
+        weekly_context: dict | None = None,
     ) -> str:
         """
         레퍼런스 기반 롱폼 프롬프트 생성
@@ -369,10 +401,25 @@ class PromptLoader:
             style_analysis: 레퍼런스 문체 분석 결과
             name: 프롬프트 이름
             account_id: 계정 ID
+            account_context: 계정 컨텍스트 (target_audience, tone_voice, boundaries)
+            weekly_context: 주간 슬롯 컨텍스트 (cta, customer_outcome 등)
 
         Returns:
             렌더링된 프롬프트
         """
+        # weekly_context 준비
+        weekly = weekly_context or {}
+
+        # 계정 컨텍스트에서 추가 변수 추출
+        if account_context:
+            target_audience = account_context.get("target_audience", [])
+            tone_voice = account_context.get("tone_voice", {})
+            boundaries = account_context.get("boundaries", [])
+        else:
+            target_audience = []
+            tone_voice = {}
+            boundaries = []
+
         return self.render(
             "longform",
             name=name,
@@ -382,6 +429,11 @@ class PromptLoader:
             key_points=input_content.get("key_points", []),
             excerpt=input_content.get("excerpt", ""),
             style_analysis=style_analysis,
+            weekly_cta=weekly.get("cta", ""),
+            weekly_outcome=weekly.get("customer_outcome", ""),
+            target_audience=target_audience,
+            tone_voice=tone_voice,
+            boundaries=boundaries,
         )
 
 

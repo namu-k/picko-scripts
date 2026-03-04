@@ -6,6 +6,7 @@ config.yml 및 계정 프로필 로드
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import yaml
 from dotenv import load_dotenv
@@ -132,9 +133,9 @@ class EmbeddingConfig:
 class ScoringConfig:
     """점수 계산 설정"""
 
-    weights: dict = field(default_factory=lambda: {"novelty": 0.3, "relevance": 0.4, "quality": 0.3})
+    weights: dict[str, float] = field(default_factory=lambda: {"novelty": 0.3, "relevance": 0.4, "quality": 0.3})
     freshness_half_life_days: float = 7.0
-    thresholds: dict = field(
+    thresholds: dict[str, float] = field(
         default_factory=lambda: {
             "auto_approve": 0.85,
             "auto_reject": 0.3,
@@ -164,6 +165,39 @@ class ProcessingConfig:
 
 
 @dataclass
+class QualityConfig:
+    """품질 검증 설정 (007-agentic)"""
+
+    enabled: bool = True
+    primary_model: str = "gpt-4o-mini"
+    cross_check_model: str = "claude-3.5-sonnet"
+    auto_approve_threshold: float = 0.85
+    feedback_enabled: bool = True
+
+
+@dataclass
+class NotificationConfig:
+    """알림 설정 (007-agentic)"""
+
+    provider: str = "telegram"  # telegram | slack
+    review_timeout_hours: int = 72
+
+
+@dataclass
+class GenerationConfig:
+    """콘텐츠 생성 설정"""
+
+    auto_validate: bool = True
+
+
+@dataclass
+class DeduplicationConfig:
+    """중복 탐지 설정"""
+
+    embedding_threshold: float = 0.92
+
+
+@dataclass
 class Config:
     """전체 설정"""
 
@@ -175,14 +209,18 @@ class Config:
     scoring: ScoringConfig
     logging: LoggingConfig
     processing: ProcessingConfig
+    quality: QualityConfig = field(default_factory=QualityConfig)
+    notification: NotificationConfig = field(default_factory=NotificationConfig)
+    generation: GenerationConfig = field(default_factory=GenerationConfig)
+    deduplication: DeduplicationConfig = field(default_factory=DeduplicationConfig)
     sources_file: str = "config/sources.yml"
     accounts_dir: str = "config/accounts"
 
-    _sources: dict = field(default_factory=dict, repr=False)
-    _accounts: dict = field(default_factory=dict, repr=False)
+    _sources: dict[str, Any] = field(default_factory=dict, repr=False)
+    _accounts: dict[str, dict[str, Any]] = field(default_factory=dict, repr=False)
 
     @property
-    def sources(self) -> dict:
+    def sources(self) -> dict[str, Any]:
         """소스 설정 로드 (lazy)"""
         if not self._sources:
             sources_path = Path(self.vault.root) / self.sources_file
@@ -192,7 +230,7 @@ class Config:
                 logger.debug(f"Loaded sources from {sources_path}")
         return self._sources
 
-    def get_account(self, account_id: str) -> dict:
+    def get_account(self, account_id: str) -> dict[str, Any]:
         """계정 프로필 로드"""
         if account_id not in self._accounts:
             # 1. vault 루트 기준 경로 시도
@@ -214,7 +252,7 @@ class Config:
             else:
                 logger.warning(f"Account profile not found: {account_id}")
                 self._accounts[account_id] = {}
-        return self._accounts[account_id]  # type: ignore[no-any-return]
+        return self._accounts[account_id]
 
 
 def load_config(config_path: str | Path | None = None) -> Config:
@@ -240,9 +278,15 @@ def load_config(config_path: str | Path | None = None) -> Config:
 
     logger.info(f"Loaded config from {config_path}")
 
+    # vault root: 상대 경로면 프로젝트 루트 기준으로 해석 (CI/다중 환경 대응)
+    vault_raw = dict(raw.get("vault", {}))
+    root = vault_raw.get("root", "mock_vault")
+    if not Path(root).is_absolute():
+        vault_raw["root"] = str(PROJECT_ROOT / root)
+
     # 각 섹션별로 dataclass 생성
     return Config(
-        vault=VaultConfig(**raw.get("vault", {})),
+        vault=VaultConfig(**vault_raw),
         llm=LLMConfig(**raw.get("llm", {})),
         summary_llm=SummaryLLMConfig(**raw.get("summary_llm", {})),
         writer_llm=WriterLLMConfig(**raw.get("writer_llm", {})),
@@ -250,6 +294,23 @@ def load_config(config_path: str | Path | None = None) -> Config:
         scoring=ScoringConfig(**raw.get("scoring", {})),
         logging=LoggingConfig(**raw.get("logging", {})),
         processing=ProcessingConfig(**raw.get("processing", {})),
+        quality=QualityConfig(
+            enabled=raw.get("quality", {}).get("enabled", True),
+            primary_model=raw.get("quality", {}).get("primary", {}).get("model", "gpt-4o-mini"),
+            cross_check_model=raw.get("quality", {}).get("cross_check", {}).get("model", "claude-3.5-sonnet"),
+            auto_approve_threshold=raw.get("quality", {}).get("final", {}).get("auto_approve_threshold", 0.85),
+            feedback_enabled=raw.get("quality", {}).get("feedback", {}).get("enabled", True),
+        ),
+        notification=NotificationConfig(
+            provider=raw.get("notification", {}).get("provider", "telegram"),
+            review_timeout_hours=raw.get("notification", {}).get("review_timeout_hours", 72),
+        ),
+        generation=GenerationConfig(
+            auto_validate=raw.get("generation", {}).get("auto_validate", True),
+        ),
+        deduplication=DeduplicationConfig(
+            embedding_threshold=raw.get("deduplication", {}).get("embedding_threshold", 0.92),
+        ),
         sources_file=raw.get("sources_file", "config/sources.yml"),
         accounts_dir=raw.get("accounts_dir", "config/accounts"),
     )

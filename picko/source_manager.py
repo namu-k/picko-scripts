@@ -44,16 +44,22 @@ class SourceMeta:
     rss_url: str | None = None
     subscribers: int | None = None
 
+    # Subsystem B 전용 필드 (007-agentic)
+    human_review_required: bool = False
+    api_provider: str | None = None  # "threads_api", "reddit_api", "mastodon_api"
+    account_handle: str | None = None  # "@ai_news"
+    last_api_sync: str | None = None
+    enhanced_verification: dict[str, Any] | None = None  # {enabled, collections_remaining, elevated_threshold}
+
     def to_dict(self, include_v2: bool = True) -> dict[str, Any]:
         """딕셔너리로 변환. 기존 형식 유지를 위해 V2 필드는 optional"""
-        result = {
+        result: dict[str, Any] = {
             "id": self.id,
             "type": self.type,
             "url": self.url,
             "category": self.category,
             "enabled": self.enabled,
         }
-
         if include_v2:
             # V2 필드는 값이 있을 때만 추가 (불필요한 null 제거)
             if self.auto_discovered:
@@ -85,6 +91,17 @@ class SourceMeta:
                 result["rss_url"] = self.rss_url
             if self.subscribers is not None:
                 result["subscribers"] = self.subscribers
+            # Subsystem B 전용 필드
+            if self.human_review_required:
+                result["human_review_required"] = self.human_review_required
+            if self.api_provider:
+                result["api_provider"] = self.api_provider
+            if self.account_handle:
+                result["account_handle"] = self.account_handle
+            if self.last_api_sync:
+                result["last_api_sync"] = self.last_api_sync
+            if self.enhanced_verification:
+                result["enhanced_verification"] = self.enhanced_verification
 
         return result
 
@@ -111,6 +128,12 @@ class SourceMeta:
             platform=data.get("platform"),
             rss_url=data.get("rss_url"),
             subscribers=data.get("subscribers"),
+            # Subsystem B 전용 필드
+            human_review_required=data.get("human_review_required", False),
+            api_provider=data.get("api_provider"),
+            account_handle=data.get("account_handle"),
+            last_api_sync=data.get("last_api_sync"),
+            enhanced_verification=data.get("enhanced_verification"),
         )
 
 

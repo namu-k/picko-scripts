@@ -2,7 +2,7 @@
 """기본 액션 래퍼 테스트"""
 
 from pathlib import Path
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import ANY, AsyncMock, MagicMock, patch
 
 from picko.orchestrator.actions import ActionRegistry
 from picko.orchestrator.default_actions import _extract_item_id, register_default_actions
@@ -19,6 +19,276 @@ class TestDefaultActions:
         assert "renderer.run" in actions
         assert "publisher.run" in actions
         assert "engagement.sync" in actions
+        assert "quality.verify" in actions
+
+    @patch("picko.quality.graph.QualityGraph")
+    def test_quality_verify_calls_quality_graph(self, MockQualityGraph):
+        mock_graph = MagicMock()
+        mock_graph.verify.return_value = {
+            "item_id": "item_1",
+            "final_verdict": "approved",
+            "final_confidence": 0.93,
+        }
+        MockQualityGraph.return_value = mock_graph
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "quality.verify",
+            {
+                "item_id": "item_1",
+                "title": "Sample title",
+                "content": "Sample content",
+                "enhanced_verification": True,
+                "thread_id": "thread-item-1",
+            },
+        )
+
+        assert result.success is True
+        assert result.outputs["result"]["final_verdict"] == "approved"
+        mock_graph.verify.assert_called_once_with(
+            item_id="item_1",
+            title="Sample title",
+            content="Sample content",
+            enhanced_verification=True,
+            thread_id="thread-item-1",
+        )
+
+    @patch("picko.source_manager.SourceManager")
+    @patch("picko.quality.graph.QualityGraph")
+    def test_quality_verify_auto_enhanced_for_new_source(self, MockQualityGraph, MockSourceManager):
+        """New source (auto_discovered && collected_count < 5) should auto-enable enhanced_verification."""
+        # Setup mock source manager
+        mock_source = MagicMock()
+        mock_source.auto_discovered = True
+        mock_source.collected_count = 2
+        mock_source.enhanced_verification = {
+            "enabled": True,
+            "collections_remaining": 3,
+        }
+
+        mock_manager = MagicMock()
+        mock_manager.get_by_id.return_value = mock_source
+        MockSourceManager.return_value = mock_manager
+
+        # Setup mock quality graph
+        mock_graph = MagicMock()
+        mock_graph.verify.return_value = {
+            "item_id": "item_1",
+            "final_verdict": "approved",
+            "final_confidence": 0.95,
+        }
+        MockQualityGraph.return_value = mock_graph
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "quality.verify",
+            {
+                "item_id": "item_1",
+                "source_id": "new_source_123",
+                "title": "Test title",
+                "content": "Test content",
+            },
+        )
+
+        assert result.success is True
+        # Verify enhanced_verification was auto-enabled
+        mock_graph.verify.assert_called_once()
+        call_kwargs = mock_graph.verify.call_args[1]
+        assert call_kwargs["enhanced_verification"] is True
+
+    @patch("picko.source_manager.SourceManager")
+    @patch("picko.quality.graph.QualityGraph")
+    def test_quality_verify_no_auto_enhanced_for_established_source(self, MockQualityGraph, MockSourceManager):
+        """Established source (collected_count >= 5) should not auto-enable enhanced_verification."""
+        # Setup mock source manager
+        mock_source = MagicMock()
+        mock_source.auto_discovered = True
+        mock_source.collected_count = 10  # Established source
+        mock_source.enhanced_verification = None
+
+        mock_manager = MagicMock()
+        mock_manager.get_by_id.return_value = mock_source
+        MockSourceManager.return_value = mock_manager
+
+        # Setup mock quality graph
+        mock_graph = MagicMock()
+        mock_graph.verify.return_value = {
+            "item_id": "item_1",
+            "final_verdict": "approved",
+            "final_confidence": 0.95,
+        }
+        MockQualityGraph.return_value = mock_graph
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "quality.verify",
+            {
+                "item_id": "item_1",
+                "source_id": "established_source",
+                "title": "Test title",
+                "content": "Test content",
+            },
+        )
+
+        assert result.success is True
+        # Verify enhanced_verification was NOT auto-enabled
+        mock_graph.verify.assert_called_once()
+        call_kwargs = mock_graph.verify.call_args[1]
+        assert call_kwargs["enhanced_verification"] is False
+
+    @patch("picko.source_manager.SourceManager")
+    @patch("picko.quality.graph.QualityGraph")
+    def test_quality_verify_decrements_collections_remaining(self, MockQualityGraph, MockSourceManager):
+        """After verification, collections_remaining should be decremented."""
+        # Setup mock source manager
+        mock_source = MagicMock()
+        mock_source.auto_discovered = True
+        mock_source.collected_count = 2
+        mock_source.enhanced_verification = {
+            "enabled": True,
+            "collections_remaining": 3,
+        }
+
+        mock_manager = MagicMock()
+        mock_manager.get_by_id.return_value = mock_source
+        MockSourceManager.return_value = mock_manager
+
+        # Setup mock quality graph
+        mock_graph = MagicMock()
+        mock_graph.verify.return_value = {
+            "item_id": "item_1",
+            "final_verdict": "approved",
+            "final_confidence": 0.95,
+        }
+        MockQualityGraph.return_value = mock_graph
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "quality.verify",
+            {
+                "item_id": "item_1",
+                "source_id": "new_source_123",
+                "title": "Test title",
+                "content": "Test content",
+            },
+        )
+
+        assert result.success is True
+        # Verify update_stats was called to decrement collections_remaining
+        mock_manager.update_stats.assert_called_once()
+        call_args = mock_manager.update_stats.call_args
+        assert call_args[0][0] == "new_source_123"  # source_id
+        # Check that enhanced_verification was updated with decremented count
+        update_kwargs = call_args[1]
+        assert "enhanced_verification" in update_kwargs
+        assert update_kwargs["enhanced_verification"]["collections_remaining"] == 2
+
+    @patch("picko.vault_io.VaultIO")
+    @patch("picko.quality.graph.QualityGraph")
+    def test_quality_verify_updates_frontmatter_quality_and_job_history(self, MockQualityGraph, MockVaultIO):
+        mock_graph = MagicMock()
+        mock_graph.verify.return_value = {
+            "item_id": "input_abc123",
+            "primary_verdict": "approved",
+            "primary_confidence": 0.91,
+            "primary_scores": {"factual": 9},
+            "primary_reasoning": "Looks good",
+            "primary_flags": [],
+            "cross_check_verdict": None,
+            "cross_check_confidence": None,
+            "cross_check_agreement": None,
+            "final_verdict": "approved",
+            "final_confidence": 0.93,
+            "enhanced_verification": False,
+        }
+        MockQualityGraph.return_value = mock_graph
+
+        mock_vault = MagicMock()
+        mock_vault.read_note.return_value = ({"job_history": []}, "content")
+        MockVaultIO.return_value = mock_vault
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "quality.verify",
+            {
+                "item_id": "input_abc123",
+                "title": "Sample title",
+                "content": "Sample content",
+                "dry_run": False,
+            },
+        )
+
+        assert result.success is True
+        mock_vault.update_frontmatter.assert_called_once()
+        called_path = mock_vault.update_frontmatter.call_args[0][0]
+        called_updates = mock_vault.update_frontmatter.call_args[0][1]
+        assert called_path.endswith("Inbox/Inputs/input_abc123.md")
+        assert called_updates["quality"]["final_verdict"] == "approved"
+        assert called_updates["status"] == "approved"
+        assert called_updates["job_history"][-1]["stage"] == "quality.verify"
+
+    @patch("picko.notification.bot.HumanReviewBot")
+    @patch("picko.vault_io.VaultIO")
+    @patch("picko.quality.graph.QualityGraph")
+    def test_quality_verify_needs_review_notifies_and_preserves_pending(
+        self, MockQualityGraph, MockVaultIO, MockHumanReviewBot
+    ):
+        mock_graph = MagicMock()
+        mock_graph.verify.return_value = {
+            "item_id": "input_pending1",
+            "primary_verdict": "needs_review",
+            "primary_confidence": 0.74,
+            "primary_scores": {},
+            "primary_reasoning": "uncertain facts",
+            "primary_flags": ["fact_check_needed"],
+            "cross_check_verdict": None,
+            "cross_check_confidence": None,
+            "cross_check_agreement": None,
+            "final_verdict": "needs_review",
+            "final_confidence": 0.74,
+            "enhanced_verification": False,
+        }
+        MockQualityGraph.return_value = mock_graph
+
+        mock_vault = MagicMock()
+        mock_vault.read_note.return_value = (
+            {"status": "pending", "job_history": []},
+            "content",
+        )
+        MockVaultIO.return_value = mock_vault
+
+        mock_bot = MagicMock()
+        mock_bot.is_configured.return_value = True
+        mock_bot.notify_quality_review = AsyncMock(return_value=True)
+        MockHumanReviewBot.return_value = mock_bot
+
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        result = registry.execute(
+            "quality.verify",
+            {
+                "item_id": "input_pending1",
+                "title": "Needs review title",
+                "content": "Needs review content",
+                "dry_run": False,
+            },
+        )
+
+        assert result.success is True
+        called_updates = mock_vault.update_frontmatter.call_args[0][1]
+        assert called_updates["status"] == "pending"
+        mock_bot.notify_quality_review.assert_awaited_once()
 
     @patch("scripts.daily_collector.DailyCollector")
     def test_collector_run_calls_daily_collector(self, MockCollector):

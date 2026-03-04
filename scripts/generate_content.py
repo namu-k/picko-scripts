@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 from typing import Any
 
-from picko.account_context import WeeklySlot, get_weekly_slot
+from picko.account_context import WeeklySlot, get_identity, get_weekly_slot
 from picko.config import get_config
 from picko.llm_client import get_writer_client
 from picko.logger import setup_logger
@@ -16,6 +16,7 @@ from picko.prompt_composer import get_effective_prompt
 from picko.prompt_loader import get_prompt_loader
 from picko.templates import get_renderer
 from picko.vault_io import VaultIO
+from scripts.validate_output import OutputValidator
 
 logger = setup_logger("generate_content")
 
@@ -79,7 +80,8 @@ class ContentGenerator:
         self.prompt_loader = get_prompt_loader()
         self.dry_run = dry_run
         self.weekly_slot = weekly_slot
-
+        self.validator = OutputValidator()  # 자동 검증용
+        self.auto_validate = bool(getattr(self.config.generation, "auto_validate", True))
         logger.info("ContentGenerator initialized")
 
     def run(
@@ -534,6 +536,8 @@ class ContentGenerator:
             self.vault.write_note(output_path, body, metadata=meta, overwrite=True)
             logger.info(f"Created longform: {output_path}")
 
+            self._run_validation_if_enabled(output_path, "Longform")
+
         return True
 
     def _parse_generated_sections(self, text: str) -> dict[str, Any]:
@@ -558,6 +562,32 @@ class ContentGenerator:
 
         return sections
 
+    def _run_validation_if_enabled(self, output_path: str, content_type: str) -> None:
+        """설정 기반 자동 검증 실행"""
+        if self.dry_run:
+            return
+
+        auto_validate = bool(getattr(self, "auto_validate", True))
+        if not auto_validate:
+            logger.debug(f"Auto validation disabled, skipping: {output_path}")
+            return
+
+        validator = getattr(self, "validator", None)
+        if validator is None:
+            logger.debug(f"Validator not configured, skipping: {output_path}")
+            return
+
+        try:
+            report = validator.validate_path(output_path, recursive=False)
+            if report.results:
+                result = report.results[0]
+                if not result.valid:
+                    logger.error(f"{content_type} validation FAILED: {result.errors}")
+                else:
+                    logger.debug(f"{content_type} validation passed: {output_path}")
+        except Exception as e:
+            logger.warning(f"{content_type} validation error: {e}")
+
     def _generate_packs(self, item: dict[str, Any], input_content: dict[str, Any]) -> int:
         """채널별 패키징 콘텐츠 생성"""
         logger.info(f"Generating packs for: {item['input_id']}")
@@ -570,6 +600,9 @@ class ContentGenerator:
         # WeeklySlot 컨텍스트 준비
         weekly_context = self._prepare_weekly_context()
 
+        # 계정 컨텍스트 준비
+        account_context = self._prepare_account_context(account_id)
+
         created_count = 0
 
         for channel, channel_config in channels.items():
@@ -581,6 +614,7 @@ class ContentGenerator:
                     channel_config=channel_config,
                     account_id=account_id,
                     weekly_context=weekly_context,
+                    account_context=account_context,
                 )
 
                 text = self.llm.generate(prompt, max_tokens=500)
@@ -657,11 +691,12 @@ class ContentGenerator:
             self.vault.write_note(output_path, body, metadata=meta, overwrite=True)
             logger.info(f"Created image prompt: {output_path}")
 
+            self._run_validation_if_enabled(output_path, "Image prompt")
+
         return True
 
     def _generate_packs_with_approval(self, item: dict[str, Any], input_content: dict[str, Any]) -> int:
         """파생 승인 확인 후 팩 생성"""
-        # 롱폼 노트에서 파생 승인 상태 확인
         derivative_status = self._check_derivative_approval(item["input_id"])
 
         if derivative_status.get("status") != "approved":
@@ -780,6 +815,9 @@ class ContentGenerator:
         # WeeklySlot 컨텍스트 준비
         weekly_context = self._prepare_weekly_context()
 
+        # 계정 컨텍스트 준비
+        account_context = self._prepare_account_context(account_id)
+
         created_count = 0
 
         for channel in channels:
@@ -797,6 +835,7 @@ class ContentGenerator:
                     channel_config=channel_config,
                     account_id=account_id,
                     weekly_context=weekly_context,
+                    account_context=account_context,
                 )
 
                 text = self.llm.generate(prompt, max_tokens=500)
@@ -834,7 +873,9 @@ class ContentGenerator:
                     self.vault.write_note(output_path, body, metadata=meta, overwrite=True)
                     logger.info(f"Created pack: {output_path}")
 
-                created_count += 1
+                    self._run_validation_if_enabled(output_path, "Pack")
+
+                created_count += 1  # Increment count after successful creation
 
             except Exception as e:
                 logger.warning(f"Failed to create {channel} pack: {e}")
@@ -873,6 +914,26 @@ class ContentGenerator:
             "customer_outcome": self.weekly_slot.customer_outcome,
             "operator_kpi": self.weekly_slot.operator_kpi,
             "pillar_distribution": self.weekly_slot.pillar_distribution,
+        }
+
+    def _prepare_account_context(self, account_id: str) -> dict[str, Any] | None:
+        """
+        계정 정체성에서 target_audience, tone_voice, boundaries 추출
+
+        Args:
+            account_id: 계정 ID
+
+        Returns:
+            account_context 딕셔너리 또는 None
+        """
+        identity = get_identity(account_id)
+        if not identity:
+            return None
+
+        return {
+            "target_audience": identity.target_audience or [],
+            "tone_voice": identity.tone_voice or {},
+            "boundaries": identity.boundaries or [],
         }
 
     def _parse_frontmatter(self, content: str) -> dict[str, Any]:

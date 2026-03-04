@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import asyncio
+from datetime import datetime
 from pathlib import Path
 from typing import Any, cast
 
-from picko.config import get_config
+from picko.config import PROJECT_ROOT, get_config
 from picko.logger import get_logger
 from picko.orchestrator.actions import ActionRegistry, ActionResult
 
@@ -21,6 +23,7 @@ def register_default_actions(registry: ActionRegistry):
     registry.register("publisher.run", _run_publisher)
     registry.register("engagement.sync", _run_engagement_sync)
     registry.register("embedding.check_duplicate", _check_duplicate)
+    registry.register("quality.verify", _run_quality_verify)
 
 
 def _extract_item_id(item: object) -> str:
@@ -378,6 +381,375 @@ def _run_engagement_sync(
         )
     except Exception as e:
         logger.error(f"engagement.sync failed: {e}")
+        return ActionResult(success=False, error=str(e))
+
+
+def _to_float(value: Any, default: float = 0.0) -> float:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def _quality_payload_from_state(state: dict[str, Any]) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "primary": {
+            "verdict": state.get("primary_verdict"),
+            "confidence": state.get("primary_confidence"),
+            "scores": state.get("primary_scores"),
+            "reasoning": state.get("primary_reasoning"),
+            "flags": state.get("primary_flags"),
+        },
+        "final_confidence": _to_float(state.get("final_confidence"), 0.0),
+        "final_verdict": state.get("final_verdict", ""),
+        "enhanced_verification": bool(state.get("enhanced_verification", False)),
+        "verified_at": datetime.now().isoformat(),
+    }
+
+    if state.get("cross_check_verdict") is not None:
+        payload["cross_check"] = {
+            "verdict": state.get("cross_check_verdict"),
+            "confidence": state.get("cross_check_confidence"),
+            "agreement": state.get("cross_check_agreement"),
+        }
+
+    return payload
+
+
+def _append_job_history(existing: Any, entry: dict[str, Any]) -> list[dict[str, Any]]:
+    if isinstance(existing, list):
+        history = [item for item in existing if isinstance(item, dict)]
+    else:
+        history = []
+    history.append(entry)
+    return history
+
+
+def _update_quality_note_frontmatter(item_id: str, state: dict[str, Any], dry_run: bool) -> bool:
+    if not item_id or dry_run:
+        return False
+
+    from picko.vault_io import VaultIO
+
+    note_path = f"{get_config().vault.inbox}/{item_id}.md"
+    vault = VaultIO()
+
+    try:
+        meta, _ = vault.read_note(note_path)
+    except FileNotFoundError:
+        logger.debug(f"Skipping frontmatter update, note not found: {note_path}")
+        return False
+    except Exception as e:
+        logger.warning(f"Failed to read note for quality update ({note_path}): {e}")
+        return False
+
+    verdict = str(state.get("final_verdict", "")).lower()
+    if verdict == "needs_review":
+        status = "pending"
+    elif verdict == "approved":
+        status = "approved"
+    elif verdict == "rejected":
+        status = "rejected"
+    else:
+        status = str(meta.get("status", "pending"))
+
+    quality_payload = _quality_payload_from_state(state)
+    job_history_entry = {
+        "stage": "quality.verify",
+        "status": status,
+        "verdict": verdict or "unknown",
+        "confidence": _to_float(state.get("final_confidence"), 0.0),
+        "timestamp": datetime.now().isoformat(),
+    }
+    job_history = _append_job_history(meta.get("job_history"), job_history_entry)
+
+    try:
+        vault.update_frontmatter(
+            note_path,
+            {
+                "quality": quality_payload,
+                "job_history": job_history,
+                "status": status,
+            },
+            merge=True,
+        )
+        return True
+    except Exception as e:
+        logger.warning(f"Failed to update quality frontmatter ({note_path}): {e}")
+        return False
+
+
+def _notify_needs_review(item_id: str, title: str, state: dict[str, Any], dry_run: bool) -> bool:
+    if dry_run:
+        return False
+
+    verdict = str(state.get("final_verdict", "")).lower()
+    if verdict != "needs_review":
+        return False
+
+    from picko.notification.bot import HumanReviewBot
+
+    cfg = get_config()
+    bot = HumanReviewBot(
+        provider=cfg.notification.provider,
+        timeout_hours=cfg.notification.review_timeout_hours,
+    )
+
+    if not bot.is_configured():
+        logger.info("HumanReviewBot not configured, skipping needs_review notification")
+        return False
+
+    confidence = _to_float(state.get("final_confidence"), 0.0)
+    reason = str(state.get("primary_reasoning") or "Quality verification requires human review")
+
+    try:
+        return asyncio.run(
+            bot.notify_quality_review(
+                item_id=item_id,
+                title=title,
+                confidence=confidence,
+                reason=reason,
+            )
+        )
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        try:
+            return loop.run_until_complete(
+                bot.notify_quality_review(
+                    item_id=item_id,
+                    title=title,
+                    confidence=confidence,
+                    reason=reason,
+                )
+            )
+        finally:
+            loop.close()
+    except Exception as e:
+        logger.warning(f"Failed to send needs_review notification for {item_id}: {e}")
+        return False
+
+
+def _resolve_source_context(
+    source_id: str | None,
+    enhanced_verification: bool,
+) -> tuple[Any | None, Any | None, bool]:
+    if not source_id:
+        return None, None, enhanced_verification
+
+    from picko.source_manager import SourceManager
+
+    source_manager: SourceManager | None = None
+    source_meta = None
+    effective_enhanced = enhanced_verification
+
+    try:
+        source_manager = SourceManager(PROJECT_ROOT / "config" / "sources.yml")
+        source_meta = source_manager.get_by_id(source_id)
+    except Exception as e:
+        logger.warning(f"Failed to load source metadata for {source_id}: {e}")
+        return None, None, enhanced_verification
+
+    if source_meta and not enhanced_verification:
+        is_new_source = source_meta.auto_discovered and source_meta.collected_count < 5
+        if is_new_source:
+            effective_enhanced = True
+            logger.info(f"Auto-enabled enhanced_verification for new source: {source_id}")
+
+    return source_manager, source_meta, effective_enhanced
+
+
+def _decrement_source_collections_remaining(
+    source_manager: Any | None,
+    source_meta: Any | None,
+    source_id: str | None,
+) -> None:
+    if not source_manager or not source_meta or not source_id:
+        return
+    if not source_meta.enhanced_verification:
+        return
+
+    try:
+        current_remaining = source_meta.enhanced_verification.get("collections_remaining", 0)
+        if current_remaining > 0:
+            updated_ev = dict(source_meta.enhanced_verification)
+            updated_ev["collections_remaining"] = current_remaining - 1
+            source_manager.update_stats(str(source_id), enhanced_verification=updated_ev)
+            logger.info(
+                "Decremented collections_remaining for %s: %s -> %s",
+                source_id,
+                current_remaining,
+                current_remaining - 1,
+            )
+    except Exception as e:
+        logger.warning(f"Failed to update source metadata for {source_id}: {e}")
+
+
+def _run_quality_verify_single(
+    graph: Any,
+    dry_run: bool,
+    item_id: str,
+    title: str,
+    content: str,
+    enhanced_verification: bool,
+    thread_id: str | None,
+    source_manager: Any | None,
+    source_meta: Any | None,
+    source_id: str | None,
+) -> ActionResult:
+    target_id = item_id or "unknown"
+    state = graph.verify(
+        item_id=target_id,
+        title=title,
+        content=content,
+        enhanced_verification=enhanced_verification,
+        thread_id=thread_id,
+    )
+
+    _decrement_source_collections_remaining(source_manager, source_meta, source_id)
+
+    state_dict = dict(state)
+    updated_frontmatter = _update_quality_note_frontmatter(target_id, state_dict, dry_run)
+    notified = _notify_needs_review(
+        target_id,
+        title or target_id,
+        state_dict,
+        dry_run,
+    )
+
+    return ActionResult(
+        success=True,
+        outputs={
+            "result": state,
+            "frontmatter_updated": updated_frontmatter,
+            "needs_review_notified": notified,
+        },
+    )
+
+
+def _run_quality_verify_batch(
+    graph: Any,
+    account: str,
+    items: list[object],
+    threshold: float,
+    dry_run: bool,
+    enhanced_verification: bool,
+) -> ActionResult:
+    results: list[dict[str, Any]] = []
+    verified: list[str] = []
+    pending: list[str] = []
+    rejected: list[str] = []
+    frontmatter_updated_count = 0
+    needs_review_notified_count = 0
+
+    for item in items:
+        target_id = _extract_item_id(item)
+        if not target_id:
+            target_id = "unknown"
+
+        current_title = ""
+        current_content = ""
+        current_enhanced = enhanced_verification
+
+        if isinstance(item, dict):
+            raw_title = item.get("title", "")
+            current_title = raw_title if isinstance(raw_title, str) else ""
+            raw_content = item.get("content") or item.get("text", "")
+            current_content = raw_content if isinstance(raw_content, str) else ""
+            current_enhanced = bool(item.get("enhanced_verification", enhanced_verification))
+
+        state = graph.verify(
+            item_id=target_id,
+            title=current_title,
+            content=current_content,
+            enhanced_verification=current_enhanced,
+            thread_id=f"quality-{target_id}",
+        )
+        state_dict = dict(state)
+        results.append(state_dict)
+
+        if _update_quality_note_frontmatter(target_id, state_dict, dry_run):
+            frontmatter_updated_count += 1
+        if _notify_needs_review(target_id, current_title or target_id, state_dict, dry_run):
+            needs_review_notified_count += 1
+
+        verdict = state.get("final_verdict")
+        confidence = float(state.get("final_confidence", 0.0))
+        if verdict == "approved" or confidence >= threshold:
+            verified.append(target_id)
+        elif verdict == "needs_review":
+            pending.append(target_id)
+        else:
+            rejected.append(target_id)
+
+    return ActionResult(
+        success=True,
+        outputs={
+            "results": results,
+            "verified": verified,
+            "pending": pending,
+            "rejected": rejected,
+            "total": len(items),
+            "dry_run": dry_run,
+            "account": account,
+            "frontmatter_updated_count": frontmatter_updated_count,
+            "needs_review_notified_count": needs_review_notified_count,
+        },
+    )
+
+
+def _run_quality_verify(
+    account: str = "socialbuilders",
+    items: list[object] | None = None,
+    threshold: float = 0.85,
+    dry_run: bool = False,
+    item_id: str = "",
+    title: str = "",
+    content: str = "",
+    enhanced_verification: bool = False,
+    thread_id: str | None = None,
+    source_id: str | None = None,
+    **kwargs,
+) -> ActionResult:
+    """Quality verification action wrapper.
+
+    Supports both single-item invocation and batch invocation via `items`.
+
+    When source_id is provided, auto-detects if enhanced_verification should be enabled
+    based on source metadata (auto_discovered && collected_count < 5).
+    """
+    from picko.quality.graph import QualityGraph
+
+    try:
+        graph = QualityGraph()
+        source_manager, source_meta, effective_enhanced = _resolve_source_context(
+            source_id,
+            enhanced_verification,
+        )
+
+        if not items:
+            return _run_quality_verify_single(
+                graph=graph,
+                dry_run=dry_run,
+                item_id=item_id,
+                title=title,
+                content=content,
+                enhanced_verification=effective_enhanced,
+                thread_id=thread_id,
+                source_manager=source_manager,
+                source_meta=source_meta,
+                source_id=source_id,
+            )
+
+        return _run_quality_verify_batch(
+            graph=graph,
+            account=account,
+            items=items,
+            threshold=threshold,
+            dry_run=dry_run,
+            enhanced_verification=effective_enhanced,
+        )
+    except Exception as e:
+        logger.error(f"quality.verify failed: {e}")
         return ActionResult(success=False, error=str(e))
 
 

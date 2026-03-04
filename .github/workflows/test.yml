@@ -43,6 +43,10 @@ jobs:
       run: |
         pip install pytest pytest-cov flake8 mypy black isort
 
+    - name: Create mock vault
+      run: |
+        mkdir -p mock_vault/Inbox/Inputs mock_vault/Content/Longform mock_vault/Content/Packs mock_vault/Assets/Images mock_vault/Logs mock_vault/Archive
+
     - name: Install Playwright browsers
       run: |
         playwright install chromium

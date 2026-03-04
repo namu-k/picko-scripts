@@ -57,3 +57,34 @@ class TestExprEvaluator:
         evaluator = ExprEvaluator(vault_adapter=mock_vault, step_outputs={})
         result = evaluator.evaluate("${{ vault.list('Content/Longform', 'derivative_status=approved') }}")
         assert result == ["/a.md", "/b.md"]
+
+    def test_contains_topic_operator(self):
+        evaluator = ExprEvaluator(
+            vault_adapter=None,
+            step_outputs={"collect": {"topics": ["AI", "startup", "tools"]}},
+        )
+
+        result = evaluator.evaluate("${{ contains_topic(steps.collect.outputs.topics, 'ai') }}")
+        assert result is True
+
+    def test_score_range_operator(self):
+        evaluator = ExprEvaluator(
+            vault_adapter=None,
+            step_outputs={"quality": {"score": 0.86}},
+        )
+
+        in_range = evaluator.evaluate("${{ score_range(steps.quality.outputs.score, 0.8, 0.9) }}")
+        out_of_range = evaluator.evaluate("${{ score_range(steps.quality.outputs.score, 0.9, 1.0) }}")
+        assert in_range is True
+        assert out_of_range is False
+
+    def test_has_quality_flag_operator(self):
+        evaluator = ExprEvaluator(
+            vault_adapter=None,
+            step_outputs={"verify": {"flags": {"needs_review": True, "safe": False}}},
+        )
+
+        has_flag = evaluator.evaluate("${{ has_quality_flag(steps.verify.outputs.flags, 'needs_review') }}")
+        missing_flag = evaluator.evaluate("${{ has_quality_flag(steps.verify.outputs.flags, 'approved') }}")
+        assert has_flag is True
+        assert missing_flag is False

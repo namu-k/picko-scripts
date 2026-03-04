@@ -10,7 +10,7 @@ from typing import Any
 import yaml
 
 from picko.logger import get_logger
-from picko.orchestrator.actions import ActionRegistry, ActionResult
+from picko.orchestrator.actions import ActionConfig, ActionRegistry, ActionResult
 from picko.orchestrator.expr import ExprEvaluator
 
 logger = get_logger("orchestrator.engine")
@@ -59,17 +59,90 @@ class WorkflowEngine:
 
         result = WorkflowResult()
 
-        for step_def in workflow.get("steps", []):
+        steps = list(workflow.get("steps", []))
+        index = 0
+
+        while index < len(steps):
+            raw_step = steps[index]
+            if isinstance(raw_step, ActionConfig):
+                step_config = raw_step
+            elif isinstance(raw_step, dict):
+                try:
+                    step_config = ActionConfig.from_dict(raw_step)
+                except ValueError as e:
+                    step_name = raw_step.get("name", f"step_{index}")
+                    result.step_results.append(StepResult(name=str(step_name), error=str(e)))
+                    index += 1
+                    continue
+            else:
+                result.step_results.append(StepResult(name=f"step_{index}", error="Invalid step definition"))
+                index += 1
+                continue
+
+            step_def = step_config.to_dict()
             # batch 섹션이 있으면 배치 처리 사용
-            if "batch" in step_def:
+            if step_config.batch is not None:
                 step_result = self._execute_step_with_batch(step_def)
             else:
                 step_result = self._execute_step(step_def)
 
+            # Fallback action support: run fallback when primary step fails
+            fallback_def = step_config.fallback
+            if not step_result.success and not step_result.skipped and fallback_def is not None and fallback_def.action:
+                fallback_action = fallback_def.action
+                fallback_args = fallback_def.args
+                resolved_fallback_args = self._resolve_args(fallback_args)
+
+                if "dry_run" not in resolved_fallback_args:
+                    resolved_fallback_args["dry_run"] = self._dry_run
+
+                try:
+                    fallback_result = self._actions.execute(fallback_action, resolved_fallback_args)
+                    if fallback_result.success:
+                        step_result = StepResult(
+                            name=step_result.name,
+                            success=True,
+                            outputs={
+                                **fallback_result.outputs,
+                                "fallback_used": True,
+                            },
+                            error="",
+                        )
+                    else:
+                        step_result.error = (
+                            f"{step_result.error}; fallback '{fallback_action}' failed: {fallback_result.error}"
+                        ).strip("; ")
+                except Exception as e:
+                    step_result.error = (f"{step_result.error}; fallback '{fallback_action}' exception: {e}").strip(
+                        "; "
+                    )
+
             result.step_results.append(step_result)
 
             if not step_result.skipped:
-                self._step_outputs[step_def["name"]] = step_result.outputs
+                self._step_outputs[step_config.name] = step_result.outputs
+
+            # Dynamic step insertion (Phase 4 kickoff)
+            # Support both declarative workflow-level dynamic_steps and
+            # action-emitted dynamic_steps from step outputs.
+            output_dynamic_steps = step_result.outputs.get("dynamic_steps", [])
+            declared_dynamic_steps = step_config.dynamic_steps
+            dynamic_steps: list[Any] = []
+            if isinstance(declared_dynamic_steps, list):
+                dynamic_steps.extend(declared_dynamic_steps)
+            if isinstance(output_dynamic_steps, list):
+                dynamic_steps.extend(output_dynamic_steps)
+
+            if dynamic_steps:
+                insert_at = index + 1
+                for dyn_step in dynamic_steps:
+                    if isinstance(dyn_step, dict) and dyn_step.get("name") and dyn_step.get("action"):
+                        steps.insert(insert_at, dyn_step)
+                        insert_at += 1
+                    else:
+                        logger.warning(f"Invalid dynamic step emitted by '{step_config.name}': {dyn_step}")
+
+            index += 1
 
         return result
 
