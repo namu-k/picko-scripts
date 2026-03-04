@@ -42,9 +42,11 @@ _없음_
 
 ### Phase 2: 품질 시스템
 
-- [ ] **Task 4: prompt_templates.py** — 서비스별 프롬프트 템플릿 (Few-shot 포함)
+- [ ] **Task 4: prompt_templates.py** — 서비스별 프롬프트 템플릿 (공식 가이드/Few-shot 반영)
   - `picko/video/prompt_templates.py` 생성
   - `tests/test_prompt_templates.py` 생성
+  - 서비스별 Do/Don't 룰셋(Luma/Runway/Pika/Kling/Veo) 반영
+  - ad intent의 Hook-Body-CTA 슬롯 강제
 
 - [ ] **Task 5: quality_scorer.py** — 5차원 품질 평가
   - `picko/video/quality_scorer.py` 생성
@@ -98,6 +100,9 @@ python -m picko video --no-validate --dry-run
 - [ ] LLM 파싱 예외 처리 확인 (```json 블록 처리)
 - [ ] 복수 서비스 지정 시 모든 서비스 파라미터 생성 확인
 - [ ] 품질 게이트 재시도 로직 확인
+- [ ] 서비스별 공식 가이드 룰셋(직접적 서술, 움직임 중심, 부정형 지시 회피 등) 준수 확인
+- [ ] ad intent에서 첫 1-3초 훅 + 마지막 3-5초 CTA 구조 검증 확인
+- [ ] 9:16 safe-zone 기준 텍스트 오버레이 배치 검증 확인
 
 ---
 
