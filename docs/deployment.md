@@ -329,5 +329,5 @@ python -m scripts.health_check
 
 - [OpenAI API Documentation](https://platform.openai.com/docs)
 - [GitHub Actions Secrets Documentation](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
-- [USER_GUIDE.md](USER_GUIDE.md) - Usage instructions
-- [CLAUDE.md](CLAUDE.md) - Developer guide
+- [user-guide.md](./user-guide.md) - Usage instructions
+- [CLAUDE.md](../CLAUDE.md) - Developer guide

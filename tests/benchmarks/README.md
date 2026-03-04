@@ -38,7 +38,7 @@ tests/benchmarks/
 
 - `id`, `name`, `type`(e2e | feature), `description`
 - 실행에 필요한 옵션(날짜, 소스, 스크립트 인자 등)
-- 적용할 **공통 평가지표** 참조(지표 정의는 `docs/001-pipeline-reliability/benchmarks.md` 참고)
+- 적용할 **공통 평가지표** 참조(지표 정의는 `specs/001-pipeline-reliability/benchmarks.md` 참고)
 
 ## 실행 방법
 
@@ -51,5 +51,5 @@ tests/benchmarks/
 
 ## 평가 및 기록
 
-- 공통 평가지표·평가 템플릿: **`docs/001-pipeline-reliability/benchmarks.md`**
-- 실행 결과·점수·이슈는 해당 문서의 평가 템플릿을 복사해 기록하거나, `docs/001-pipeline-reliability/` 아래에 실행별 노트로 남기면 됩니다.
+- 공통 평가지표·평가 템플릿: **`specs/001-pipeline-reliability/benchmarks.md`**
+- 실행 결과·점수·이슈는 해당 문서의 평가 템플릿을 복사해 기록하거나, `specs/001-pipeline-reliability/` 아래에 실행별 노트로 남기면 됩니다.
