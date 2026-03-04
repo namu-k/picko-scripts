@@ -243,6 +243,7 @@ source_input: {{ source_input_id | wikilink }}
 derivative_status: pending
 packs_channels: []
 images_approved: false
+videos_approved: false
 created_at: {{ created_at }}
 {% if tags %}tags:
 {% for tag in tags %}  - {{ tag }}
@@ -252,7 +253,7 @@ created_at: {{ created_at }}
 # {{ title }}
 
 > [!tip] 파생 콘텐츠 승인
-> 이 롱폼을 바탕으로 소셜 미디어 팩/이미지를 생성하려면 아래 체크박스를 선택하세요:
+> 이 롱폼을 바탕으로 소셜 미디어 팩/이미지/영상을 생성하려면 아래 체크박스를 선택하세요:
 >
 > **팩 생성 채널 선택**:
 > - [ ] **Twitter**: 캐주얼한 톤, 280자 제한
@@ -264,7 +265,10 @@ created_at: {{ created_at }}
 > **이미지 생성**:
 > - [ ] **이미지 프롬프트**: 썸네일용 이미지 프롬프트 자동 생성
 >
-> 체크 후 저장하면 `generate_content --type packs,images` 실행 시 선택된 채널만 자동 생성됩니다.
+> **영상 생성**:
+> - [ ] **영상 프롬프트**: 숏폼 영상 기획서 자동 생성 (Sora, Luma 등)
+>
+> 체크 후 저장하면 `generate_content --type packs,images,videos` 실행 시 선택된 채널만 자동 생성됩니다.
 
 {{ intro }}
 
@@ -418,6 +422,107 @@ created_at: {{ created_at }}
 > 이 탐색 결과는 롱폼 작성 시 컨텍스트로 사용됩니다.
 """
         return self.render_string(template, created_at=datetime.now().isoformat(), **content)
+
+    def render_video_prompt(self, content: dict) -> str:
+        """
+        영상 프롬프트 렌더링 (VideoPlan → 마크다운)
+
+        Args:
+            content: VideoPlan 딕셔너리
+
+        Returns:
+            마크다운 문자열
+        """
+        template = """---
+id: {{ id }}
+type: video_prompt
+source_content: {{ source_content_id | wikilink }}
+account: {{ account }}
+intent: {{ intent }}
+status: pending
+created_at: {{ created_at }}
+target_services:
+{% for svc in target_services %}  - {{ svc }}
+{% endfor %}platforms:
+{% for plat in platforms %}  - {{ plat }}
+{% endfor %}duration_sec: {{ duration_sec }}
+{% if quality_score %}quality_score: {{ quality_score }}
+{% endif %}---
+
+# Video Plan: {{ goal }}
+
+> [!info] 기본 정보
+> - **계정**: {{ account }}
+> - **의도**: {{ intent }}
+> - **총 길이**: {{ duration_sec }}초
+> - **대상 서비스**: {{ target_services | join(", ") }}
+> - **플랫폼**: {{ platforms | join(", ") }}
+
+## 브랜드 스타일
+
+- **톤**: {{ brand_style.tone }}
+- **비율**: {{ brand_style.aspect_ratio }}
+{% if brand_style.colors %}
+- **컬러**:
+{% for name, color in brand_style.colors.items() %}  - {{ name }}: `{{ color }}`
+{% endfor %}{% endif %}
+
+## 샷 리스트
+
+{% for shot in shots %}
+### Shot {{ shot.index }}: {{ shot.shot_type }}
+
+| 항목 | 내용 |
+|------|------|
+| **길이** | {{ shot.duration_sec }}초 |
+| **스크립트** | {{ shot.script }} |
+| **자막** | {{ shot.caption }} |
+| **배경 프롬프트** | {{ shot.background_prompt }} |
+
+{% if shot.luma %}
+**Luma 파라미터**:
+- 카메라 모션: `{{ shot.luma.camera_motion }}`
+- 모션 강도: {{ shot.luma.motion_intensity }}/5
+{% endif %}
+
+{% if shot.sora %}
+**Sora 파라미터**:
+- 스타일: `{{ shot.sora.style }}`
+- 카메라 모션: `{{ shot.sora.camera_motion }}`
+{% endif %}
+
+{% if shot.audio %}
+**오디오**:
+- 무드: `{{ shot.audio.mood }}`
+- 장르: `{{ shot.audio.genre }}`
+{% if shot.audio.voiceover_text %}- 보이스오버: "{{ shot.audio.voiceover_text }}"
+{% endif %}{% endif %}
+
+---
+{% endfor %}
+
+## 원본 JSON
+
+```json
+{{ video_plan_json }}
+```
+
+---
+
+> [!tip] 실행 방법
+> 1. `target_services`에 나열된 서비스 중 하나 선택
+> 2. 각 서비스의 API/웹 인터페이스에서 샷별 프롬프트 입력
+> 3. 생성된 영상은 `Assets/Videos/_output/`에 저장
+"""
+        # VideoPlan JSON도 포함 (필요시 복원용)
+        import json
+
+        video_plan_json = json.dumps(content, ensure_ascii=False, indent=2)
+        # created_at이 content에 없으면 현재 시간 추가
+        render_content = {**content}
+        if "created_at" not in render_content:
+            render_content["created_at"] = datetime.now().isoformat()
+        return self.render_string(template, video_plan_json=video_plan_json, **render_content)
 
 
 # ─────────────────────────────────────────────────────────────
