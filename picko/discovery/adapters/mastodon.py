@@ -71,7 +71,7 @@ class MastodonDiscoveryAdapter(BaseDiscoveryCollector):
 
         try:
             url = f"https://{self.instance}/api/v2/search"
-            params = {
+            params: dict[str, str | int] = {
                 "q": keyword,
                 "type": "accounts",
                 "limit": 40,

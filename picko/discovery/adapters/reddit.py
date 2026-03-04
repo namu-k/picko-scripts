@@ -124,7 +124,7 @@ class RedditDiscoveryAdapter(BaseDiscoveryCollector):
             token = await self._get_access_token()
 
             url = "https://oauth.reddit.com/subreddits/search"
-            params = {
+            params: dict[str, str | int] = {
                 "q": keyword,
                 "limit": 25,
                 "sort": "relevance",
