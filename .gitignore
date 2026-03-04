@@ -65,24 +65,21 @@ mock_vault/
 .cache/
 .cursor/
 .sisyphus/
+
 # Plan documents (계획문서)
 **/plan.md
-**/plans/
 implementation_plan.md
 task.md
 
-# Docs (evaluation and market analysis kept local)
-docs/
+# Docs (sensitive files kept local, plans tracked)
 docs/evaluation_0226.md
 docs/market_analysis.md
-
 
 # Agent guide (local reference only)
 AGENT_GUIDE.md
 
 # Local scratch/test notes
 기술력보다 비전 공유가 중요하다
-
 
 # Worktrees
 .worktrees/

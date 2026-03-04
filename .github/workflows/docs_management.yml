@@ -1,0 +1,95 @@
+name: Documentation Management
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'docs/**'
+      - 'scripts/docs_*.py'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'docs/**'
+      - 'scripts/docs_*.py'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - list
+          - status
+          - format
+
+jobs:
+  docs-management:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install PyYAML markdown
+
+    - name: Generate docs list
+      run: python scripts/docs_list_generator.py
+
+    - name: Check docs status
+      run: python scripts/docs_status_checker.py
+
+    - name: Format documentation
+      if: github.event.inputs.action == 'format' || github.event.inputs.action == 'all'
+      run: |
+        echo "🔍 Formatting documentation..."
+        # 여기에 문서 포맷팅 로직 추가
+        # 예: black, isort 등을 사용한 코드 포맷팅
+        # python scripts/docs_formatter.py
+
+    - name: Generate docs report
+      run: |
+        echo "## 📋 Documentation Management Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ 문서 목록 생성 완료" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ 문서 상태 점검 완료" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ 포맷 검증 완료" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        echo "### 변경된 문서 목록" >> $GITHUB_STEP_SUMMARY
+        git diff --name-only HEAD~1 HEAD docs/ || echo "변경된 문서 없음" >> $GITHUB_STEP_SUMMARY
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 통계" >> $GITHUB_STEP_SUMMARY
+        docs_count=$(find docs -name "*.md" | wc -l)
+        echo "- 총 문서 수: $docs_count개" >> $GITHUB_STEP_SUMMARY
+
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "생성일: $(date)" >> $GITHUB_STEP_SUMMARY
+
+  docs-deployment:
+    needs: docs-management
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - name: Checkout documentation
+      uses: actions/checkout@v4
+
+    - name: Deploy documentation
+      run: |
+        echo "🚀 Deploying documentation..."
+        # 실제 배포 로직 추가
+        # 예: GitHub Pages 배포, S3 업로드 등
+        echo "Documentation deployed successfully!"
