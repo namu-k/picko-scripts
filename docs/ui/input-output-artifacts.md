@@ -22,8 +22,8 @@
 |---------|------|------|------|-----------|--------|
 | `date` | string | ✅ | 수집 날짜 (YYYY-MM-DD) | date picker | today |
 | `account` | string | ✅ | 계정 ID | select | socialbuilders |
-| `sources` | list | ✅ | RSS 소스 ID 목록 | multi-select | - |
-| `max_items` | int | ❌ | 최대 수집 아이템 수 | number input | 100 |
+| `sources` | list | ❌ | RSS 소스 ID 목록 (미지정 시 전체) | multi-select | 전체 |
+| `max_items` | int | ❌ | 최대 수집 아이템 수 | number input | UI 기본 100 (런타임 제한 없음) |
 | `dry_run` | bool | ❌ | 드라이런 모드 | checkbox | false |
 
 #### `/run/generate` (생성)
@@ -34,7 +34,7 @@
 | `force` | bool | ❌ | 상태 무시 강제 생성 | checkbox | false |
 | `dry_run` | bool | ❌ | 드라이런 모드 | checkbox | false |
 | `auto_all` | bool | ❌ | 모든 항목 자동 생성 | checkbox | false |
-| `week_of` | string | ❌ | 특정 주 (YYYY-W##) | week picker | - |
+| `week_of` | string | ❌ | 주간 슬롯 기준일 (YYYY-MM-DD, week picker 변환값) | week picker | - |
 
 #### `/video/new` (동영상 생성)
 | 파라미터 | 타입 | 필수 | 설명 | UI 컨트롤 | 기본값 |

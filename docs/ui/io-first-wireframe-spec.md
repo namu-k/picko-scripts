@@ -31,7 +31,7 @@
 입력
 - `date` (필수, YYYY-MM-DD)
 - `account` (필수)
-- `sources` (필수, 다중)
+- `sources` (선택, MVP v1은 기본 전체 소스)
 - `max_items` (선택, 코드 기본: 제한 없음)
 - `dry_run` (선택, 기본 false)
 
@@ -40,7 +40,8 @@
 - `items[]` (처리된 input id 목록)
 
 화면 반영 규칙
-- Run 버튼은 `date/account/sources`가 유효할 때만 활성화
+- MVP v1 인라인 실행은 `date/account` 유효 시 활성화 (sources는 기본 전체)
+- 고급 `/run/collect` 화면에서는 sources 선택 UI 제공 가능
 - 실행 직후 `/status`로 이동
 - 완료 시 결과 CTA를 `Go to Inbox`로 노출
 
@@ -48,7 +49,7 @@
 
 입력
 - `date` (필수)
-- `type` (필수: longform/packs/images)
+- `type` (필수: longform/packs/images, UI 기본값: longform)
 - `force`, `dry_run`, `auto_all`, `week_of` (선택, `week_of`는 YYYY-MM-DD)
 
 출력
@@ -79,12 +80,13 @@
 ## 4) 상태 전이 표준
 
 ### 콘텐츠 상태
-- `pending -> auto_ready -> processing -> completed`
-- 필요 시 `skipped`로 전이
+- 런타임 `writing_status`: `pending -> auto_ready -> completed`
+- 런타임 보조 상태(`status`): `rejected`, `duplicate`, `generated`
+- UI가 `processing/skipped`를 표시할 경우, 내부 상태 매핑 규칙을 명시해야 함
 
 ### 비디오 플랜 상태
-- `draft -> ready -> approved -> rendering -> completed`
-- 검토 실패 시 `rejected`
+- 런타임 기본값: video prompt frontmatter `pending`
+- 상세 워크플로우 상태(`ready/rendering/completed`)는 렌더 파이프라인 계층에서 확장 정의
 
 ### 실행 잡 상태
 - `queued -> running -> completed`
@@ -157,3 +159,5 @@
 - 본 문서의 Collect/Generate 출력 스키마는 `scripts/daily_collector.py`, `scripts/generate_content.py`의 실제 반환 키 기준으로 맞춘다.
 - Video Plan 필드는 `picko/video_plan.py`의 `VideoPlan` 구조를 기준으로 맞춘다.
 - 와이어프레임 라우트와 플로우는 `docs/ui/wireframes-and-flow.md`, `docs/ui/mvp-wireframes.md` 기준을 따른다.
+- UI 라우트(`/run/*`, `/status`)는 현재 코드에서 CLI 실행(`scripts/*.py`)과 Vault I/O를 어댑터로 연결해야 한다.
+- `type` 값이 누락된 CLI 호출은 코드에서 all 타입으로 확장될 수 있으므로, UI는 항상 명시적으로 `type`을 전송한다.
