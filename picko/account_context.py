@@ -10,7 +10,7 @@ from typing import Any
 
 import yaml
 
-from .config import get_config
+from .config import PROJECT_ROOT, get_config
 from .logger import get_logger
 
 logger = get_logger("account_context")
@@ -352,7 +352,18 @@ class AccountContextLoader:
         if account_id in self._identity_cache:
             return self._identity_cache[account_id]
 
-        # 기본 경로 (한글 폴더명)
+        # 새 account 디렉토리 구조 우선 로드
+        config = get_config()
+        account_dir = PROJECT_ROOT / config.accounts_dir / account_id
+        account_yml = account_dir / "account.yml"
+        if account_yml.exists():
+            identity = self._load_identity_from_yaml(account_yml)
+            if identity:
+                self._identity_cache[account_id] = identity
+                logger.info(f"Loaded identity from YAML for account: {account_id}")
+                return identity
+
+        # 기본 경로 (legacy markdown, 한글 폴더명)
         if relative_path is None:
             relative_path = (
                 "config/Folders_to_operate_social-media_copied_from_Vault/"
@@ -378,6 +389,50 @@ class AccountContextLoader:
 
         except Exception as e:
             logger.error(f"Error loading identity for {account_id}: {e}")
+            return None
+
+    def _load_identity_from_yaml(self, account_yml: Path) -> AccountIdentity | None:
+        """Load AccountIdentity from account.yml (+ optional style.yml tone)."""
+        try:
+            with open(account_yml, "r", encoding="utf-8") as f:
+                loaded = yaml.safe_load(f) or {}
+            if not isinstance(loaded, dict) or not loaded:
+                logger.warning(f"Empty or invalid account.yml: {account_yml}")
+                return None
+
+            tone_voice: dict[str, str] = {}
+            style_path = account_yml.parent / "style.yml"
+            if style_path.exists():
+                with open(style_path, "r", encoding="utf-8") as f:
+                    style_data = yaml.safe_load(f) or {}
+                if isinstance(style_data, dict):
+                    tone = style_data.get("tone", {})
+                    if isinstance(tone, dict):
+                        tone_voice = {
+                            "tone": str(tone.get("primary", "")),
+                            "forbidden": str(tone.get("forbidden", "")),
+                            "cta_style": str(tone.get("cta_style", "")),
+                        }
+
+            one_liner = str(loaded.get("one_liner", "") or loaded.get("description", ""))
+            target = loaded.get("target_audience", [])
+            pillars = loaded.get("pillars", [])
+            boundaries = loaded.get("boundaries", [])
+
+            return AccountIdentity(
+                account_id=str(loaded.get("account_id", "")),
+                one_liner=one_liner,
+                target_audience=target if isinstance(target, list) else [],
+                value_proposition=str(loaded.get("value_proposition", "")),
+                pillars=pillars if isinstance(pillars, list) else [],
+                tone_voice=tone_voice,
+                boundaries=boundaries if isinstance(boundaries, list) else [],
+                bio=str(loaded.get("bio", "")),
+                bio_secondary=str(loaded.get("bio_secondary", "")),
+                link_purpose=str(loaded.get("link_purpose", "")),
+            )
+        except Exception as e:
+            logger.error(f"Error loading identity from YAML {account_yml}: {e}")
             return None
 
     def load_identity_from_file(self, file_path: str | Path) -> AccountIdentity | None:
