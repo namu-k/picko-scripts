@@ -45,6 +45,29 @@ class AccountInferrer:
   "trusted_sources": [...]
 }"""
 
+    STYLE_SYSTEM_PROMPT = """당신은 소셜 미디어 콘텐츠 스타일 전문가입니다.
+아래 계정 정보를 바탕으로 글쓰기 스타일과 비주얼 설정을 추론하세요.
+
+규칙:
+- tone.primary: 3-5개의 형용사로 톤 정의
+- tone.forbidden: 피해야 할 표현 스타일
+- tone.cta_style: CTA(행동 유도) 스타일
+- sentence_style: short_emotional | medium_balanced | long_analytical 중 하나
+- structure_patterns: 글 구조 패턴 2-3개
+- vocabulary: 사용할 어휘 유형 2-3개
+- visual_settings.default_layout_preset: corporate | minimal_dark | minimal_light | social_gradient | vibrant 중 하나
+- content_themes: 콘텐츠 테마 2-3개
+
+반드시 아래 JSON 형식으로만 응답하세요:
+{
+  "tone": {"primary": "...", "forbidden": "...", "cta_style": "..."},
+  "sentence_style": "...",
+  "structure_patterns": [...],
+  "vocabulary": [...],
+  "visual_settings": {"default_layout_preset": "...", "channel_layouts": {}},
+  "content_themes": [...]
+}"""
+
     def __init__(self, llm_client: Any):
         self.llm = llm_client
 
@@ -95,4 +118,39 @@ class AccountInferrer:
                 "low_relevance": [],
             },
             "trusted_sources": [],
+        }
+
+    def infer_style(self, seed: AccountSeed) -> dict[str, Any]:
+        """Infer style.yml structure from AccountSeed."""
+        prompt = f"""계정 정보:
+- 이름: {seed.name}
+- 설명: {seed.description}
+- 한줄 요약: {seed.one_liner}
+- 타겟 오디언스: {", ".join(seed.target_audience)}
+- 운영 채널: {", ".join(seed.channels)}
+{f"- 톤 힌트: {', '.join(seed.tone_hints)}" if seed.tone_hints else ""}
+{f"- 레퍼런스 텍스트 (기존 스타일 분석):\n{seed.reference_text[:1000]}" if seed.reference_text else ""}
+
+위 정보를 바탕으로 스타일 설정을 추론하세요."""
+
+        response = self.llm.generate(
+            prompt=prompt,
+            system_prompt=self.STYLE_SYSTEM_PROMPT,
+        )
+
+        result = self._parse_json_response(response)
+        if result:
+            logger.info(f"Inferred style for account: {seed.account_id}")
+            return result
+
+        return {
+            "tone": {"primary": "", "forbidden": "", "cta_style": ""},
+            "sentence_style": "medium_balanced",
+            "structure_patterns": [],
+            "vocabulary": [],
+            "visual_settings": {
+                "default_layout_preset": "minimal_dark",
+                "channel_layouts": {},
+            },
+            "content_themes": [],
         }

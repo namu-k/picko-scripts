@@ -111,3 +111,49 @@ class TestAccountInferrer:
         assert "Test Account" in prompt
         assert "AI insights for startup founders" in prompt
         assert "startup founders" in prompt or "tech enthusiasts" in prompt
+
+    def test_infer_style_returns_valid_structure(self, mock_llm_client, sample_seed):
+        """Test that infer_style returns valid style structure."""
+        mock_llm_client.generate.return_value = json.dumps(
+            {
+                "tone": {
+                    "primary": "professional, insightful",
+                    "forbidden": "salesy, clickbait",
+                    "cta_style": "soft, natural",
+                },
+                "sentence_style": "medium_balanced",
+                "structure_patterns": ["hook -> insight -> takeaway"],
+                "vocabulary": ["business_terms", "action_verbs"],
+                "visual_settings": {
+                    "default_layout_preset": "minimal_dark",
+                    "channel_layouts": {},
+                },
+                "content_themes": ["startup stories", "growth tactics"],
+            },
+            ensure_ascii=False,
+        )
+
+        inferrer = AccountInferrer(mock_llm_client)
+        result = inferrer.infer_style(sample_seed)
+
+        assert "tone" in result
+        assert "primary" in result["tone"]
+        assert "sentence_style" in result
+        assert "visual_settings" in result
+
+    def test_infer_style_includes_reference_text(self, mock_llm_client):
+        """Test that infer_style uses reference_text when provided."""
+        seed = AccountSeed(
+            account_id="test",
+            name="Test",
+            description="Test",
+            target_audience=["devs"],
+            channels=["twitter"],
+            reference_text="This is existing content style to analyze.",
+        )
+
+        inferrer = AccountInferrer(mock_llm_client)
+        inferrer.infer_style(seed)
+
+        prompt = mock_llm_client.generate.call_args[1]["prompt"]
+        assert "existing content style" in prompt.lower() or "reference" in prompt.lower()
