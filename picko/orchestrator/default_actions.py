@@ -19,11 +19,13 @@ def register_default_actions(registry: ActionRegistry):
     """기본 Picko 액션을 레지스트리에 등록"""
     registry.register("collector.run", _run_collector)
     registry.register("generator.run", _run_generator)
+    registry.register("video.plan.generate", _run_video_plan_generate)
     registry.register("renderer.run", _run_renderer)
     registry.register("publisher.run", _run_publisher)
     registry.register("engagement.sync", _run_engagement_sync)
     registry.register("embedding.check_duplicate", _check_duplicate)
     registry.register("quality.verify", _run_quality_verify)
+    registry.register("video.evaluate.final", _run_video_final_evaluate)
 
 
 def _extract_item_id(item: object) -> str:
@@ -116,6 +118,71 @@ def _run_generator(
 
     except Exception as e:
         logger.error(f"generator.run failed: {e}")
+        return ActionResult(success=False, error=str(e))
+
+
+def _run_video_plan_generate(
+    account: str = "socialbuilders",
+    intent: str = "ad",
+    services: list[str] | None = None,
+    platforms: list[str] | None = None,
+    content_id: str = "",
+    items: list[object] | None = None,
+    week_of: str = "",
+    validate: bool = True,
+    dry_run: bool = False,
+    **kwargs,
+) -> ActionResult:
+    """VideoPlan 생성 액션 (agentic workflow용)."""
+    del kwargs
+
+    from picko.video.generator import VideoGenerator
+
+    try:
+        target_services = services or ["luma"]
+        target_platforms = platforms or ["instagram_reel"]
+
+        content_ids: list[str] = []
+        if items:
+            content_ids.extend([_extract_item_id(item) for item in items if _extract_item_id(item)])
+        elif content_id:
+            content_ids.append(content_id)
+        else:
+            content_ids.append("")
+
+        plans: list[dict[str, Any]] = []
+        plan_ids: list[str] = []
+        errors: list[str] = []
+
+        for cid in content_ids:
+            try:
+                gen = VideoGenerator(
+                    account_id=account,
+                    services=target_services,
+                    platforms=target_platforms,
+                    intent=cast(Any, intent),
+                    content_id=cid,
+                    week_of=week_of,
+                )
+                plan = gen.generate(validate=validate)
+                plans.append(plan.to_dict())
+                plan_ids.append(plan.id)
+            except Exception as e:
+                errors.append(f"{cid or 'account_only'}: {str(e)}")
+
+        return ActionResult(
+            success=len(errors) == 0,
+            outputs={
+                "plans": plans,
+                "plan_ids": plan_ids,
+                "total": len(plans),
+                "errors": errors if errors else None,
+                "dry_run": dry_run,
+            },
+            error="; ".join(errors) if errors else "",
+        )
+    except Exception as e:
+        logger.error(f"video.plan.generate failed: {e}")
         return ActionResult(success=False, error=str(e))
 
 
@@ -750,6 +817,145 @@ def _run_quality_verify(
         )
     except Exception as e:
         logger.error(f"quality.verify failed: {e}")
+        return ActionResult(success=False, error=str(e))
+
+
+def _coerce_video_plan(item: object):
+    """여러 입력 타입(dict/path/json-string)을 VideoPlan으로 변환"""
+    from picko.video_plan import VideoPlan
+
+    if isinstance(item, VideoPlan):
+        return item
+
+    if isinstance(item, dict):
+        try:
+            return VideoPlan.from_dict(item)
+        except Exception:
+            return None
+
+    if isinstance(item, Path):
+        try:
+            if item.exists() and item.suffix.lower() == ".json":
+                return VideoPlan.from_json(item.read_text(encoding="utf-8"))
+        except Exception:
+            return None
+        return None
+
+    if isinstance(item, str):
+        value = item.strip()
+        if not value:
+            return None
+        path_like = Path(value)
+        try:
+            if path_like.exists() and path_like.suffix.lower() == ".json":
+                return VideoPlan.from_json(path_like.read_text(encoding="utf-8"))
+        except Exception:
+            pass
+
+        if value.startswith("{"):
+            try:
+                import json
+
+                data = json.loads(value)
+                if isinstance(data, dict):
+                    return VideoPlan.from_dict(data)
+            except Exception:
+                return None
+
+    return None
+
+
+def _run_video_final_evaluate(
+    plans: list[object] | None = None,
+    plan: object | None = None,
+    threshold: float = 78.0,
+    dry_run: bool = False,
+    **kwargs,
+) -> ActionResult:
+    """비디오 산출물 2차 최종 평가 에이전트 액션."""
+    del kwargs
+
+    from picko.video.final_evaluator import VideoPlanFinalEvaluator
+
+    try:
+        evaluator = VideoPlanFinalEvaluator()
+        queue: list[object] = []
+        if plans:
+            queue.extend(plans)
+        if plan is not None:
+            queue.append(plan)
+
+        if not queue:
+            return ActionResult(
+                success=True,
+                outputs={
+                    "results": [],
+                    "approved": [],
+                    "pending": [],
+                    "rejected": [],
+                    "total": 0,
+                    "dry_run": dry_run,
+                },
+            )
+
+        results: list[dict[str, Any]] = []
+        approved: list[str] = []
+        pending: list[str] = []
+        rejected: list[str] = []
+
+        for raw in queue:
+            plan_obj = _coerce_video_plan(raw)
+            if plan_obj is None:
+                continue
+
+            evaluation = evaluator.evaluate(
+                plan=plan_obj,
+                services=plan_obj.target_services,
+                intent=plan_obj.intent,
+            )
+
+            verdict = evaluation.verdict
+            if evaluation.overall_score >= threshold and verdict == "needs_review":
+                verdict = "approved"
+            elif evaluation.overall_score < threshold and verdict == "approved":
+                verdict = "needs_review"
+
+            if verdict == "approved":
+                approved.append(plan_obj.id)
+            elif verdict == "rejected":
+                rejected.append(plan_obj.id)
+            else:
+                pending.append(plan_obj.id)
+
+            if not dry_run:
+                payload = evaluation.to_dict()
+                payload["verdict"] = verdict
+                plan_obj.final_evaluation = payload
+
+            results.append(
+                {
+                    "plan_id": plan_obj.id,
+                    "verdict": verdict,
+                    "overall_score": evaluation.overall_score,
+                    "issues": evaluation.issues,
+                    "suggestions": evaluation.suggestions,
+                    "ad_signals": evaluation.ad_signals,
+                }
+            )
+
+        return ActionResult(
+            success=True,
+            outputs={
+                "results": results,
+                "approved": approved,
+                "pending": pending,
+                "rejected": rejected,
+                "total": len(results),
+                "dry_run": dry_run,
+            },
+        )
+    except Exception as e:
+        logger.error(f"video.evaluate.final failed: {e}")
         return ActionResult(success=False, error=str(e))
 
 
