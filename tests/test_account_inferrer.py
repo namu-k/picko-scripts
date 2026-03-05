@@ -4,6 +4,7 @@ import json
 from unittest.mock import MagicMock
 
 import pytest
+import yaml
 
 from picko.account_inferrer import AccountInferrer, AccountSeed
 
@@ -157,3 +158,47 @@ class TestAccountInferrer:
 
         prompt = mock_llm_client.generate.call_args[1]["prompt"]
         assert "existing content style" in prompt.lower() or "reference" in prompt.lower()
+
+    def test_generate_account_files_creates_directory_structure(self, mock_llm_client, sample_seed, tmp_path):
+        """Test that generate_account_files creates proper directory structure."""
+        inferrer = AccountInferrer(mock_llm_client)
+        output_dir = tmp_path / "test_account"
+
+        inferrer.generate_account_files(sample_seed, output_dir)
+
+        assert output_dir.is_dir()
+        assert (output_dir / "account.yml").exists()
+        assert (output_dir / "scoring.yml").exists()
+        assert (output_dir / "style.yml").exists()
+
+    def test_generate_account_files_account_yml_content(self, mock_llm_client, sample_seed, tmp_path):
+        """Test that account.yml contains seed information."""
+        inferrer = AccountInferrer(mock_llm_client)
+        output_dir = tmp_path / "test_account"
+
+        inferrer.generate_account_files(sample_seed, output_dir)
+
+        with open(output_dir / "account.yml", encoding="utf-8") as f:
+            account = yaml.safe_load(f)
+
+        assert account["account_id"] == "test_account"
+        assert account["name"] == "Test Account"
+        assert account["description"] == "AI insights for startup founders"
+        assert "twitter" in account["channels"]
+
+    def test_generate_account_files_does_not_overwrite_existing(self, mock_llm_client, sample_seed, tmp_path):
+        """Test that existing files are not overwritten by default."""
+        inferrer = AccountInferrer(mock_llm_client)
+        output_dir = tmp_path / "test_account"
+        output_dir.mkdir()
+
+        existing_content = {"account_id": "existing", "name": "Existing"}
+        with open(output_dir / "account.yml", "w", encoding="utf-8") as f:
+            yaml.safe_dump(existing_content, f)
+
+        inferrer.generate_account_files(sample_seed, output_dir)
+
+        with open(output_dir / "account.yml", encoding="utf-8") as f:
+            account = yaml.safe_load(f)
+
+        assert account["account_id"] == "existing"
