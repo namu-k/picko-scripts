@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 import pytest
+import yaml
 
 from picko.config import (
     DeduplicationConfig,
@@ -337,3 +338,99 @@ class TestGetConfig:
         finally:
             # 원래 상태 복원
             picko.config._config = original_config
+
+
+def _write_yaml(path: Path, data: object) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        yaml.safe_dump(data, f, sort_keys=False)
+
+
+def _write_test_config(config_path: Path, vault_root: Path) -> None:
+    config_content = {
+        "vault": {"root": str(vault_root)},
+        "accounts_dir": "accounts",
+    }
+    _write_yaml(config_path, config_content)
+
+
+def test_get_account_loads_legacy_account_file(tmp_path, monkeypatch):
+    vault_root = tmp_path / "vault"
+    _write_yaml(vault_root / "accounts" / "legacy.yml", {"account_id": "legacy"})
+
+    config_path = tmp_path / "config.yml"
+    _write_test_config(config_path, vault_root)
+
+    import picko.config
+
+    monkeypatch.setattr(picko.config, "_config", None)
+    cfg = load_config(config_path)
+
+    assert cfg.get_account("legacy")["account_id"] == "legacy"
+
+
+def test_get_account_loads_directory_account_via_loader(tmp_path):
+    vault_root = tmp_path / "vault"
+    _write_yaml(
+        vault_root / "accounts" / "diracct" / "_index.yml",
+        {
+            "account_id": "diracct",
+            "name": "Dir Account",
+            "description": "Directory account",
+            "style_name": "dir_style",
+            "includes": ["channels"],
+        },
+    )
+    _write_yaml(
+        vault_root / "accounts" / "diracct" / "channels.yml",
+        {"channels": {"twitter": {"enabled": True}}},
+    )
+
+    config_path = tmp_path / "config.yml"
+    _write_test_config(config_path, vault_root)
+
+    cfg = load_config(config_path)
+    loaded = cfg.get_account("diracct")
+
+    assert loaded["account_id"] == "diracct"
+    assert loaded["channels"] == {"twitter": {"enabled": True}}
+
+
+def test_get_account_conflict_dir_wins_over_legacy(tmp_path):
+    vault_root = tmp_path / "vault"
+    _write_yaml(vault_root / "accounts" / "acme.yml", {"source": "legacy"})
+    _write_yaml(
+        vault_root / "accounts" / "acme" / "_index.yml",
+        {
+            "account_id": "acme",
+            "name": "directory",
+            "description": "desc",
+            "style_name": "style",
+            "source": "directory",
+        },
+    )
+
+    config_path = tmp_path / "config.yml"
+    _write_test_config(config_path, vault_root)
+
+    cfg = load_config(config_path)
+
+    loaded = cfg.get_account("acme")
+    assert loaded["source"] == "directory"
+    assert loaded["account_id"] == "acme"
+
+
+def test_get_account_prefers_vault_root_then_project_root(tmp_path, monkeypatch):
+    vault_root = tmp_path / "vault"
+    project_root = tmp_path / "project_root"
+    _write_yaml(project_root / "accounts" / "fallback.yml", {"source": "project"})
+
+    config_path = tmp_path / "config.yml"
+    _write_test_config(config_path, vault_root)
+
+    import picko.config
+
+    monkeypatch.setattr(picko.config, "PROJECT_ROOT", project_root)
+    cfg = load_config(config_path)
+
+    assert cfg.get_account("fallback") == {"source": "project"}

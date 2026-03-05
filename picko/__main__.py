@@ -5,8 +5,7 @@ import json
 import logging
 from pathlib import Path
 
-import yaml
-
+from picko.account_config_loader import load_account_config
 from picko.config import PROJECT_ROOT, get_config
 from picko.video.generator import VideoGenerator
 
@@ -91,15 +90,10 @@ def cmd_account_regen(what: str, account_id: str) -> None:
     from picko.llm_client import get_writer_client
 
     account_dir = PROJECT_ROOT / "config" / "accounts" / account_id
-    account_yml = account_dir / "account.yml"
-    if not account_yml.exists():
+    config = get_config()
+    loaded = config.get_account(account_id)
+    if not loaded:
         print(f"Account not found: {account_id}")
-        return
-
-    with open(account_yml, "r", encoding="utf-8") as f:
-        loaded = yaml.safe_load(f) or {}
-    if not isinstance(loaded, dict):
-        print(f"Invalid account.yml for: {account_id}")
         return
 
     channels_raw = loaded.get("channels", {})
@@ -140,23 +134,20 @@ def cmd_account_list() -> None:
         print("No accounts directory found.")
         return
 
+    config = get_config()
     print("\nRegistered accounts:")
 
     for account_dir in sorted(accounts_dir.iterdir()):
         if account_dir.is_dir():
-            account_yml = account_dir / "account.yml"
-            if account_yml.exists():
-                with open(account_yml, "r", encoding="utf-8") as f:
-                    loaded = yaml.safe_load(f) or {}
-                if isinstance(loaded, dict):
-                    print(f"  {account_dir.name}: {loaded.get('name', 'Unknown')} (dir)")
+            loaded = config.get_account(account_dir.name)
+            if loaded:
+                print(f"  {account_dir.name}: {loaded.get('name', 'Unknown')} (dir)")
 
     for account_file in sorted(accounts_dir.glob("*.yml")):
         if account_file.name.endswith(".bak"):
             continue
-        with open(account_file, "r", encoding="utf-8") as f:
-            loaded = yaml.safe_load(f) or {}
-        if isinstance(loaded, dict):
+        loaded = load_account_config(accounts_dir, account_file.stem)
+        if loaded:
             print(f"  {account_file.stem}: {loaded.get('name', 'Unknown')} (legacy file)")
 
 

@@ -1,5 +1,8 @@
-# Migrated from single-file structure
-# See .yml.bak for original
+content_settings:
+  use_exploration: false
+  apply_reference_style: true
+  generate_packs: true
+  generate_image_prompts: true
 
 visual_settings:
   default_layout_preset: minimal_dark

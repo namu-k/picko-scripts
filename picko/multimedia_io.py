@@ -6,6 +6,7 @@ from typing import Any
 
 import yaml
 
+from .account_config_loader import load_account_config as _load_account_config
 from .logger import get_logger
 
 logger = get_logger("multimedia_io")
@@ -112,15 +113,11 @@ def load_account_config(account_id: str) -> dict[str, Any]:
     Returns:
         Account configuration dictionary, or minimal dict with account_id if not found.
     """
-    config_path = PROJECT_ROOT / "config" / "accounts" / f"{account_id}.yml"
-
-    if not config_path.exists():
-        logger.warning(f"Account config not found: {config_path}")
+    config = _load_account_config(PROJECT_ROOT / "config" / "accounts", account_id)
+    if not config:
+        logger.warning(f"Account config not found: {account_id}")
         return {"account_id": account_id}
-
-    with open(config_path, encoding="utf-8") as f:
-        config: dict[str, Any] = yaml.safe_load(f) or {}
-        return config
+    return config
 
 
 def load_reference(ref_type: str, ref_id: str) -> str:

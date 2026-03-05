@@ -1,15 +1,4 @@
-# Migrated from single-file structure
-# See .yml.bak for original
-
-account_id: socialbuilders
-name: 빌더스소셜클럽
-description: 예비창업자~초기창업자를 위한 실전 창업 인사이트
-one_liner: ''
-target_audience: []
-value_proposition: ''
-pillars: []
-boundaries: []
-bio: ''
+# Social Builders Channels Configuration
 channels:
   twitter:
     enabled: true

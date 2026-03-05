@@ -29,7 +29,7 @@ class AccountIdentity:
     target_audience: list[str]
     value_proposition: str
     pillars: list[str]  # P1~P4
-    tone_voice: dict
+    tone_voice: dict[str, Any]
     boundaries: list[str]
     bio: str = ""
     bio_secondary: str = ""
@@ -61,7 +61,7 @@ class WeeklySlot:
     customer_outcome: str
     operator_kpi: str
     cta: str
-    pillar_distribution: dict  # {"P1": 2, "P2": 2, "P3": 2, "P4": 1}
+    pillar_distribution: dict[str, int]  # {"P1": 2, "P2": 2, "P3": 2, "P4": 1}
     daily_slots: list[DailySlot] = field(default_factory=list)
 
     def __repr__(self) -> str:
@@ -76,7 +76,7 @@ class StyleProfile:
     source_urls: list[str]
     analyzed_at: str
     sample_count: int
-    characteristics: dict
+    characteristics: dict[str, Any]
 
     def __repr__(self) -> str:
         return f"StyleProfile(name={self.name})"
@@ -104,7 +104,7 @@ def parse_identity(md_content: str, account_id: str = "unknown") -> AccountIdent
         target_audience: list[str] = []
         value_proposition = ""
         pillars: list[str] = []
-        tone_voice: dict = {}
+        tone_voice: dict[str, Any] = {}
         boundaries: list[str] = []
         bio = ""
         bio_secondary = ""
@@ -324,6 +324,7 @@ class AccountContextLoader:
         self._identity_cache: dict[str, AccountIdentity] = {}
         self._weekly_slot_cache: dict[str, WeeklySlot] = {}
         self._style_cache: dict[str, StyleProfile] = {}
+        self._active_account_id: str | None = None
 
         logger.debug(f"AccountContextLoader initialized with root: {self.root}")
 
@@ -348,43 +349,60 @@ class AccountContextLoader:
         Returns:
             AccountIdentity 또는 None
         """
+        del relative_path
+
         # 캐시 확인
         if account_id in self._identity_cache:
             return self._identity_cache[account_id]
 
-        # 새 account 디렉토리 구조 우선 로드
         config = get_config()
-        account_dir = PROJECT_ROOT / config.accounts_dir / account_id
-        account_yml = account_dir / "account.yml"
-        if account_yml.exists():
-            identity = self._load_identity_from_yaml(account_yml)
-            if identity:
-                self._identity_cache[account_id] = identity
-                logger.info(f"Loaded identity from YAML for account: {account_id}")
-                return identity
-
-        # 기본 경로 (legacy markdown, 한글 폴더명)
-        if relative_path is None:
-            relative_path = (
-                "config/Folders_to_operate_social-media_copied_from_Vault/"
-                "aa. 소셜빌더스/빌더스소셜클럽 — 계정 정체성.md"
-            )
-
-        file_path = self.root / relative_path
-
-        if not file_path.exists():
-            logger.warning(f"Identity file not found: {file_path}")
+        profile = config.get_account(account_id)
+        if not isinstance(profile, dict) or not profile:
+            logger.warning(f"Account profile not found for identity: {account_id}")
             return None
 
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
+            identity_data = profile.get("identity")
+            source = identity_data if isinstance(identity_data, dict) else profile
 
-            identity = parse_identity(content, account_id)
-            if identity:
-                self._identity_cache[account_id] = identity
-                logger.info(f"Loaded identity for account: {account_id}")
+            one_liner = str(source.get("one_liner", "") or source.get("description", ""))
 
+            target_audience = source.get("target_audience", [])
+            if not isinstance(target_audience, list):
+                target_audience = []
+
+            pillars = source.get("pillars", [])
+            if not isinstance(pillars, list):
+                pillars = []
+
+            tone_voice = source.get("tone_voice", {})
+            if not isinstance(tone_voice, dict):
+                tone_voice = {}
+
+            boundaries = source.get("boundaries", [])
+            if not isinstance(boundaries, list):
+                boundaries = []
+
+            if not one_liner and not target_audience:
+                logger.warning(f"Identity data is missing required fields for account: {account_id}")
+                return None
+
+            identity = AccountIdentity(
+                account_id=str(profile.get("account_id", account_id) or account_id),
+                one_liner=one_liner,
+                target_audience=target_audience,
+                value_proposition=str(source.get("value_proposition", "")),
+                pillars=pillars,
+                tone_voice=tone_voice,
+                boundaries=boundaries,
+                bio=str(source.get("bio", "")),
+                bio_secondary=str(source.get("bio_secondary", "")),
+                link_purpose=str(source.get("link_purpose", "")),
+            )
+
+            self._identity_cache[account_id] = identity
+            self._active_account_id = account_id
+            logger.info(f"Loaded identity from account profile: {account_id}")
             return identity
 
         except Exception as e:
@@ -493,38 +511,93 @@ class AccountContextLoader:
         Returns:
             WeeklySlot 또는 None
         """
+        del relative_path
+
         # 캐시 확인
         cache_key = f"{week_of}"
         if cache_key in self._weekly_slot_cache:
             return self._weekly_slot_cache[cache_key]
 
-        # 기본 경로
-        if relative_path is None:
-            relative_path = (
-                "config/Folders_to_operate_social-media_copied_from_Vault/"
-                "aa. 소셜빌더스/빌더스소셜클럽 — 주간 7개 주제 슬롯 프리셋(2-2-2-1).md"
-            )
-
-        file_path = self.root / relative_path
-
-        if not file_path.exists():
-            logger.warning(f"Weekly slot file not found: {file_path}")
-            return None
-
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                content = f.read()
+            config = get_config()
+            account_ids: list[str] = []
 
-            weekly_slot = parse_weekly_slot(content, week_of)
-            if weekly_slot:
+            if self._active_account_id:
+                account_ids.append(self._active_account_id)
+            account_ids.extend(self._identity_cache.keys())
+
+            if not account_ids:
+                account_ids = self._discover_account_ids(config)
+
+            seen: set[str] = set()
+            for account_id in account_ids:
+                if account_id in seen:
+                    continue
+                seen.add(account_id)
+
+                profile = config.get_account(account_id)
+                if not isinstance(profile, dict) or not profile:
+                    continue
+
+                weekly_data = profile.get("weekly_slot")
+                if not isinstance(weekly_data, dict):
+                    continue
+
+                raw_distribution = weekly_data.get("pillar_distribution", {})
+                pillar_distribution = raw_distribution if isinstance(raw_distribution, dict) else {}
+
+                daily_slots: list[DailySlot] = []
+                raw_daily_slots = weekly_data.get("daily_slots", [])
+                if isinstance(raw_daily_slots, list):
+                    for item in raw_daily_slots:
+                        if isinstance(item, dict):
+                            day = item.get("day")
+                            pillar = item.get("pillar")
+                            if isinstance(day, int) and isinstance(pillar, str):
+                                daily_slots.append(
+                                    DailySlot(
+                                        day=day,
+                                        pillar=pillar,
+                                        topic=str(item.get("topic", "")),
+                                        notes=str(item.get("notes", "")),
+                                    )
+                                )
+
+                resolved_account_id = str(weekly_data.get("account_id") or profile.get("account_id") or account_id)
+                weekly_slot = WeeklySlot(
+                    week_of=week_of,
+                    account_id=resolved_account_id,
+                    customer_outcome=str(weekly_data.get("customer_outcome", "")),
+                    operator_kpi=str(weekly_data.get("operator_kpi", "")),
+                    cta=str(weekly_data.get("cta", "")),
+                    pillar_distribution=pillar_distribution,
+                    daily_slots=daily_slots,
+                )
+
                 self._weekly_slot_cache[cache_key] = weekly_slot
-                logger.info(f"Loaded weekly slot for week: {week_of}")
+                logger.info(f"Loaded weekly slot from account profile: {resolved_account_id}:{week_of}")
+                return weekly_slot
 
-            return weekly_slot
+            logger.warning(f"Weekly slot not found in account profiles for week: {week_of}")
+            return None
 
         except Exception as e:
             logger.error(f"Error loading weekly slot for {week_of}: {e}")
             return None
+
+    def _discover_account_ids(self, config: Any) -> list[str]:
+        account_ids: list[str] = []
+        accounts_dir = getattr(config, "accounts_dir", "config/accounts")
+        roots = [PROJECT_ROOT / accounts_dir, self.root / accounts_dir]
+
+        for root in roots:
+            if not root.exists() or not root.is_dir():
+                continue
+            for entry in root.iterdir():
+                if entry.is_dir():
+                    account_ids.append(entry.name)
+
+        return account_ids
 
     # ─────────────────────────────────────────────────────────────────────
     # 스타일 프로필 로드

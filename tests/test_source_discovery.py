@@ -2,9 +2,7 @@
 SourceDiscovery 단위 테스트
 """
 
-import tempfile
 from datetime import timedelta
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -34,32 +32,6 @@ def temp_sources_yml(tmp_path):
     with open(sources_file, "w", encoding="utf-8") as f:
         yaml.dump(sources_data, f)
     return sources_file
-
-
-@pytest.fixture
-def temp_account_yml(tmp_path):
-    """임시 계정 프로필"""
-    accounts_dir = tmp_path / "accounts"
-    accounts_dir.mkdir()
-
-    account_data = {
-        "account_id": "test_account",
-        "interests": {
-            "primary": ["스타트업", "투자"],
-            "secondary": ["마케팅"],
-        },
-        "keywords": {
-            "high_relevance": ["창업자", "VC"],
-            "medium_relevance": ["성장"],
-        },
-        "trusted_sources": ["TechCrunch", "Y Combinator"],
-    }
-
-    account_file = accounts_dir / "test_account.yml"
-    with open(account_file, "w", encoding="utf-8") as f:
-        yaml.dump(account_data, f)
-
-    return accounts_dir
 
 
 class TestSourceCandidate:
@@ -102,12 +74,20 @@ class TestSourceDiscovery:
     """SourceDiscovery 클래스 테스트"""
 
     @patch("scripts.source_discovery.get_config")
-    def test_extract_keywords(self, mock_get_config, temp_sources_yml, temp_account_yml, tmp_path):
+    def test_extract_keywords(self, mock_get_config, temp_sources_yml):
         """키워드 추출"""
         # Mock config
         mock_config = MagicMock()
         mock_config.sources_file = str(temp_sources_yml)
-        mock_config.accounts_dir = str(temp_account_yml)
+        mock_config.get_account.return_value = {
+            "account_id": "test_account",
+            "interests": {
+                "primary": ["스타트업", "투자"],
+            },
+            "keywords": {
+                "high_relevance": ["창업자", "VC"],
+            },
+        }
         mock_get_config.return_value = mock_config
 
         sm = SourceManager(temp_sources_yml)
@@ -128,7 +108,7 @@ class TestSourceDiscovery:
         with patch("scripts.source_discovery.get_config") as mock_get_config:
             mock_config = MagicMock()
             mock_config.sources_file = str(temp_sources_yml)
-            mock_config.accounts_dir = str(tmp_path / "accounts")
+            mock_config.get_account.return_value = {}
             mock_get_config.return_value = mock_config
 
             sm = SourceManager(temp_sources_yml)
@@ -153,7 +133,7 @@ class TestSourceDiscovery:
         with patch("scripts.source_discovery.get_config") as mock_get_config:
             mock_config = MagicMock()
             mock_config.sources_file = str(temp_sources_yml)
-            mock_config.accounts_dir = str(tmp_path / "accounts")
+            mock_config.get_account.return_value = {}
             mock_get_config.return_value = mock_config
 
             sm = SourceManager(temp_sources_yml)
@@ -197,7 +177,7 @@ class TestSourceDiscovery:
         with patch("scripts.source_discovery.get_config") as mock_get_config:
             mock_config = MagicMock()
             mock_config.sources_file = str(temp_sources_yml)
-            mock_config.accounts_dir = str(tmp_path / "accounts")
+            mock_config.get_account.return_value = {}
             mock_get_config.return_value = mock_config
 
             sm = SourceManager(temp_sources_yml)
@@ -222,7 +202,7 @@ class TestSourceDiscovery:
         with patch("scripts.source_discovery.get_config") as mock_get_config:
             mock_config = MagicMock()
             mock_config.sources_file = str(temp_sources_yml)
-            mock_config.accounts_dir = str(tmp_path / "accounts")
+            mock_config.get_account.return_value = {}
             mock_get_config.return_value = mock_config
 
             sm = SourceManager(temp_sources_yml)
@@ -261,7 +241,7 @@ class TestSourceDiscovery:
         with patch("scripts.source_discovery.get_config") as mock_get_config:
             mock_config = MagicMock()
             mock_config.sources_file = str(temp_sources_yml)
-            mock_config.accounts_dir = str(tmp_path / "accounts")
+            mock_config.get_account.return_value = {}
             mock_get_config.return_value = mock_config
 
             sm = SourceManager(temp_sources_yml)
@@ -311,7 +291,7 @@ class TestSourceDiscovery:
         with patch("scripts.source_discovery.get_config") as mock_get_config:
             mock_config = MagicMock()
             mock_config.sources_file = str(temp_sources_yml)
-            mock_config.accounts_dir = str(tmp_path / "accounts")
+            mock_config.get_account.return_value = {}
             mock_get_config.return_value = mock_config
 
             sm = SourceManager(temp_sources_yml)
@@ -325,7 +305,7 @@ class TestSourceDiscovery:
         with patch("scripts.source_discovery.get_config") as mock_get_config:
             mock_config = MagicMock()
             mock_config.sources_file = str(temp_sources_yml)
-            mock_config.accounts_dir = str(tmp_path / "accounts")
+            mock_config.get_account.return_value = {}
             mock_get_config.return_value = mock_config
 
             sm = SourceManager(temp_sources_yml)
@@ -339,7 +319,7 @@ class TestSourceDiscovery:
         with patch("scripts.source_discovery.get_config") as mock_get_config:
             mock_config = MagicMock()
             mock_config.sources_file = str(temp_sources_yml)
-            mock_config.accounts_dir = str(tmp_path / "accounts")
+            mock_config.get_account.return_value = {}
             mock_get_config.return_value = mock_config
 
             sm = SourceManager(temp_sources_yml)
@@ -356,7 +336,7 @@ class TestSourceDiscovery:
         with patch("scripts.source_discovery.get_config") as mock_get_config:
             mock_config = MagicMock()
             mock_config.sources_file = str(temp_sources_yml)
-            mock_config.accounts_dir = str(tmp_path / "accounts")
+            mock_config.get_account.return_value = {}
             mock_get_config.return_value = mock_config
 
             sm = SourceManager(temp_sources_yml)
@@ -400,7 +380,7 @@ class TestSourceDiscovery:
         with patch("scripts.source_discovery.get_config") as mock_get_config:
             mock_config = MagicMock()
             mock_config.sources_file = str(temp_sources_yml)
-            mock_config.accounts_dir = str(tmp_path / "accounts")
+            mock_config.get_account.return_value = {}
             mock_get_config.return_value = mock_config
 
             sm = SourceManager(temp_sources_yml)
@@ -423,7 +403,7 @@ class TestSourceDiscovery:
         with patch("scripts.source_discovery.get_config") as mock_get_config:
             mock_config = MagicMock()
             mock_config.sources_file = str(temp_sources_yml)
-            mock_config.accounts_dir = str(tmp_path / "accounts")
+            mock_config.get_account.return_value = {}
             mock_get_config.return_value = mock_config
 
             sm = SourceManager(temp_sources_yml)
@@ -449,7 +429,7 @@ class TestSourceDiscovery:
         with patch("scripts.source_discovery.get_config") as mock_get_config:
             mock_config = MagicMock()
             mock_config.sources_file = str(temp_sources_yml)
-            mock_config.accounts_dir = str(tmp_path / "accounts")
+            mock_config.get_account.return_value = {}
             mock_get_config.return_value = mock_config
 
             sm = SourceManager(temp_sources_yml)
@@ -466,11 +446,13 @@ class TestSourceDiscovery:
             assert discovery._probe_rss_url("example.com") is None
 
     @patch("scripts.source_discovery.get_config")
-    def test_evaluate_candidates_scores_and_sorts(self, mock_get_config, temp_sources_yml, temp_account_yml):
+    def test_evaluate_candidates_scores_and_sorts(self, mock_get_config, temp_sources_yml):
         """후보 점수 부여 및 정렬"""
         mock_config = MagicMock()
         mock_config.sources_file = str(temp_sources_yml)
-        mock_config.accounts_dir = str(temp_account_yml)
+        mock_config.get_account.return_value = {
+            "trusted_sources": ["TechCrunch", "Y Combinator"],
+        }
         mock_get_config.return_value = mock_config
 
         sm = SourceManager(temp_sources_yml)
@@ -503,7 +485,7 @@ class TestSourceDiscovery:
         """중복 체크 시 rss_url 우선 사용"""
         mock_config = MagicMock()
         mock_config.sources_file = str(temp_sources_yml)
-        mock_config.accounts_dir = str(tmp_path / "accounts")
+        mock_config.get_account.return_value = {}
         mock_get_config.return_value = mock_config
 
         sm = SourceManager(temp_sources_yml)
@@ -537,7 +519,7 @@ class TestSourceDiscovery:
         """run() dry-run 파이프라인"""
         mock_config = MagicMock()
         mock_config.sources_file = str(temp_sources_yml)
-        mock_config.accounts_dir = str(tmp_path / "accounts")
+        mock_config.get_account.return_value = {}
         mock_get_config.return_value = mock_config
 
         sm = MagicMock()
@@ -584,7 +566,7 @@ class TestSourceDiscovery:
         """run() 저장 경로 + 키워드별 에러 수집"""
         mock_config = MagicMock()
         mock_config.sources_file = str(temp_sources_yml)
-        mock_config.accounts_dir = str(tmp_path / "accounts")
+        mock_config.get_account.return_value = {}
         mock_get_config.return_value = mock_config
 
         sm = MagicMock()
@@ -626,7 +608,7 @@ class TestSourceDiscovery:
         """결과 저장 + 오래된 로그 정리"""
         mock_config = MagicMock()
         mock_config.sources_file = str(temp_sources_yml)
-        mock_config.accounts_dir = str(tmp_path / "accounts")
+        mock_config.get_account.return_value = {}
         mock_get_config.return_value = mock_config
 
         sm = SourceManager(temp_sources_yml)
