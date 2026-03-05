@@ -235,28 +235,77 @@ class Config:
                 logger.debug(f"Loaded sources from {sources_path}")
         return self._sources
 
+    def _load_account_dir(self, dir_path: Path) -> dict[str, Any]:
+        """Load account profile from directory structure.
+
+        Expected files:
+        - account.yml (required)
+        - scoring.yml (optional)
+        - style.yml (optional)
+        """
+        account_path = dir_path / "account.yml"
+        if not account_path.exists():
+            logger.warning(f"account.yml not found in: {dir_path}")
+            return {}
+
+        with open(account_path, "r", encoding="utf-8") as f:
+            loaded_account = yaml.safe_load(f) or {}
+        if not isinstance(loaded_account, dict):
+            logger.warning(f"account.yml is not a dict: {account_path}")
+            return {}
+
+        account: dict[str, Any] = dict(loaded_account)
+
+        scoring_path = dir_path / "scoring.yml"
+        if scoring_path.exists():
+            with open(scoring_path, "r", encoding="utf-8") as f:
+                loaded_scoring = yaml.safe_load(f) or {}
+            if isinstance(loaded_scoring, dict):
+                account["interests"] = loaded_scoring.get("interests", {})
+                account["keywords"] = loaded_scoring.get("keywords", {})
+                account["trusted_sources"] = loaded_scoring.get("trusted_sources", [])
+
+        style_path = dir_path / "style.yml"
+        if style_path.exists():
+            with open(style_path, "r", encoding="utf-8") as f:
+                loaded_style = yaml.safe_load(f) or {}
+            if isinstance(loaded_style, dict):
+                account["visual_settings"] = loaded_style.get("visual_settings", {})
+
+        return account
+
     def get_account(self, account_id: str) -> dict[str, Any]:
         """계정 프로필 로드"""
         if account_id not in self._accounts:
-            # 1. vault 루트 기준 경로 시도
-            account_path = Path(self.vault.root) / self.accounts_dir / f"{account_id}.yml"
 
-            # 2. vault 경로에 없으면 프로젝트 루트 기준 경로 시도 (fallback)
-            if not account_path.exists():
-                account_path = PROJECT_ROOT / self.accounts_dir / f"{account_id}.yml"
+            def _try_load(base: Path) -> dict[str, Any] | None:
+                dir_path = base / self.accounts_dir / account_id
+                if dir_path.is_dir():
+                    loaded_dir = self._load_account_dir(dir_path)
+                    if loaded_dir:
+                        logger.debug(f"Loaded account directory: {account_id} from {dir_path}")
+                        return loaded_dir
 
-            if account_path.exists():
-                with open(account_path, "r", encoding="utf-8") as f:
-                    loaded = yaml.safe_load(f) or {}
-                # dict가 아닌 경우 빈 dict로 폴백
-                if not isinstance(loaded, dict):
-                    logger.warning(f"Account profile is not a dict: {account_id}, got {type(loaded)}")
-                    loaded = {}
-                self._accounts[account_id] = loaded
-                logger.debug(f"Loaded account profile: {account_id} from {account_path}")
-            else:
+                account_path = base / self.accounts_dir / f"{account_id}.yml"
+                if account_path.exists():
+                    with open(account_path, "r", encoding="utf-8") as f:
+                        loaded = yaml.safe_load(f) or {}
+                    if not isinstance(loaded, dict):
+                        logger.warning(f"Account profile is not a dict: {account_id}, got {type(loaded)}")
+                        return {}
+                    logger.debug(f"Loaded account profile: {account_id} from {account_path}")
+                    return loaded
+                return None
+
+            loaded_profile = _try_load(Path(self.vault.root))
+            if loaded_profile is None:
+                loaded_profile = _try_load(PROJECT_ROOT)
+
+            if loaded_profile is None:
                 logger.warning(f"Account profile not found: {account_id}")
-                self._accounts[account_id] = {}
+                loaded_profile = {}
+
+            self._accounts[account_id] = loaded_profile
         return self._accounts[account_id]
 
 
