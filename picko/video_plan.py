@@ -387,7 +387,7 @@ class VideoShot:
     transition_out: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        result = {
+        result: dict[str, Any] = {
             "index": self.index,
             "duration_sec": self.duration_sec,
             "shot_type": self.shot_type,
@@ -537,6 +537,7 @@ class VideoPlan:
     quality_issues: list[str] = field(default_factory=list)
     quality_suggestions: list[str] = field(default_factory=list)
     quality_warning: bool = False  # 최대 재시도 초과 시 True
+    final_evaluation: dict[str, Any] | None = None  # 2차 최종 평가 에이전트 결과
 
     def __post_init__(self) -> None:
         if not self.created_at:
@@ -549,7 +550,7 @@ class VideoPlan:
     # ──────────────────────────────────────────────
 
     def to_dict(self) -> dict[str, Any]:
-        result = {
+        result: dict[str, Any] = {
             "id": self.id,
             "account": self.account,
             "intent": self.intent,
@@ -571,6 +572,8 @@ class VideoPlan:
             result["quality_suggestions"] = self.quality_suggestions
         if self.quality_warning:
             result["quality_warning"] = self.quality_warning
+        if self.final_evaluation:
+            result["final_evaluation"] = self.final_evaluation
         return result
 
     def to_json(self, indent: int = 2) -> str:
@@ -594,6 +597,7 @@ class VideoPlan:
             quality_issues=d.get("quality_issues", []),
             quality_suggestions=d.get("quality_suggestions", []),
             quality_warning=d.get("quality_warning", False),
+            final_evaluation=d.get("final_evaluation"),
         )
 
     @classmethod

@@ -142,6 +142,7 @@ export OPENAI_API_KEY=your_api_key_here  # macOS/Linux
 - **embedding.py**: Local-first embedding with sentence-transformers, OpenAI fallback
 - **scoring.py**: Content scoring algorithm (novelty, relevance, quality) with configurable weights
 - **account_context.py**: Account identity, weekly slot, and style profile loader for persona-based content
+- **account_inferrer.py**: AI-powered inference for generating `scoring.yml` and `style.yml` from minimal account seed data
 - **prompt_loader.py**: External prompt loader from `config/prompts/` with Jinja2 template support
 - **prompt_composer.py**: Multi-layer prompt composition system (base + style + identity + context)
 - **templates.py**: Jinja2-based template rendering for different content formats
@@ -236,6 +237,7 @@ The multimedia rendering system converts content templates into images/videos:
 - **style_extractor.py**: Extracts writing style from reference URLs and generates style prompts
 - **source_curator.py**: Source quality evaluation and curation with threshold-based filtering
 - **source_discovery.py**: Automatic source discovery based on account profiles and keywords
+- **migrate_accounts.py**: Migrates account config from legacy single-file format to directory structure
 - **simple_rss_collector.py**: Standalone RSS collector for quick testing and ad-hoc collection
 
 #### Phase 3: Analytics Scripts (Placeholder Implementations)
@@ -280,8 +282,15 @@ config/
 │   │   └── default.md
 │   └── reference/
 │       └── analyze.md
-├── accounts/           # Account-specific profiles
-│   └── socialbuilders.yml
+├── accounts/           # Account-specific profiles (directory-based)
+│   ├── socialbuilders/
+│   │   ├── account.yml   # User-edited identity/profile fields
+│   │   ├── scoring.yml   # AI-inferred relevance signals (interests/keywords)
+│   │   └── style.yml     # AI-inferred tone/visual settings
+│   └── dawn_mood_call/
+│       ├── account.yml
+│       ├── scoring.yml
+│       └── style.yml
 ├── layouts/            # Layout presets and themes
 │   ├── _defaults.yml
 │   ├── presets/
@@ -308,6 +317,27 @@ config/
 - `.env` file auto-loaded on module import for API keys
 - Singleton pattern via `get_config()` for consistent access across modules
 - **External Prompts**: LLM prompts stored in `config/prompts/` and loaded via `picko/prompt_loader.py`
+
+### Account CLI Commands
+
+```bash
+# Interactive account creation (generates account/scoring/style files)
+python -m picko account init
+
+# List all accounts (directory + legacy file profiles)
+python -m picko account list
+
+# Show merged account summary
+python -m picko account show socialbuilders
+
+# Regenerate AI-derived files
+python -m picko account regen scoring socialbuilders
+python -m picko account regen style socialbuilders
+python -m picko account regen all socialbuilders
+
+# Migrate legacy single-file accounts to directory format
+python -m scripts.migrate_accounts --all
+```
 
 ### Code Style & Linting
 

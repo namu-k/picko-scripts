@@ -1,0 +1,19 @@
+name: video_agentic_pipeline
+description: Generate video plans and run second-pass final evaluation agent
+
+steps:
+  - name: generate_video_plan
+    action: video.plan.generate
+    args:
+      account: socialbuilders
+      intent: ad
+      services: [luma, runway, pika, kling, veo, sora]
+      platforms: [instagram_reel]
+      validate: true
+
+  - name: final_video_evaluation
+    action: video.evaluate.final
+    args:
+      plans: "${{ steps.generate_video_plan.outputs.plans }}"
+      threshold: 78.0
+    condition: "${{ steps.generate_video_plan.outputs.plans }}"

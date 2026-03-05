@@ -1,0 +1,27 @@
+scenarios:
+  - id: ad_dawn_call
+    intent: ad
+    title: 새벽감성통화앱
+    goal: 새벽감성을 자극하는 영상 제작 목표
+    summary: >
+      새벽 2시, 푸른 블루아워 톤의 방 안에서 외로움이 연결감으로 전환되는 순간을
+      보여주는 통화앱 광고용 시나리오. 첫 3초 훅과 마지막 CTA가 핵심.
+    scene: dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection
+
+  - id: explainer_focus_timer
+    intent: explainer
+    title: 집중 타이머 앱 사용법
+    goal: 25분 집중 + 5분 휴식 플로우를 직관적으로 설명
+    summary: >
+      집중 타이머 앱의 핵심 플로우(세션 시작, 진행 상태, 리포트 확인)를
+      단계적으로 설명하는 교육형 쇼츠 시나리오.
+    scene: focus timer app walkthrough, clean desk setup, educational and clear visual flow
+
+  - id: brand_sleep_drink
+    intent: brand
+    title: 슬립 웰니스 드링크 브랜드
+    goal: 브랜드 무드(차분함, 고급스러움)를 중심으로 인지 강화
+    summary: >
+      저녁 조명과 잔잔한 감성으로 프리미엄 수면 웰니스 드링크의 브랜드 정체성을
+      전달하는 브랜딩 필름 시나리오.
+    scene: premium sleep wellness drink, warm evening light, serene cinematic atmosphere

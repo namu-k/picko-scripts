@@ -1,0 +1,2172 @@
+{
+  "metadata": {
+    "generated_at": "2026-03-06T00:26:18",
+    "scenario_count": 3,
+    "service_count": 6,
+    "use_stub_llm": true,
+    "account_id": "socialbuilders",
+    "platform": "instagram_reel"
+  },
+  "service_averages": [
+    {
+      "service": "runway",
+      "average_overall": 99.4,
+      "sample_count": 3
+    },
+    {
+      "service": "luma",
+      "average_overall": 99.2,
+      "sample_count": 3
+    },
+    {
+      "service": "kling",
+      "average_overall": 98.6,
+      "sample_count": 3
+    },
+    {
+      "service": "sora",
+      "average_overall": 98.6,
+      "sample_count": 3
+    },
+    {
+      "service": "veo",
+      "average_overall": 96.6,
+      "sample_count": 3
+    },
+    {
+      "service": "pika",
+      "average_overall": 92.6,
+      "sample_count": 3
+    }
+  ],
+  "rows": [
+    {
+      "scenario_id": "ad_dawn_call",
+      "intent": "ad",
+      "scenario_title": "새벽감성통화앱",
+      "service": "luma",
+      "overall": 97.5,
+      "prompt_quality": 100.0,
+      "service_fit": 100,
+      "actionability": 100.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "Luma: 각 샷을 5초 이내로 유지하고 camera_motion을 명시하세요."
+      ],
+      "first_shot_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, logo, subtitle, blurry, distorted, low quality",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "ad",
+        "goal": "새벽감성을 자극하는 영상 제작 목표",
+        "source": {
+          "type": "longform",
+          "id": "ad_dawn_call",
+          "summary": "새벽 2시, 푸른 블루아워 톤의 방 안에서 외로움이 연결감으로 전환되는 순간을 보여주는 통화앱 광고용 시나리오. 첫 3초 훅과 마지막 CTA가 핵심."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "luma"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 15,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 5,
+            "shot_type": "intro",
+            "script": "intro scene for ad",
+            "caption": "",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+            "notes": {},
+            "luma": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "slow_push_in",
+              "motion_intensity": 3,
+              "style_preset": "cinematic",
+              "start_image_url": "",
+              "end_image_url": "",
+              "loop": false
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 5,
+            "shot_type": "main",
+            "script": "main scene for ad",
+            "caption": "",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 2, main, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+            "notes": {},
+            "luma": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 2, main, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "slow_push_in",
+              "motion_intensity": 3,
+              "style_preset": "cinematic",
+              "start_image_url": "",
+              "end_image_url": "",
+              "loop": false
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 5,
+            "shot_type": "cta",
+            "script": "cta scene for ad",
+            "caption": "지금 시작해",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 3, cta, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+            "notes": {},
+            "luma": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 3, cta, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "slow_zoom_in",
+              "motion_intensity": 3,
+              "style_preset": "cinematic",
+              "start_image_url": "",
+              "end_image_url": "",
+              "loop": false
+            }
+          }
+        ],
+        "quality_score": 97.5,
+        "quality_suggestions": [
+          "Luma: 각 샷을 5초 이내로 유지하고 camera_motion을 명시하세요."
+        ]
+      }
+    },
+    {
+      "scenario_id": "ad_dawn_call",
+      "intent": "ad",
+      "scenario_title": "새벽감성통화앱",
+      "service": "runway",
+      "overall": 100.0,
+      "prompt_quality": 100.0,
+      "service_fit": 100,
+      "actionability": 100.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "Runway: motion(1-10)과 camera_move를 명시하면 더 좋은 결과를 얻을 수 있습니다."
+      ],
+      "first_shot_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, blur, noise, distortion",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "ad",
+        "goal": "새벽감성을 자극하는 영상 제작 목표",
+        "source": {
+          "type": "longform",
+          "id": "ad_dawn_call",
+          "summary": "새벽 2시, 푸른 블루아워 톤의 방 안에서 외로움이 연결감으로 전환되는 순간을 보여주는 통화앱 광고용 시나리오. 첫 3초 훅과 마지막 CTA가 핵심."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "runway"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 15,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 5,
+            "shot_type": "intro",
+            "script": "intro scene for ad",
+            "caption": "",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+            "notes": {},
+            "runway": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+              "negative_prompt": "watermark, blur, noise, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "motion": 4,
+              "camera_move": "zoom_in",
+              "seed": 42,
+              "upscale": true
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 5,
+            "shot_type": "main",
+            "script": "main scene for ad",
+            "caption": "",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 2, main, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+            "notes": {},
+            "runway": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 2, main, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+              "negative_prompt": "watermark, blur, noise, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "motion": 6,
+              "camera_move": "orbit",
+              "seed": 42,
+              "upscale": true
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 5,
+            "shot_type": "cta",
+            "script": "cta scene for ad",
+            "caption": "지금 시작해",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 3, cta, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+            "notes": {},
+            "runway": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 3, cta, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+              "negative_prompt": "watermark, blur, noise, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "motion": 4,
+              "camera_move": "zoom_in",
+              "seed": 42,
+              "upscale": true
+            }
+          }
+        ],
+        "quality_score": 100.0,
+        "quality_suggestions": [
+          "Runway: motion(1-10)과 camera_move를 명시하면 더 좋은 결과를 얻을 수 있습니다."
+        ]
+      }
+    },
+    {
+      "scenario_id": "ad_dawn_call",
+      "intent": "ad",
+      "scenario_title": "새벽감성통화앱",
+      "service": "pika",
+      "overall": 94.5,
+      "prompt_quality": 73.0,
+      "service_fit": 100,
+      "actionability": 94.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "Pika: 장면+액션 조합으로 프롬프트를 작성하고 Pikaffect를 활용하세요."
+      ],
+      "first_shot_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, subject floating dynamically, detailed action, clean composition, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, blurry, low resolution",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "ad",
+        "goal": "새벽감성을 자극하는 영상 제작 목표",
+        "source": {
+          "type": "longform",
+          "id": "ad_dawn_call",
+          "summary": "새벽 2시, 푸른 블루아워 톤의 방 안에서 외로움이 연결감으로 전환되는 순간을 보여주는 통화앱 광고용 시나리오. 첫 3초 훅과 마지막 CTA가 핵심."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "pika"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 15,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 5,
+            "shot_type": "intro",
+            "script": "intro scene for ad",
+            "caption": "",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, subject floating dynamically, detailed action, clean composition, 9:16 vertical",
+            "notes": {},
+            "pika": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, subject floating dynamically, detailed action, clean composition, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, low resolution",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "pikaffect": "Levitate",
+              "style_preset": "Realistic",
+              "motion_intensity": 3
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 5,
+            "shot_type": "main",
+            "script": "main scene for ad",
+            "caption": "",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 2, main, subject running dynamically, detailed action, clean composition, 9:16 vertical",
+            "notes": {},
+            "pika": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 2, main, subject running dynamically, detailed action, clean composition, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, low resolution",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "pikaffect": "",
+              "style_preset": "Realistic",
+              "motion_intensity": 3
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 5,
+            "shot_type": "cta",
+            "script": "cta scene for ad",
+            "caption": "지금 시작해",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 3, cta, subject running dynamically, detailed action, clean composition, 9:16 vertical",
+            "notes": {},
+            "pika": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 3, cta, subject running dynamically, detailed action, clean composition, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, low resolution",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "pikaffect": "",
+              "style_preset": "Realistic",
+              "motion_intensity": 3
+            }
+          }
+        ],
+        "quality_score": 94.5,
+        "quality_suggestions": [
+          "Pika: 장면+액션 조합으로 프롬프트를 작성하고 Pikaffect를 활용하세요."
+        ]
+      }
+    },
+    {
+      "scenario_id": "ad_dawn_call",
+      "intent": "ad",
+      "scenario_title": "새벽감성통화앱",
+      "service": "kling",
+      "overall": 97.5,
+      "prompt_quality": 100.0,
+      "service_fit": 100,
+      "actionability": 100.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "Kling: camera_motion과 style을 명시하고 최대 15초를 유지하세요."
+      ],
+      "first_shot_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, blurry, distortion",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "ad",
+        "goal": "새벽감성을 자극하는 영상 제작 목표",
+        "source": {
+          "type": "longform",
+          "id": "ad_dawn_call",
+          "summary": "새벽 2시, 푸른 블루아워 톤의 방 안에서 외로움이 연결감으로 전환되는 순간을 보여주는 통화앱 광고용 시나리오. 첫 3초 훅과 마지막 CTA가 핵심."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "kling"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 15,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 5,
+            "shot_type": "intro",
+            "script": "intro scene for ad",
+            "caption": "",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+            "notes": {},
+            "kling": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "pan_right",
+              "motion_intensity": 3,
+              "style": "cinematic"
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 5,
+            "shot_type": "main",
+            "script": "main scene for ad",
+            "caption": "",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 2, main, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+            "notes": {},
+            "kling": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 2, main, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "pan_right",
+              "motion_intensity": 3,
+              "style": "cinematic"
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 5,
+            "shot_type": "cta",
+            "script": "cta scene for ad",
+            "caption": "지금 시작해",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 3, cta, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+            "notes": {},
+            "kling": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 3, cta, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "slow_push_in",
+              "motion_intensity": 3,
+              "style": "cinematic"
+            }
+          }
+        ],
+        "quality_score": 97.5,
+        "quality_suggestions": [
+          "Kling: camera_motion과 style을 명시하고 최대 15초를 유지하세요."
+        ]
+      }
+    },
+    {
+      "scenario_id": "ad_dawn_call",
+      "intent": "ad",
+      "scenario_title": "새벽감성통화앱",
+      "service": "veo",
+      "overall": 95.2,
+      "prompt_quality": 86.5,
+      "service_fit": 100,
+      "actionability": 100.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "Veo: generate_audio=true일 때 audio_mood를 설정하고 style_preset을 활용하세요."
+      ],
+      "first_shot_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, low quality",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "ad",
+        "goal": "새벽감성을 자극하는 영상 제작 목표",
+        "source": {
+          "type": "longform",
+          "id": "ad_dawn_call",
+          "summary": "새벽 2시, 푸른 블루아워 톤의 방 안에서 외로움이 연결감으로 전환되는 순간을 보여주는 통화앱 광고용 시나리오. 첫 3초 훅과 마지막 CTA가 핵심."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "veo"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 15,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 5,
+            "shot_type": "intro",
+            "script": "intro scene for ad",
+            "caption": "",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+            "notes": {},
+            "veo": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+              "negative_prompt": "watermark, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "generate_audio": true,
+              "audio_mood": "calm",
+              "style_preset": "cinematic"
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 5,
+            "shot_type": "main",
+            "script": "main scene for ad",
+            "caption": "",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 2, main, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+            "notes": {},
+            "veo": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 2, main, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+              "negative_prompt": "watermark, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "generate_audio": true,
+              "audio_mood": "calm",
+              "style_preset": "cinematic"
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 5,
+            "shot_type": "cta",
+            "script": "cta scene for ad",
+            "caption": "지금 시작해",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 3, cta, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+            "notes": {},
+            "veo": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 3, cta, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+              "negative_prompt": "watermark, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "generate_audio": true,
+              "audio_mood": "dramatic",
+              "style_preset": "cinematic"
+            }
+          }
+        ],
+        "quality_score": 95.2,
+        "quality_suggestions": [
+          "Veo: generate_audio=true일 때 audio_mood를 설정하고 style_preset을 활용하세요."
+        ]
+      }
+    },
+    {
+      "scenario_id": "ad_dawn_call",
+      "intent": "ad",
+      "scenario_title": "새벽감성통화앱",
+      "service": "sora",
+      "overall": 97.5,
+      "prompt_quality": 100.0,
+      "service_fit": 100,
+      "actionability": 100.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "Sora: 카메라 워크(slow pan, tracking, drone)와 분위기 묘사를 포함하세요."
+      ],
+      "first_shot_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, logo, subtitle, blurry, distorted",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "ad",
+        "goal": "새벽감성을 자극하는 영상 제작 목표",
+        "source": {
+          "type": "longform",
+          "id": "ad_dawn_call",
+          "summary": "새벽 2시, 푸른 블루아워 톤의 방 안에서 외로움이 연결감으로 전환되는 순간을 보여주는 통화앱 광고용 시나리오. 첫 3초 훅과 마지막 CTA가 핵심."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "sora"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 15,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 5,
+            "shot_type": "intro",
+            "script": "intro scene for ad",
+            "caption": "",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+            "notes": {},
+            "sora": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 1, intro, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "style": "cinematic",
+              "camera_motion": "tracking"
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 5,
+            "shot_type": "main",
+            "script": "main scene for ad",
+            "caption": "",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 2, main, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+            "notes": {},
+            "sora": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 2, main, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "style": "cinematic",
+              "camera_motion": "tracking"
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 5,
+            "shot_type": "cta",
+            "script": "cta scene for ad",
+            "caption": "지금 시작해",
+            "background_prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 3, cta, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+            "notes": {},
+            "sora": {
+              "prompt": "dawn emotional call app, blue hour bedroom, lonely mood turning into warm connection, shot 3, cta, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "style": "cinematic",
+              "camera_motion": "slow_pan"
+            }
+          }
+        ],
+        "quality_score": 97.5,
+        "quality_suggestions": [
+          "Sora: 카메라 워크(slow pan, tracking, drone)와 분위기 묘사를 포함하세요."
+        ]
+      }
+    },
+    {
+      "scenario_id": "explainer_focus_timer",
+      "intent": "explainer",
+      "scenario_title": "집중 타이머 앱 사용법",
+      "service": "luma",
+      "overall": 100.0,
+      "prompt_quality": 100.0,
+      "service_fit": 100,
+      "actionability": 100.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "설명 영상은 최소 30초 이상을 권장합니다.",
+        "Luma: 각 샷을 5초 이내로 유지하고 camera_motion을 명시하세요."
+      ],
+      "first_shot_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, logo, subtitle, blurry, distorted, low quality",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "explainer",
+        "goal": "25분 집중 + 5분 휴식 플로우를 직관적으로 설명",
+        "source": {
+          "type": "longform",
+          "id": "explainer_focus_timer",
+          "summary": "집중 타이머 앱의 핵심 플로우(세션 시작, 진행 상태, 리포트 확인)를 단계적으로 설명하는 교육형 쇼츠 시나리오."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "luma"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 25,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 5,
+            "shot_type": "intro",
+            "script": "intro scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+            "notes": {},
+            "luma": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "slow_push_in",
+              "motion_intensity": 3,
+              "style_preset": "cinematic",
+              "start_image_url": "",
+              "end_image_url": "",
+              "loop": false
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 5,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 2, main, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+            "notes": {},
+            "luma": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 2, main, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "slow_push_in",
+              "motion_intensity": 3,
+              "style_preset": "cinematic",
+              "start_image_url": "",
+              "end_image_url": "",
+              "loop": false
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 5,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 3, main, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+            "notes": {},
+            "luma": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 3, main, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "slow_push_in",
+              "motion_intensity": 3,
+              "style_preset": "cinematic",
+              "start_image_url": "",
+              "end_image_url": "",
+              "loop": false
+            }
+          },
+          {
+            "index": 4,
+            "duration_sec": 5,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 4, main, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+            "notes": {},
+            "luma": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 4, main, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "slow_push_in",
+              "motion_intensity": 3,
+              "style_preset": "cinematic",
+              "start_image_url": "",
+              "end_image_url": "",
+              "loop": false
+            }
+          },
+          {
+            "index": 5,
+            "duration_sec": 5,
+            "shot_type": "cta",
+            "script": "cta scene for explainer",
+            "caption": "지금 시작해",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 5, cta, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+            "notes": {},
+            "luma": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 5, cta, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "slow_zoom_in",
+              "motion_intensity": 3,
+              "style_preset": "cinematic",
+              "start_image_url": "",
+              "end_image_url": "",
+              "loop": false
+            }
+          }
+        ],
+        "quality_score": 100.0,
+        "quality_suggestions": [
+          "설명 영상은 최소 30초 이상을 권장합니다.",
+          "Luma: 각 샷을 5초 이내로 유지하고 camera_motion을 명시하세요."
+        ]
+      }
+    },
+    {
+      "scenario_id": "explainer_focus_timer",
+      "intent": "explainer",
+      "scenario_title": "집중 타이머 앱 사용법",
+      "service": "runway",
+      "overall": 98.3,
+      "prompt_quality": 100.0,
+      "service_fit": 100,
+      "actionability": 100.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "Runway: motion(1-10)과 camera_move를 명시하면 더 좋은 결과를 얻을 수 있습니다."
+      ],
+      "first_shot_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, blur, noise, distortion",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "explainer",
+        "goal": "25분 집중 + 5분 휴식 플로우를 직관적으로 설명",
+        "source": {
+          "type": "longform",
+          "id": "explainer_focus_timer",
+          "summary": "집중 타이머 앱의 핵심 플로우(세션 시작, 진행 상태, 리포트 확인)를 단계적으로 설명하는 교육형 쇼츠 시나리오."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "runway"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 40,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 8,
+            "shot_type": "intro",
+            "script": "intro scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+            "notes": {},
+            "runway": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+              "negative_prompt": "watermark, blur, noise, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "motion": 4,
+              "camera_move": "zoom_in",
+              "seed": 42,
+              "upscale": true
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 8,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 2, main, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+            "notes": {},
+            "runway": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 2, main, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+              "negative_prompt": "watermark, blur, noise, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "motion": 6,
+              "camera_move": "orbit",
+              "seed": 42,
+              "upscale": true
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 8,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 3, main, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+            "notes": {},
+            "runway": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 3, main, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+              "negative_prompt": "watermark, blur, noise, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "motion": 6,
+              "camera_move": "orbit",
+              "seed": 42,
+              "upscale": true
+            }
+          },
+          {
+            "index": 4,
+            "duration_sec": 8,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 4, main, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+            "notes": {},
+            "runway": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 4, main, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+              "negative_prompt": "watermark, blur, noise, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "motion": 6,
+              "camera_move": "orbit",
+              "seed": 42,
+              "upscale": true
+            }
+          },
+          {
+            "index": 5,
+            "duration_sec": 8,
+            "shot_type": "cta",
+            "script": "cta scene for explainer",
+            "caption": "지금 시작해",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 5, cta, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+            "notes": {},
+            "runway": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 5, cta, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+              "negative_prompt": "watermark, blur, noise, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "motion": 4,
+              "camera_move": "zoom_in",
+              "seed": 42,
+              "upscale": true
+            }
+          }
+        ],
+        "quality_score": 98.3,
+        "quality_suggestions": [
+          "Runway: motion(1-10)과 camera_move를 명시하면 더 좋은 결과를 얻을 수 있습니다."
+        ]
+      }
+    },
+    {
+      "scenario_id": "explainer_focus_timer",
+      "intent": "explainer",
+      "scenario_title": "집중 타이머 앱 사용법",
+      "service": "pika",
+      "overall": 88.8,
+      "prompt_quality": 55.0,
+      "service_fit": 100,
+      "actionability": 88.0,
+      "quality_warning": false,
+      "issues_count": 1,
+      "issues": [
+        "프롬프트가 너무 추상적입니다. 구체적인 시각 묘사를 추가하세요."
+      ],
+      "suggestions": [
+        "Pika: 장면+액션 조합으로 프롬프트를 작성하고 Pikaffect를 활용하세요."
+      ],
+      "first_shot_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, subject floating dynamically, detailed action, clean composition, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, blurry, low resolution",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "explainer",
+        "goal": "25분 집중 + 5분 휴식 플로우를 직관적으로 설명",
+        "source": {
+          "type": "longform",
+          "id": "explainer_focus_timer",
+          "summary": "집중 타이머 앱의 핵심 플로우(세션 시작, 진행 상태, 리포트 확인)를 단계적으로 설명하는 교육형 쇼츠 시나리오."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "pika"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 40,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 8,
+            "shot_type": "intro",
+            "script": "intro scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, subject floating dynamically, detailed action, clean composition, 9:16 vertical",
+            "notes": {},
+            "pika": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, subject floating dynamically, detailed action, clean composition, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, low resolution",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "pikaffect": "Levitate",
+              "style_preset": "Realistic",
+              "motion_intensity": 3
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 8,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 2, main, subject running dynamically, detailed action, clean composition, 9:16 vertical",
+            "notes": {},
+            "pika": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 2, main, subject running dynamically, detailed action, clean composition, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, low resolution",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "pikaffect": "",
+              "style_preset": "Realistic",
+              "motion_intensity": 3
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 8,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 3, main, subject running dynamically, detailed action, clean composition, 9:16 vertical",
+            "notes": {},
+            "pika": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 3, main, subject running dynamically, detailed action, clean composition, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, low resolution",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "pikaffect": "",
+              "style_preset": "Realistic",
+              "motion_intensity": 3
+            }
+          },
+          {
+            "index": 4,
+            "duration_sec": 8,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 4, main, subject running dynamically, detailed action, clean composition, 9:16 vertical",
+            "notes": {},
+            "pika": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 4, main, subject running dynamically, detailed action, clean composition, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, low resolution",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "pikaffect": "",
+              "style_preset": "Realistic",
+              "motion_intensity": 3
+            }
+          },
+          {
+            "index": 5,
+            "duration_sec": 8,
+            "shot_type": "cta",
+            "script": "cta scene for explainer",
+            "caption": "지금 시작해",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 5, cta, subject running dynamically, detailed action, clean composition, 9:16 vertical",
+            "notes": {},
+            "pika": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 5, cta, subject running dynamically, detailed action, clean composition, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, low resolution",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "pikaffect": "",
+              "style_preset": "Realistic",
+              "motion_intensity": 3
+            }
+          }
+        ],
+        "quality_score": 88.8,
+        "quality_issues": [
+          "프롬프트가 너무 추상적입니다. 구체적인 시각 묘사를 추가하세요."
+        ],
+        "quality_suggestions": [
+          "Pika: 장면+액션 조합으로 프롬프트를 작성하고 Pikaffect를 활용하세요."
+        ]
+      }
+    },
+    {
+      "scenario_id": "explainer_focus_timer",
+      "intent": "explainer",
+      "scenario_title": "집중 타이머 앱 사용법",
+      "service": "kling",
+      "overall": 98.3,
+      "prompt_quality": 100.0,
+      "service_fit": 100,
+      "actionability": 100.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "Kling: camera_motion과 style을 명시하고 최대 15초를 유지하세요."
+      ],
+      "first_shot_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, blurry, distortion",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "explainer",
+        "goal": "25분 집중 + 5분 휴식 플로우를 직관적으로 설명",
+        "source": {
+          "type": "longform",
+          "id": "explainer_focus_timer",
+          "summary": "집중 타이머 앱의 핵심 플로우(세션 시작, 진행 상태, 리포트 확인)를 단계적으로 설명하는 교육형 쇼츠 시나리오."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "kling"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 40,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 8,
+            "shot_type": "intro",
+            "script": "intro scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+            "notes": {},
+            "kling": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "pan_right",
+              "motion_intensity": 3,
+              "style": "cinematic"
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 8,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 2, main, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+            "notes": {},
+            "kling": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 2, main, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "pan_right",
+              "motion_intensity": 3,
+              "style": "cinematic"
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 8,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 3, main, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+            "notes": {},
+            "kling": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 3, main, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "pan_right",
+              "motion_intensity": 3,
+              "style": "cinematic"
+            }
+          },
+          {
+            "index": 4,
+            "duration_sec": 8,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 4, main, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+            "notes": {},
+            "kling": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 4, main, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "pan_right",
+              "motion_intensity": 3,
+              "style": "cinematic"
+            }
+          },
+          {
+            "index": 5,
+            "duration_sec": 8,
+            "shot_type": "cta",
+            "script": "cta scene for explainer",
+            "caption": "지금 시작해",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 5, cta, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+            "notes": {},
+            "kling": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 5, cta, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "slow_push_in",
+              "motion_intensity": 3,
+              "style": "cinematic"
+            }
+          }
+        ],
+        "quality_score": 98.3,
+        "quality_suggestions": [
+          "Kling: camera_motion과 style을 명시하고 최대 15초를 유지하세요."
+        ]
+      }
+    },
+    {
+      "scenario_id": "explainer_focus_timer",
+      "intent": "explainer",
+      "scenario_title": "집중 타이머 앱 사용법",
+      "service": "veo",
+      "overall": 94.6,
+      "prompt_quality": 77.5,
+      "service_fit": 100,
+      "actionability": 100.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "Veo: generate_audio=true일 때 audio_mood를 설정하고 style_preset을 활용하세요."
+      ],
+      "first_shot_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, low quality",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "explainer",
+        "goal": "25분 집중 + 5분 휴식 플로우를 직관적으로 설명",
+        "source": {
+          "type": "longform",
+          "id": "explainer_focus_timer",
+          "summary": "집중 타이머 앱의 핵심 플로우(세션 시작, 진행 상태, 리포트 확인)를 단계적으로 설명하는 교육형 쇼츠 시나리오."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "veo"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 40,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 8,
+            "shot_type": "intro",
+            "script": "intro scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+            "notes": {},
+            "veo": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+              "negative_prompt": "watermark, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "generate_audio": true,
+              "audio_mood": "calm",
+              "style_preset": "cinematic"
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 8,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 2, main, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+            "notes": {},
+            "veo": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 2, main, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+              "negative_prompt": "watermark, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "generate_audio": true,
+              "audio_mood": "calm",
+              "style_preset": "cinematic"
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 8,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 3, main, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+            "notes": {},
+            "veo": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 3, main, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+              "negative_prompt": "watermark, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "generate_audio": true,
+              "audio_mood": "calm",
+              "style_preset": "cinematic"
+            }
+          },
+          {
+            "index": 4,
+            "duration_sec": 8,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 4, main, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+            "notes": {},
+            "veo": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 4, main, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+              "negative_prompt": "watermark, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "generate_audio": true,
+              "audio_mood": "calm",
+              "style_preset": "cinematic"
+            }
+          },
+          {
+            "index": 5,
+            "duration_sec": 8,
+            "shot_type": "cta",
+            "script": "cta scene for explainer",
+            "caption": "지금 시작해",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 5, cta, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+            "notes": {},
+            "veo": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 5, cta, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+              "negative_prompt": "watermark, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "generate_audio": true,
+              "audio_mood": "dramatic",
+              "style_preset": "cinematic"
+            }
+          }
+        ],
+        "quality_score": 94.6,
+        "quality_suggestions": [
+          "Veo: generate_audio=true일 때 audio_mood를 설정하고 style_preset을 활용하세요."
+        ]
+      }
+    },
+    {
+      "scenario_id": "explainer_focus_timer",
+      "intent": "explainer",
+      "scenario_title": "집중 타이머 앱 사용법",
+      "service": "sora",
+      "overall": 98.3,
+      "prompt_quality": 100.0,
+      "service_fit": 100,
+      "actionability": 100.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "Sora: 카메라 워크(slow pan, tracking, drone)와 분위기 묘사를 포함하세요."
+      ],
+      "first_shot_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, logo, subtitle, blurry, distorted",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "explainer",
+        "goal": "25분 집중 + 5분 휴식 플로우를 직관적으로 설명",
+        "source": {
+          "type": "longform",
+          "id": "explainer_focus_timer",
+          "summary": "집중 타이머 앱의 핵심 플로우(세션 시작, 진행 상태, 리포트 확인)를 단계적으로 설명하는 교육형 쇼츠 시나리오."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "sora"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 40,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 8,
+            "shot_type": "intro",
+            "script": "intro scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+            "notes": {},
+            "sora": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 1, intro, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "style": "cinematic",
+              "camera_motion": "tracking"
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 8,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 2, main, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+            "notes": {},
+            "sora": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 2, main, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "style": "cinematic",
+              "camera_motion": "tracking"
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 8,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 3, main, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+            "notes": {},
+            "sora": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 3, main, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "style": "cinematic",
+              "camera_motion": "tracking"
+            }
+          },
+          {
+            "index": 4,
+            "duration_sec": 8,
+            "shot_type": "main",
+            "script": "main scene for explainer",
+            "caption": "",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 4, main, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+            "notes": {},
+            "sora": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 4, main, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "style": "cinematic",
+              "camera_motion": "tracking"
+            }
+          },
+          {
+            "index": 5,
+            "duration_sec": 8,
+            "shot_type": "cta",
+            "script": "cta scene for explainer",
+            "caption": "지금 시작해",
+            "background_prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 5, cta, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+            "notes": {},
+            "sora": {
+              "prompt": "focus timer app walkthrough, clean desk setup, educational and clear visual flow, shot 5, cta, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "style": "cinematic",
+              "camera_motion": "slow_pan"
+            }
+          }
+        ],
+        "quality_score": 98.3,
+        "quality_suggestions": [
+          "Sora: 카메라 워크(slow pan, tracking, drone)와 분위기 묘사를 포함하세요."
+        ]
+      }
+    },
+    {
+      "scenario_id": "brand_sleep_drink",
+      "intent": "brand",
+      "scenario_title": "슬립 웰니스 드링크 브랜드",
+      "service": "luma",
+      "overall": 100.0,
+      "prompt_quality": 100.0,
+      "service_fit": 100,
+      "actionability": 100.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "Luma: 각 샷을 5초 이내로 유지하고 camera_motion을 명시하세요."
+      ],
+      "first_shot_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, logo, subtitle, blurry, distorted, low quality",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "brand",
+        "goal": "브랜드 무드(차분함, 고급스러움)를 중심으로 인지 강화",
+        "source": {
+          "type": "longform",
+          "id": "brand_sleep_drink",
+          "summary": "저녁 조명과 잔잔한 감성으로 프리미엄 수면 웰니스 드링크의 브랜드 정체성을 전달하는 브랜딩 필름 시나리오."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "luma"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 15,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 5,
+            "shot_type": "intro",
+            "script": "intro scene for brand",
+            "caption": "",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+            "notes": {},
+            "luma": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "slow_push_in",
+              "motion_intensity": 3,
+              "style_preset": "cinematic",
+              "start_image_url": "",
+              "end_image_url": "",
+              "loop": false
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 5,
+            "shot_type": "main",
+            "script": "main scene for brand",
+            "caption": "",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 2, main, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+            "notes": {},
+            "luma": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 2, main, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "slow_push_in",
+              "motion_intensity": 3,
+              "style_preset": "cinematic",
+              "start_image_url": "",
+              "end_image_url": "",
+              "loop": false
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 5,
+            "shot_type": "cta",
+            "script": "cta scene for brand",
+            "caption": "지금 시작해",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 3, cta, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+            "notes": {},
+            "luma": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 3, cta, soft lighting, gentle shadows, camera slow push in, cinematic mood, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "slow_zoom_in",
+              "motion_intensity": 3,
+              "style_preset": "cinematic",
+              "start_image_url": "",
+              "end_image_url": "",
+              "loop": false
+            }
+          }
+        ],
+        "quality_score": 100.0,
+        "quality_suggestions": [
+          "Luma: 각 샷을 5초 이내로 유지하고 camera_motion을 명시하세요."
+        ]
+      }
+    },
+    {
+      "scenario_id": "brand_sleep_drink",
+      "intent": "brand",
+      "scenario_title": "슬립 웰니스 드링크 브랜드",
+      "service": "runway",
+      "overall": 100.0,
+      "prompt_quality": 100.0,
+      "service_fit": 100,
+      "actionability": 100.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "Runway: motion(1-10)과 camera_move를 명시하면 더 좋은 결과를 얻을 수 있습니다."
+      ],
+      "first_shot_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, blur, noise, distortion",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "brand",
+        "goal": "브랜드 무드(차분함, 고급스러움)를 중심으로 인지 강화",
+        "source": {
+          "type": "longform",
+          "id": "brand_sleep_drink",
+          "summary": "저녁 조명과 잔잔한 감성으로 프리미엄 수면 웰니스 드링크의 브랜드 정체성을 전달하는 브랜딩 필름 시나리오."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "runway"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 15,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 5,
+            "shot_type": "intro",
+            "script": "intro scene for brand",
+            "caption": "",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+            "notes": {},
+            "runway": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+              "negative_prompt": "watermark, blur, noise, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "motion": 4,
+              "camera_move": "zoom_in",
+              "seed": 42,
+              "upscale": true
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 5,
+            "shot_type": "main",
+            "script": "main scene for brand",
+            "caption": "",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 2, main, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+            "notes": {},
+            "runway": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 2, main, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+              "negative_prompt": "watermark, blur, noise, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "motion": 6,
+              "camera_move": "orbit",
+              "seed": 42,
+              "upscale": true
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 5,
+            "shot_type": "cta",
+            "script": "cta scene for brand",
+            "caption": "지금 시작해",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 3, cta, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+            "notes": {},
+            "runway": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 3, cta, professional commercial style, clear camera movement, detailed lighting, 9:16 vertical",
+              "negative_prompt": "watermark, blur, noise, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "motion": 4,
+              "camera_move": "zoom_in",
+              "seed": 42,
+              "upscale": true
+            }
+          }
+        ],
+        "quality_score": 100.0,
+        "quality_suggestions": [
+          "Runway: motion(1-10)과 camera_move를 명시하면 더 좋은 결과를 얻을 수 있습니다."
+        ]
+      }
+    },
+    {
+      "scenario_id": "brand_sleep_drink",
+      "intent": "brand",
+      "scenario_title": "슬립 웰니스 드링크 브랜드",
+      "service": "pika",
+      "overall": 94.5,
+      "prompt_quality": 73.0,
+      "service_fit": 100,
+      "actionability": 94.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "Pika: 장면+액션 조합으로 프롬프트를 작성하고 Pikaffect를 활용하세요."
+      ],
+      "first_shot_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, subject floating dynamically, detailed action, clean composition, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, blurry, low resolution",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "brand",
+        "goal": "브랜드 무드(차분함, 고급스러움)를 중심으로 인지 강화",
+        "source": {
+          "type": "longform",
+          "id": "brand_sleep_drink",
+          "summary": "저녁 조명과 잔잔한 감성으로 프리미엄 수면 웰니스 드링크의 브랜드 정체성을 전달하는 브랜딩 필름 시나리오."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "pika"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 15,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 5,
+            "shot_type": "intro",
+            "script": "intro scene for brand",
+            "caption": "",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, subject floating dynamically, detailed action, clean composition, 9:16 vertical",
+            "notes": {},
+            "pika": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, subject floating dynamically, detailed action, clean composition, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, low resolution",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "pikaffect": "Levitate",
+              "style_preset": "Realistic",
+              "motion_intensity": 3
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 5,
+            "shot_type": "main",
+            "script": "main scene for brand",
+            "caption": "",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 2, main, subject running dynamically, detailed action, clean composition, 9:16 vertical",
+            "notes": {},
+            "pika": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 2, main, subject running dynamically, detailed action, clean composition, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, low resolution",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "pikaffect": "",
+              "style_preset": "Realistic",
+              "motion_intensity": 3
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 5,
+            "shot_type": "cta",
+            "script": "cta scene for brand",
+            "caption": "지금 시작해",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 3, cta, subject running dynamically, detailed action, clean composition, 9:16 vertical",
+            "notes": {},
+            "pika": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 3, cta, subject running dynamically, detailed action, clean composition, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, low resolution",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "pikaffect": "",
+              "style_preset": "Realistic",
+              "motion_intensity": 3
+            }
+          }
+        ],
+        "quality_score": 94.5,
+        "quality_suggestions": [
+          "Pika: 장면+액션 조합으로 프롬프트를 작성하고 Pikaffect를 활용하세요."
+        ]
+      }
+    },
+    {
+      "scenario_id": "brand_sleep_drink",
+      "intent": "brand",
+      "scenario_title": "슬립 웰니스 드링크 브랜드",
+      "service": "kling",
+      "overall": 100.0,
+      "prompt_quality": 100.0,
+      "service_fit": 100,
+      "actionability": 100.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "Kling: camera_motion과 style을 명시하고 최대 15초를 유지하세요."
+      ],
+      "first_shot_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, blurry, distortion",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "brand",
+        "goal": "브랜드 무드(차분함, 고급스러움)를 중심으로 인지 강화",
+        "source": {
+          "type": "longform",
+          "id": "brand_sleep_drink",
+          "summary": "저녁 조명과 잔잔한 감성으로 프리미엄 수면 웰니스 드링크의 브랜드 정체성을 전달하는 브랜딩 필름 시나리오."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "kling"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 15,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 5,
+            "shot_type": "intro",
+            "script": "intro scene for brand",
+            "caption": "",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+            "notes": {},
+            "kling": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "pan_right",
+              "motion_intensity": 3,
+              "style": "cinematic"
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 5,
+            "shot_type": "main",
+            "script": "main scene for brand",
+            "caption": "",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 2, main, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+            "notes": {},
+            "kling": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 2, main, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "pan_right",
+              "motion_intensity": 3,
+              "style": "cinematic"
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 5,
+            "shot_type": "cta",
+            "script": "cta scene for brand",
+            "caption": "지금 시작해",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 3, cta, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+            "notes": {},
+            "kling": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 3, cta, cinematic documentary style, camera pan right, 8 seconds feeling, 9:16 vertical",
+              "negative_prompt": "watermark, blurry, distortion",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "camera_motion": "slow_push_in",
+              "motion_intensity": 3,
+              "style": "cinematic"
+            }
+          }
+        ],
+        "quality_score": 100.0,
+        "quality_suggestions": [
+          "Kling: camera_motion과 style을 명시하고 최대 15초를 유지하세요."
+        ]
+      }
+    },
+    {
+      "scenario_id": "brand_sleep_drink",
+      "intent": "brand",
+      "scenario_title": "슬립 웰니스 드링크 브랜드",
+      "service": "veo",
+      "overall": 100.0,
+      "prompt_quality": 100.0,
+      "service_fit": 100,
+      "actionability": 100.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "Veo: generate_audio=true일 때 audio_mood를 설정하고 style_preset을 활용하세요."
+      ],
+      "first_shot_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, low quality",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "brand",
+        "goal": "브랜드 무드(차분함, 고급스러움)를 중심으로 인지 강화",
+        "source": {
+          "type": "longform",
+          "id": "brand_sleep_drink",
+          "summary": "저녁 조명과 잔잔한 감성으로 프리미엄 수면 웰니스 드링크의 브랜드 정체성을 전달하는 브랜딩 필름 시나리오."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "veo"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 15,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 5,
+            "shot_type": "intro",
+            "script": "intro scene for brand",
+            "caption": "",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+            "notes": {},
+            "veo": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+              "negative_prompt": "watermark, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "generate_audio": true,
+              "audio_mood": "calm",
+              "style_preset": "cinematic"
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 5,
+            "shot_type": "main",
+            "script": "main scene for brand",
+            "caption": "",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 2, main, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+            "notes": {},
+            "veo": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 2, main, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+              "negative_prompt": "watermark, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "generate_audio": true,
+              "audio_mood": "calm",
+              "style_preset": "cinematic"
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 5,
+            "shot_type": "cta",
+            "script": "cta scene for brand",
+            "caption": "지금 시작해",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 3, cta, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+            "notes": {},
+            "veo": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 3, cta, visual detail with soft color contrast and calm atmosphere, 9:16 vertical",
+              "negative_prompt": "watermark, low quality",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "generate_audio": true,
+              "audio_mood": "dramatic",
+              "style_preset": "cinematic"
+            }
+          }
+        ],
+        "quality_score": 100.0,
+        "quality_suggestions": [
+          "Veo: generate_audio=true일 때 audio_mood를 설정하고 style_preset을 활용하세요."
+        ]
+      }
+    },
+    {
+      "scenario_id": "brand_sleep_drink",
+      "intent": "brand",
+      "scenario_title": "슬립 웰니스 드링크 브랜드",
+      "service": "sora",
+      "overall": 100.0,
+      "prompt_quality": 100.0,
+      "service_fit": 100,
+      "actionability": 100.0,
+      "quality_warning": false,
+      "issues_count": 0,
+      "issues": [],
+      "suggestions": [
+        "Sora: 카메라 워크(slow pan, tracking, drone)와 분위기 묘사를 포함하세요."
+      ],
+      "first_shot_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+      "first_shot_negative_prompt": "watermark, logo, subtitle, blurry, distorted",
+      "plan": {
+        "id": "video_socialbuilders_20260306_002618",
+        "account": "socialbuilders",
+        "intent": "brand",
+        "goal": "브랜드 무드(차분함, 고급스러움)를 중심으로 인지 강화",
+        "source": {
+          "type": "longform",
+          "id": "brand_sleep_drink",
+          "summary": "저녁 조명과 잔잔한 감성으로 프리미엄 수면 웰니스 드링크의 브랜드 정체성을 전달하는 브랜딩 필름 시나리오."
+        },
+        "brand_style": {
+          "theme": "",
+          "tone": "",
+          "colors": {},
+          "fonts": {},
+          "aspect_ratio": "9:16"
+        },
+        "target_services": [
+          "sora"
+        ],
+        "platforms": [
+          "instagram_reel"
+        ],
+        "duration_sec": 15,
+        "created_at": "2026-03-06",
+        "shots": [
+          {
+            "index": 1,
+            "duration_sec": 5,
+            "shot_type": "intro",
+            "script": "intro scene for brand",
+            "caption": "",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+            "notes": {},
+            "sora": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 1, intro, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "style": "cinematic",
+              "camera_motion": "tracking"
+            }
+          },
+          {
+            "index": 2,
+            "duration_sec": 5,
+            "shot_type": "main",
+            "script": "main scene for brand",
+            "caption": "",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 2, main, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+            "notes": {},
+            "sora": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 2, main, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "style": "cinematic",
+              "camera_motion": "tracking"
+            }
+          },
+          {
+            "index": 3,
+            "duration_sec": 5,
+            "shot_type": "cta",
+            "script": "cta scene for brand",
+            "caption": "지금 시작해",
+            "background_prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 3, cta, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+            "notes": {},
+            "sora": {
+              "prompt": "premium sleep wellness drink, warm evening light, serene cinematic atmosphere, shot 3, cta, golden hour lighting, contemplative mood, camera tracking shot, cinematic photorealistic, 9:16 vertical",
+              "negative_prompt": "watermark, logo, subtitle, blurry, distorted",
+              "aspect_ratio": "9:16",
+              "duration_sec": 5,
+              "style": "cinematic",
+              "camera_motion": "slow_pan"
+            }
+          }
+        ],
+        "quality_score": 100.0,
+        "quality_suggestions": [
+          "Sora: 카메라 워크(slow pan, tracking, drone)와 분위기 묘사를 포함하세요."
+        ]
+      }
+    }
+  ]
+}

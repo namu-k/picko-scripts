@@ -1,0 +1,40 @@
+# Migrated from single-file structure
+# See .yml.bak for original
+
+interests:
+  primary:
+  - 새벽 감성
+  - 몽환적 분위기
+  - 감성 통화
+  - 힐링
+  - 밤/새벽 무드
+  - 도시 야경
+  - 일출/일몰
+  secondary:
+  - 로맨틱
+  - 휴식
+  - 멍때리기
+  - 명상
+  - 감성 사진
+keywords:
+  high_relevance:
+  - 새벽
+  - 감성
+  - 몽환
+  - 통화
+  - 밤
+  - 달빛
+  - 고요
+  - 일출
+  medium_relevance:
+  - 도시
+  - 야경
+  - 일출
+  - 휴식
+  low_relevance:
+  - 트렌드
+  - 뉴스
+trusted_sources:
+- Pexels
+- Unsplash
+- Pinterest

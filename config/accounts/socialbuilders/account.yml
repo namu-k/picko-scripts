@@ -1,0 +1,34 @@
+# Migrated from single-file structure
+# See .yml.bak for original
+
+account_id: socialbuilders
+name: 빌더스소셜클럽
+description: 예비창업자~초기창업자를 위한 실전 창업 인사이트
+one_liner: ''
+target_audience: []
+value_proposition: ''
+pillars: []
+boundaries: []
+bio: ''
+channels:
+  twitter:
+    enabled: true
+    max_length: 280
+    tone: 친근하고 간결, 인사이트 중심
+    hashtags:
+    - '#창업'
+    - '#스타트업'
+    - '#빌더스소셜클럽'
+  linkedin:
+    enabled: true
+    max_length: 3000
+    tone: 전문적이면서도 접근 가능한, 스토리텔링 중심
+    hashtags:
+    - '#창업'
+    - '#스타트업'
+    - '#비즈니스전략'
+  newsletter:
+    enabled: true
+    max_length: 5000
+    tone: 깊이 있는 분석, 실전 팁 중심
+    subject_prefix: '[빌더스소셜클럽]'

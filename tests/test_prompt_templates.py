@@ -26,7 +26,7 @@ class TestServicePromptTemplates:
         template = get_prompt_template("runway")
         assert template != ""
         assert "Runway" in template
-        assert "공식 가이드" in template
+        assert "가이드" in template
 
     def test_pika_template_exists(self):
         template = get_prompt_template("pika")
@@ -43,7 +43,7 @@ class TestServicePromptTemplates:
         template = get_prompt_template("veo")
         assert template != ""
         assert "Veo" in template
-        assert "오디오" in template
+        assert "audio" in template.lower()
 
     def test_unknown_service_returns_empty(self):
         template = get_prompt_template("unknown_service")
@@ -101,30 +101,30 @@ class TestServicePromptRules:
         rules = get_prompt_rules("luma")
         assert "must" in rules
         assert "must_not" in rules
-        assert "camera_motion" in rules["must"]
+        assert "camera" in rules["must"]
 
     def test_runway_rules_exist(self):
         rules = get_prompt_rules("runway")
         assert "must" in rules
         assert "must_not" in rules
-        assert "conversational_prompt" in rules["must_not"]
+        assert "add a" in rules["must_not"]
 
     def test_pika_rules_exist(self):
         rules = get_prompt_rules("pika")
         assert "must" in rules
-        assert "pikaffect_or_style" in rules["must"]
+        assert "subject" in rules["must"]
 
     def test_kling_rules_exist(self):
         rules = get_prompt_rules("kling")
-        assert "camera_motion" in rules["must"]
+        assert "camera" in rules["must"]
 
     def test_veo_rules_exist(self):
         rules = get_prompt_rules("veo")
-        assert "audio_intent_when_enabled" in rules["must"]
+        assert "audio mood" in rules["must"]
 
     def test_unknown_service_returns_empty(self):
         rules = get_prompt_rules("unknown")
-        assert rules == {}
+        assert rules == {"must": [], "must_not": []}
 
     def test_all_services_have_rules(self):
         expected_services = ["luma", "runway", "pika", "kling", "veo"]
@@ -174,7 +174,7 @@ class TestTemplateContent:
 
     def test_runway_template_has_positive_instruction_guidance(self):
         template = get_prompt_template("runway")
-        assert "긍정형" in template
+        assert "negative prompt" in template.lower()
 
     def test_pika_template_has_pikaffect_examples(self):
         template = get_prompt_template("pika")

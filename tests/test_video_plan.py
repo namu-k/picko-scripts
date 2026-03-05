@@ -312,7 +312,13 @@ class TestVideoPlan:
             source=VideoSource(type="account_only"),
             brand_style=BrandStyle(tone="감성/몽환적"),
             shots=[
-                VideoShot(index=1, duration_sec=5, shot_type="intro", script="시작", caption=""),
+                VideoShot(
+                    index=1,
+                    duration_sec=5,
+                    shot_type="intro",
+                    script="시작",
+                    caption="",
+                ),
                 VideoShot(index=2, duration_sec=5, shot_type="cta", script="CTA", caption=""),
             ],
             target_services=["luma"],
@@ -366,10 +372,16 @@ class TestVideoPlan:
             "shots": [],
             "quality_score": 75,
             "quality_issues": ["issue1"],
+            "final_evaluation": {
+                "verdict": "needs_review",
+                "overall_score": 72.5,
+            },
         }
         plan = VideoPlan.from_dict(d)
         assert plan.quality_score == 75
         assert plan.quality_issues == ["issue1"]
+        assert plan.final_evaluation is not None
+        assert plan.final_evaluation["verdict"] == "needs_review"
 
     def test_video_plan_roundtrip(self):
         original = VideoPlan(
@@ -403,6 +415,28 @@ class TestVideoPlan:
         assert restored.shots[0].luma is not None
         assert restored.shots[0].audio is not None
         assert restored.quality_score == 88
+
+    def test_video_plan_roundtrip_with_final_evaluation(self):
+        plan = VideoPlan(
+            id="video_final_eval_001",
+            account="socialbuilders",
+            intent="ad",
+            goal="install",
+            source=VideoSource(type="account_only"),
+            brand_style=BrandStyle(tone="emotional"),
+            shots=[],
+            quality_score=80,
+            final_evaluation={
+                "verdict": "approved",
+                "overall_score": 82.5,
+                "issues": [],
+            },
+        )
+
+        restored = VideoPlan.from_dict(plan.to_dict())
+        assert restored.final_evaluation is not None
+        assert restored.final_evaluation["verdict"] == "approved"
+        assert restored.final_evaluation["overall_score"] == 82.5
 
     def test_video_plan_to_json(self):
         plan = VideoPlan(

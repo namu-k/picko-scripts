@@ -136,9 +136,8 @@
 
 - 상세 필드 사전: `docs/ui/input-output-artifacts.md`
 - 화면 레이아웃: `docs/ui/mvp-wireframes.md`
-- 사용자 플로우/페이지 구조: `docs/ui/wireframes-and-flow.md`
 
-본 문서는 위 3개 문서의 "I/O 게이트" 역할을 수행한다.
+본 문서는 위 2개 문서의 "I/O 게이트" 역할을 수행한다.
 
 ---
 
@@ -158,6 +157,5 @@
 
 - 본 문서의 Collect/Generate 출력 스키마는 `scripts/daily_collector.py`, `scripts/generate_content.py`의 실제 반환 키 기준으로 맞춘다.
 - Video Plan 필드는 `picko/video_plan.py`의 `VideoPlan` 구조를 기준으로 맞춘다.
-- 와이어프레임 라우트와 플로우는 `docs/ui/wireframes-and-flow.md`, `docs/ui/mvp-wireframes.md` 기준을 따른다.
-- UI 라우트(`/run/*`, `/status`)는 현재 코드에서 CLI 실행(`scripts/*.py`)과 Vault I/O를 어댑터로 연결해야 한다.
+- 와이어프레임 라우트와 플로우는 `docs/ui/mvp-wireframes.md` 기준을 따른다.
 - `type` 값이 누락된 CLI 호출은 코드에서 all 타입으로 확장될 수 있으므로, UI는 항상 명시적으로 `type`을 전송한다.

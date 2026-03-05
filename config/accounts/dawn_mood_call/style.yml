@@ -1,0 +1,12 @@
+# Migrated from single-file structure
+# See .yml.bak for original
+
+visual_settings:
+  default_layout_preset: minimal_dark
+  channel_layouts:
+    instagram:
+      spacing:
+        body_padding: 60
+    tiktok:
+      spacing:
+        body_padding: 50
