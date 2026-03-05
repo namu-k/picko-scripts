@@ -738,7 +738,7 @@ class TestHelpersAndMain:
             main()
 
         call_kwargs = mock_generator.run.call_args.kwargs
-        assert call_kwargs["content_types"] == ["longform", "packs", "images"]
+        assert call_kwargs["content_types"] == ["longform", "packs", "images", "videos"]
         assert call_kwargs["auto_all"] is False
 
     @patch("scripts.generate_content.ContentGenerator")

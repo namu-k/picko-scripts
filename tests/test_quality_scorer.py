@@ -256,8 +256,9 @@ class TestVideoPlanScorerOverall:
         )
         scorer = VideoPlanScorer()
         result = scorer.score(plan)
-        # 전체 점수는 5개 차원의 평균
-        assert result.overall == sum(result.dimensions.values()) / 5
+        # 전체 점수는 모든 차원의 평균 (소수점 1자리 반올림)
+        expected = round(sum(result.dimensions.values()) / len(result.dimensions), 1)
+        assert result.overall == expected
 
     def test_score_returns_quality_score(self):
         plan = make_plan()
