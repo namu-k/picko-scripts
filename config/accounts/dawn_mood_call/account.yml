@@ -1,0 +1,33 @@
+# Migrated from single-file structure
+# See .yml.bak for original
+
+account_id: dawn_mood_call
+name: 새벽감성
+description: 새벽 감성, 몽환적 분위기의 통화 앱
+one_liner: 새벽의 고요함 속에서 당신과 연결되는 특별한 순간
+target_audience:
+- 20~30대 감성형 사용자
+- 야행/새벽 감성을 좋아하는 사람
+- 힐링/휴식을 원하는 사용자
+value_proposition: 새벽 시간의 몽환적인 분위기 속에서 특별한 대화를 나누세요
+pillars: []
+boundaries: []
+bio: ''
+channels:
+  instagram:
+    enabled: true
+    max_length: 2200
+    tone: 감성적, 시적, 여운 있는, 몽환적인
+    hashtags:
+    - '#새벽감성'
+    - '#몽환'
+    - '#감성통화'
+    - '#새벽'
+  tiktok:
+    enabled: true
+    max_length: 150
+    tone: 짧고 감성적인 한 줄, 몽환적인
+    hashtags:
+    - '#새벽'
+    - '#감성'
+    - '#몽환'

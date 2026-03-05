@@ -1,0 +1,45 @@
+# Migrated from single-file structure
+# See .yml.bak for original
+
+interests:
+  primary:
+  - 창업
+  - 스타트업
+  - 비즈니스 모델
+  - 투자
+  - PMF
+  - 고객 개발
+  - 린 스타트업
+  secondary:
+  - 마케팅
+  - 성장 전략
+  - 팀 빌딩
+  - 프로덕트
+  - AI 도구
+  - 생산성
+keywords:
+  high_relevance:
+  - 창업자
+  - 초기 창업
+  - 시드 투자
+  - 제품 시장 적합성
+  - 고객 인터뷰
+  - MVP
+  - 피벗
+  medium_relevance:
+  - 마케팅 전략
+  - 콘텐츠 마케팅
+  - 그로스 해킹
+  - 사용자 경험
+  - 데이터 기반
+  low_relevance:
+  - 트렌드
+  - 뉴스
+  - 동향
+trusted_sources:
+- TechCrunch
+- Y Combinator Blog
+- First Round Review
+- a16z
+- Sequoia
+- Harvard Business Review

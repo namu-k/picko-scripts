@@ -1,0 +1,24 @@
+# Migrated from single-file structure
+# See .yml.bak for original
+
+visual_settings:
+  default_layout_preset: minimal_dark
+  channel_layouts:
+    twitter:
+      spacing:
+        body_padding: 70
+    linkedin:
+      spacing:
+        body_padding: 80
+    instagram:
+      spacing:
+        body_padding: 60
+tone:
+  primary: authoritative, informative, casual
+  forbidden: ''
+  cta_style: ''
+sentence_style: medium_balanced
+vocabulary:
+- tech_terms
+- industry_jargon
+- data_driven
