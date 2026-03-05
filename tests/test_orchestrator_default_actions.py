@@ -16,10 +16,80 @@ class TestDefaultActions:
         actions = registry.list_actions()
         assert "collector.run" in actions
         assert "generator.run" in actions
+        assert "video.plan.generate" in actions
+        assert "video.evaluate.final" in actions
         assert "renderer.run" in actions
         assert "publisher.run" in actions
         assert "engagement.sync" in actions
         assert "quality.verify" in actions
+
+    def test_video_final_evaluate_runs_and_returns_results(self):
+        registry = ActionRegistry()
+        register_default_actions(registry)
+
+        plan_dict = {
+            "id": "video_test_001",
+            "account": "socialbuilders",
+            "intent": "ad",
+            "goal": "app install",
+            "source": {"type": "account_only", "id": "", "summary": ""},
+            "brand_style": {
+                "tone": "emotional",
+                "theme": "",
+                "colors": {},
+                "fonts": {},
+                "aspect_ratio": "9:16",
+            },
+            "shots": [
+                {
+                    "index": 1,
+                    "duration_sec": 5,
+                    "shot_type": "intro",
+                    "script": "phone notification rings at dawn",
+                    "caption": "새벽 알림",
+                    "background_prompt": "smartphone screen with call notification",
+                    "luma": {
+                        "prompt": "phone screen notification at dawn",
+                        "negative_prompt": "text",
+                    },
+                },
+                {
+                    "index": 2,
+                    "duration_sec": 5,
+                    "shot_type": "main",
+                    "script": "user answers the call and smiles",
+                    "caption": "연결되는 순간",
+                    "background_prompt": "call ui connecting",
+                },
+                {
+                    "index": 3,
+                    "duration_sec": 5,
+                    "shot_type": "cta",
+                    "script": "download now and start your dawn call",
+                    "caption": "지금 시작",
+                    "background_prompt": "app install call to action",
+                },
+            ],
+            "target_services": ["luma"],
+            "platforms": ["instagram_reel"],
+            "duration_sec": 15,
+            "created_at": "2026-03-05",
+            "quality_score": 85,
+        }
+
+        result = registry.execute(
+            "video.evaluate.final",
+            {
+                "plans": [plan_dict],
+                "dry_run": True,
+            },
+        )
+
+        assert result.success is True
+        assert result.outputs["total"] == 1
+        assert len(result.outputs["results"]) == 1
+        assert result.outputs["results"][0]["plan_id"] == "video_test_001"
+        assert "verdict" in result.outputs["results"][0]
 
     @patch("picko.quality.graph.QualityGraph")
     def test_quality_verify_calls_quality_graph(self, MockQualityGraph):
