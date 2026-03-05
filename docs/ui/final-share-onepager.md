@@ -14,10 +14,7 @@
 
 ## 3) 단일 기준 문서 (먼저 읽기)
 
-- I/O 기준서: `docs/ui/io-first-wireframe-spec.md`
-- 파라미터/아티팩트 사전: `docs/ui/input-output-artifacts.md`
 - MVP 화면 상세: `docs/ui/mvp-wireframes.md`
-- 플로우/경로: `docs/ui/wireframes-and-flow.md`
 
 ## 4) FE/BE 공통 계약 (합의 완료)
 
@@ -66,7 +63,4 @@
 
 ## 9) 최종 DoD (Definition of Done)
 
-- 문서 4종(`io-first`, `input-output-artifacts`, `mvp-wireframes`, `wireframes-and-flow`) 간 파라미터/상태/기본값 충돌 없음
-- 프론트 payload와 백엔드 런타임 키가 1:1 대응
-- collect -> inbox -> generate -> review 흐름이 끊기지 않음
-- dry-run, 실패, 재시도 경로가 UI에서 확인 가능
+- 문서 3종(`io-first`, `input-output-artifacts`, `mvp-wireframes`) 간 파라미터/상태/기본값 충돌 없음
