@@ -23,6 +23,10 @@
 - 단계 2: `camera_move` + `motion`(1-10)로 운동량을 수치화
 - 단계 3: seed 재현성이 필요하면 `seed`를 지정
 - 단계 4: 모델 모드가 image-to-video면 시작 이미지를 필수 입력으로 취급
+- 단계 5: visual_anchor를 먼저 1문장으로 정의 (영문, 장소/조명/분위기/`9:16 vertical` 포함)
+- 단계 6: 각 샷의 keyframe_image_prompt는 visual_anchor 환경을 복사하고 전경만 변경
+- 단계 7: keyframe_image_prompt는 정지 이미지 전용으로 작성 (`photorealistic`, `9:16 vertical`, `no text`, `no watermark` 포함)
+- 단계 8: keyframe_image_prompt에는 모션 단어(moving, walking, panning 등)와 한글 프롬프트를 사용하지 않음
 {% endif %}
 
 {% if "pika" in target_services %}

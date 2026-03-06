@@ -1,36 +1,44 @@
-# LinkedIn 이미지 프롬프트
+# LinkedIn Image Prompt (Output-Fixed)
 
-다음 콘텐츠에 어울리는 LinkedIn용 이미지를 생성해주세요.
+Generate one LinkedIn feed image prompt from the input.
 
-**제목**: {{ title }}
-**요약**: {{ summary }}
-**태그**: {{ tags | join(", ") }}
+## Input
+- Title: {{ title }}
+- Summary: {{ summary }}
+- Tags: {{ tags | join(", ") }}
 
-**이미지 스펙**:
-- 비율: {{ image_specs.aspect_ratio }}
-- 스타일: {{ image_specs.style }}
-- 권장 크기: {{ image_specs.recommended_size }}
-
-**레이아웃 힌트**:
+## Channel Spec
+- Aspect Ratio: {{ image_specs.aspect_ratio }}
+- Style Direction: {{ image_specs.style }}
+- Recommended Size: {{ image_specs.recommended_size }}
+- Layout Hints:
 {% for hint in image_specs.layout_hints %}
-- {{ hint }}
+  - {{ hint }}
 {% endfor %}
 
----
+## LinkedIn Optimization Rules
+- Business context must be immediately clear (professional scenario, product, workflow, or data insight)
+- Prioritize clean hierarchy and analytical readability over decoration
+- Keep a clear safe area for optional headline overlay
+- Use one primary concept with one supporting visual cue (chart, UI panel, framework, or object)
+- Avoid visual gimmicks and cluttered multi-subject scenes
+- No visible text, no watermark, no logo artifacts in generated image
 
-다음 형식으로 작성해주세요:
+## Required Output Format (Return exactly these 6 blocks)
+[MAIN_PROMPT]
+<Production-ready English prompt optimized for LinkedIn feed image>
 
-[메인 프롬프트]
-LinkedIn 피드에 최적화된 정사각형 이미지.
-데이터 시각화나 인포그래픽 요소 활용 가능.
-프로페셔널한 비즈니스 컨텍스트 고려.
+[NEGATIVE_PROMPT]
+<Comma-separated exclusions>
 
-[스타일]
-깔끔하고 전문적인 디자인.
-기업적이지만 딱딱하지 않은 느낌.
+[PRIMARY_MESSAGE_VISUAL]
+<What single business idea should be instantly understood>
 
-[분위기]
-신뢰감 있고 전문적인 분위기.
+[COMPOSITION]
+<Framing, information hierarchy, safe-space placement>
 
-[색상]
-차분하고 세련된 비즈니스 컬러.
+[STYLE_KEYWORDS]
+<5-8 keywords, comma-separated>
+
+[COLOR_PALETTE]
+<background, primary, accent, optional highlight>
