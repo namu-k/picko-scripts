@@ -84,3 +84,11 @@ AGENT_GUIDE.md
 # Worktrees
 .worktrees/
 output/
+
+# Local research sandboxes
+research-jtbl/
+research-omnibenchmark/
+research-pybm/
+research-rtab/
+research-tabouli/
+research-yamtable/
