@@ -162,7 +162,7 @@ RUNWAY_CONFIG = ServicePromptConfig(
     name="Runway Gen-3/Gen-4",
     prompt_pattern="[Subject + Action in detail], [Camera Movement], [Style/Quality], [Aspect Ratio]",
     required_fields=["prompt", "negative_prompt", "motion", "camera_move"],
-    optional_fields=["seed", "upscale"],
+    optional_fields=["seed", "upscale", "reference_image_url"],
     field_examples={
         "prompt": "Product rotating slowly on white pedestal, professional studio lighting, commercial style",
         "negative_prompt": "text overlay, watermark, blur, noise",
@@ -170,6 +170,7 @@ RUNWAY_CONFIG = ServicePromptConfig(
         "camera_move": "orbit",
         "seed": "0",
         "upscale": "false",
+        "reference_image_url": "https://example.com/keyframe-shot1.png",
     },
     few_shots=[
         {

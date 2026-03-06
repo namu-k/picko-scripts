@@ -171,6 +171,21 @@ class VideoGenerator:
 - 가치 제안: {identity.value_proposition}
 """
 
+        tone = self._to_str(identity.tone_voice.get("tone", ""), "") if isinstance(identity.tone_voice, dict) else ""
+        forbidden = (
+            self._to_str(identity.tone_voice.get("forbidden", ""), "") if isinstance(identity.tone_voice, dict) else ""
+        )
+        cta_style = (
+            self._to_str(identity.tone_voice.get("cta_style", ""), "") if isinstance(identity.tone_voice, dict) else ""
+        )
+        brand_tone_info = f"""
+## 브랜드 톤 & 비주얼 정체성
+- 주요 톤: {tone or "none"}
+- 금칙 표현: {forbidden or "none"}
+- CTA 스타일: {cta_style or "none"}
+- 모든 영상: 9:16 수직, 브랜드 일관성 최우선
+"""
+
         # Intent 설정
         intent_config = self._get_intent_config()
 
@@ -211,6 +226,8 @@ class VideoGenerator:
 
 {account_info}
 
+{brand_tone_info}
+
 ## 영상 목적
 - Intent: {self.intent}
 - 권장 길이: {intent_config["duration"]}
@@ -229,6 +246,7 @@ class VideoGenerator:
 다음 JSON 형식으로 출력:
 {{
   "goal": "영상 목표",
+  "visual_anchor": "영문 한 문장. 전체 샷 공통 비주얼 기준(장소/조명/분위기/9:16 vertical 포함)",
   "shots": [
     {{
       "index": 1,
@@ -236,6 +254,7 @@ class VideoGenerator:
       "shot_type": "intro|main|cta",
       "script": "장면 설명",
       "caption": "화면 자막",
+      "keyframe_image_prompt": "영문 정지 이미지 프롬프트. visual_anchor 환경 + 샷별 전경. 모션 단어 금지.",
       "services": {{
         {schema_section}
       }}
@@ -368,7 +387,6 @@ class VideoGenerator:
 
     def _parse_response(self, raw: str, identity: "AccountIdentity", content_summary: str | None) -> VideoPlan:
         """LLM 응답 파싱"""
-        del identity
         # JSON 추출 (```json ... ``` 블록 처리)
         json_match = re.search(r"```json\s*([\s\S]*?)\s*```", raw)
         if json_match:
@@ -410,6 +428,7 @@ class VideoGenerator:
                 script=self._to_str(s.get("script", ""), ""),
                 caption=self._to_str(s.get("caption", ""), ""),
                 background_prompt=self._to_str(first_service_params.get("prompt", ""), ""),
+                keyframe_image_prompt=self._to_str(s.get("keyframe_image_prompt", ""), ""),
             )
 
             # 모든 서비스 파라미터 설정
@@ -443,6 +462,7 @@ class VideoGenerator:
                         camera_move=self._to_str(service_params.get("camera_move", ""), ""),
                         seed=self._to_int(service_params.get("seed", 0), 0),
                         upscale=self._to_bool(service_params.get("upscale", False), False),
+                        reference_image_url=self._to_str(service_params.get("reference_image_url", ""), ""),
                     )
                 elif service == "pika":
                     shot.pika = PikaParams(
@@ -498,8 +518,17 @@ class VideoGenerator:
                 id=self.content_id,
                 summary=content_summary or "",
             ),
-            brand_style=BrandStyle(tone=""),
+            brand_style=BrandStyle(
+                tone=(
+                    self._to_str(identity.tone_voice.get("tone", ""), "")
+                    if isinstance(identity.tone_voice, dict)
+                    else ""
+                ),
+                theme=self.account_id,
+                aspect_ratio="9:16",
+            ),
             shots=shots,
+            visual_anchor=self._to_str(data.get("visual_anchor", ""), ""),
             target_services=self.services,
             platforms=self.platforms,
         )

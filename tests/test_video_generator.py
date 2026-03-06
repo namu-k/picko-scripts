@@ -12,7 +12,11 @@ def _identity() -> AccountIdentity:
         target_audience=["founders"],
         value_proposition="Clear growth strategy",
         pillars=["P1: product", "P2: growth"],
-        tone_voice={},
+        tone_voice={
+            "tone": "authoritative, informative, casual",
+            "forbidden": "fear-based urgency",
+            "cta_style": "direct but warm",
+        },
         boundaries=[],
     )
 
@@ -163,7 +167,11 @@ def test_video_generator_build_prompt_includes_identity_and_weekly_fields():
         target_audience=["audience1", "audience2"],
         value_proposition="Test value",
         pillars=[],
-        tone_voice={},
+        tone_voice={
+            "tone": "calm",
+            "forbidden": "aggressive claims",
+            "cta_style": "soft",
+        },
         boundaries=[],
     )
     weekly_slot = WeeklySlot(
@@ -182,3 +190,64 @@ def test_video_generator_build_prompt_includes_identity_and_weekly_fields():
     assert "audience1" in prompt or "audience2" in prompt
     assert "Test outcome" in prompt
     assert "Test CTA" in prompt
+
+
+def test_build_prompt_includes_brand_tone_and_keyframe_schema_fields():
+    generator = VideoGenerator(
+        account_id="socialbuilders",
+        services=["runway"],
+        platforms=["instagram_reel"],
+        intent="ad",
+    )
+
+    prompt = generator._build_prompt(_identity(), None, None)
+
+    assert "## 브랜드 톤 & 비주얼 정체성" in prompt
+    assert "authoritative, informative, casual" in prompt
+    assert '"visual_anchor": "' in prompt
+    assert '"keyframe_image_prompt": "' in prompt
+    assert '"reference_image_url": "' in prompt
+
+
+def test_parse_response_parses_keyframe_fields_and_brand_style_tone():
+    generator = VideoGenerator(
+        account_id="socialbuilders",
+        services=["runway"],
+        platforms=["instagram_reel"],
+        intent="ad",
+    )
+
+    raw = json.dumps(
+        {
+            "goal": "install",
+            "visual_anchor": "3AM bedroom, cool blue moonlight, 9:16 vertical",
+            "shots": [
+                {
+                    "index": 1,
+                    "duration_sec": 5,
+                    "shot_type": "intro",
+                    "script": "scene",
+                    "caption": "caption",
+                    "keyframe_image_prompt": "3AM bedroom side profile, 9:16 vertical",
+                    "services": {
+                        "runway": {
+                            "prompt": "phone glow close-up",
+                            "negative_prompt": "text, watermark",
+                            "motion": 4,
+                            "camera_move": "static",
+                            "reference_image_url": "https://example.com/frame-1.png",
+                        }
+                    },
+                }
+            ],
+        }
+    )
+
+    plan = generator._parse_response(raw, identity=_identity(), content_summary=None)
+
+    assert plan.visual_anchor == "3AM bedroom, cool blue moonlight, 9:16 vertical"
+    assert plan.brand_style.tone == "authoritative, informative, casual"
+    assert plan.brand_style.theme == "socialbuilders"
+    assert plan.shots[0].keyframe_image_prompt == "3AM bedroom side profile, 9:16 vertical"
+    assert plan.shots[0].runway is not None
+    assert plan.shots[0].runway.reference_image_url == "https://example.com/frame-1.png"

@@ -97,6 +97,14 @@ class TestRunwayParams:
         assert params.motion == 7
         assert params.upscale is True
 
+    def test_runway_reference_image_url_roundtrip(self):
+        params = RunwayParams(
+            prompt="test",
+            reference_image_url="https://example.com/keyframe-1.png",
+        )
+        restored = RunwayParams.from_dict(params.to_dict())
+        assert restored.reference_image_url == "https://example.com/keyframe-1.png"
+
 
 class TestPikaParams:
     """PikaParams 테스트"""
@@ -299,6 +307,18 @@ class TestVideoShot:
         assert d["transition_in"] == "fade"
         assert d["transition_out"] == "dissolve"
 
+    def test_shot_keyframe_image_prompt_roundtrip(self):
+        shot = VideoShot(
+            index=1,
+            duration_sec=5,
+            shot_type="intro",
+            script="test",
+            caption="",
+            keyframe_image_prompt="3AM bedroom, cool blue moonlight, 9:16 vertical",
+        )
+        restored = VideoShot.from_dict(shot.to_dict())
+        assert restored.keyframe_image_prompt == "3AM bedroom, cool blue moonlight, 9:16 vertical"
+
 
 class TestVideoPlan:
     """VideoPlan 테스트"""
@@ -438,6 +458,21 @@ class TestVideoPlan:
         assert restored.final_evaluation["verdict"] == "approved"
         assert restored.final_evaluation["overall_score"] == 82.5
 
+    def test_video_plan_visual_anchor_roundtrip(self):
+        plan = VideoPlan(
+            id="video_anchor_001",
+            account="socialbuilders",
+            intent="ad",
+            goal="install",
+            source=VideoSource(type="account_only"),
+            brand_style=BrandStyle(tone="emotional"),
+            visual_anchor="3AM bedroom, cool blue moonlight, 9:16 vertical",
+            shots=[],
+        )
+
+        restored = VideoPlan.from_dict(plan.to_dict())
+        assert restored.visual_anchor == "3AM bedroom, cool blue moonlight, 9:16 vertical"
+
     def test_video_plan_to_json(self):
         plan = VideoPlan(
             id="video_001",
@@ -476,6 +511,7 @@ class TestVideoPlan:
             goal="test goal",
             source=VideoSource(type="account_only"),
             brand_style=BrandStyle(tone="test tone"),
+            visual_anchor="3AM bedroom, cool blue moonlight, 9:16 vertical",
             shots=[
                 VideoShot(
                     index=1,
@@ -483,6 +519,7 @@ class TestVideoPlan:
                     shot_type="intro",
                     script="Hello",
                     caption="Welcome",
+                    keyframe_image_prompt="3AM bedroom, side profile in phone glow, 9:16 vertical",
                     notes={"luma": "cinematic style"},
                 ),
             ],
@@ -493,5 +530,40 @@ class TestVideoPlan:
         assert "# VideoPlan: video_001" in md
         assert "**계정**: test" in md
         assert "**의도**: ad" in md
+        assert "## Visual Anchor" in md
+        assert "3AM bedroom, cool blue moonlight, 9:16 vertical" in md
+        assert "**Keyframe Image Prompt:**" in md
+        assert "> 3AM bedroom, side profile in phone glow, 9:16 vertical" in md
         assert "### 샷 1" in md
         assert "서비스별 노트" in md
+
+    def test_video_plan_backward_compatibility_missing_013_fields(self):
+        legacy = {
+            "id": "video_legacy_001",
+            "account": "socialbuilders",
+            "intent": "ad",
+            "goal": "install",
+            "source": {"type": "account_only"},
+            "brand_style": {"tone": ""},
+            "shots": [
+                {
+                    "index": 1,
+                    "duration_sec": 5,
+                    "shot_type": "intro",
+                    "script": "legacy",
+                    "caption": "",
+                    "runway": {
+                        "prompt": "legacy runway prompt",
+                        "negative_prompt": "",
+                        "motion": 5,
+                        "camera_move": "static",
+                    },
+                }
+            ],
+        }
+
+        plan = VideoPlan.from_dict(legacy)
+        assert plan.visual_anchor == ""
+        assert plan.shots[0].keyframe_image_prompt == ""
+        assert plan.shots[0].runway is not None
+        assert plan.shots[0].runway.reference_image_url == ""

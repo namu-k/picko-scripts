@@ -99,6 +99,7 @@ class RunwayParams(ServiceParams):
     camera_move: str = ""  # static | zoom_in | pan_left | tilt_up | orbit
     seed: int = 0
     upscale: bool = False
+    reference_image_url: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         d = super().to_dict()
@@ -108,6 +109,7 @@ class RunwayParams(ServiceParams):
                 "camera_move": self.camera_move,
                 "seed": self.seed,
                 "upscale": self.upscale,
+                "reference_image_url": self.reference_image_url,
             }
         )
         return d
@@ -124,6 +126,7 @@ class RunwayParams(ServiceParams):
             camera_move=d.get("camera_move", ""),
             seed=d.get("seed", 0),
             upscale=d.get("upscale", False),
+            reference_image_url=d.get("reference_image_url", ""),
         )
 
 
@@ -367,6 +370,7 @@ class VideoShot:
     script: str  # 장면 설명 또는 나레이션 텍스트
     caption: str  # 화면에 표시할 자막/텍스트
     background_prompt: str = ""  # 텍스트→비디오 프롬프트 (영문 권장)
+    keyframe_image_prompt: str = ""
     # 서비스별 세부 힌트 (자유 딕셔너리)
     notes: dict[str, str] = field(default_factory=dict)
 
@@ -394,6 +398,7 @@ class VideoShot:
             "script": self.script,
             "caption": self.caption,
             "background_prompt": self.background_prompt,
+            "keyframe_image_prompt": self.keyframe_image_prompt,
             "notes": self.notes,
         }
         # 서비스별 파라미터
@@ -442,6 +447,7 @@ class VideoShot:
             script=d.get("script", ""),
             caption=d.get("caption", ""),
             background_prompt=d.get("background_prompt", ""),
+            keyframe_image_prompt=d.get("keyframe_image_prompt", ""),
             notes=d.get("notes", {}),
             luma=luma,
             runway=runway,
@@ -527,6 +533,7 @@ class VideoPlan:
     source: VideoSource
     brand_style: BrandStyle
     shots: list[VideoShot]
+    visual_anchor: str = ""
     target_services: list[str] = field(default_factory=list)
     platforms: list[str] = field(default_factory=list)
     duration_sec: int = 0  # 전체 목표 길이 (샷 합산으로 계산 가능)
@@ -557,6 +564,7 @@ class VideoPlan:
             "goal": self.goal,
             "source": self.source.to_dict(),
             "brand_style": self.brand_style.to_dict(),
+            "visual_anchor": self.visual_anchor,
             "target_services": self.target_services,
             "platforms": self.platforms,
             "duration_sec": self.duration_sec,
@@ -588,6 +596,7 @@ class VideoPlan:
             goal=d["goal"],
             source=VideoSource.from_dict(d.get("source", {"type": "account_only"})),
             brand_style=BrandStyle.from_dict(d.get("brand_style", {})),
+            visual_anchor=d.get("visual_anchor", ""),
             shots=[VideoShot.from_dict(s) for s in d.get("shots", [])],
             target_services=d.get("target_services", []),
             platforms=d.get("platforms", []),
@@ -625,6 +634,9 @@ class VideoPlan:
             f"- 톤: {self.brand_style.tone}",
             f"- 비율: {self.brand_style.aspect_ratio}",
             "",
+            "## Visual Anchor",
+            self.visual_anchor,
+            "",
             "## 샷 리스트",
             "",
         ]
@@ -636,6 +648,12 @@ class VideoPlan:
                 f"**자막**: {shot.caption}",
                 f"**배경 프롬프트**: `{shot.background_prompt}`",
             ]
+            if shot.keyframe_image_prompt:
+                lines += [
+                    "",
+                    "**Keyframe Image Prompt:**",
+                    f"> {shot.keyframe_image_prompt}",
+                ]
             if shot.notes:
                 lines.append("")
                 lines.append("**서비스별 노트**:")

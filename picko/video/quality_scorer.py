@@ -6,6 +6,7 @@ VideoPlan의 품질을 다차원으로 평가하고 점수를 산출한다.
 서비스별 최적화된 프롬프트 평가 기준을 적용한다.
 """
 
+import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
@@ -213,6 +214,8 @@ class VideoPlanScorer:
             "platform_fit": self._score_platform_fit(plan),
             "actionability": self._score_actionability(plan, target_services),
         }
+        if "runway" in target_services:
+            dimensions["keyframe_completeness"] = self._score_keyframe_completeness(plan, target_services)
 
         overall = sum(dimensions.values()) / len(dimensions)
         issues = self._identify_issues(plan, dimensions, target_services)
@@ -224,6 +227,62 @@ class VideoPlanScorer:
             issues=issues,
             suggestions=suggestions,
         )
+
+    def _score_keyframe_completeness(self, plan: "VideoPlan", services: list[str]) -> float:
+        if "runway" not in services:
+            return 100.0
+
+        score = 100.0
+        visual_anchor = getattr(plan, "visual_anchor", "") or ""
+        if not visual_anchor:
+            score -= 30
+        elif len(visual_anchor) < 40:
+            score -= 10
+
+        anchor_keywords = self._extract_anchor_keywords(visual_anchor, limit=5)
+
+        for shot in plan.shots:
+            keyframe_prompt = getattr(shot, "keyframe_image_prompt", "") or ""
+            if not keyframe_prompt:
+                score -= 15
+                continue
+
+            prompt_lower = keyframe_prompt.lower()
+            if "9:16" not in prompt_lower and "vertical" not in prompt_lower:
+                score -= 5
+            if len(keyframe_prompt) < 40:
+                score -= 5
+
+            if anchor_keywords:
+                prompt_tokens = set(re.findall(r"[a-z0-9:]+", prompt_lower))
+                if not any(token in prompt_tokens for token in anchor_keywords):
+                    score -= 5
+
+        return max(0.0, min(100.0, score))
+
+    def _extract_anchor_keywords(self, text: str, limit: int = 5) -> list[str]:
+        tokens = re.findall(r"[a-z0-9:]+", text.lower())
+        stopwords = {
+            "the",
+            "and",
+            "with",
+            "for",
+            "from",
+            "into",
+            "through",
+            "over",
+            "under",
+            "in",
+            "on",
+            "at",
+            "of",
+            "to",
+            "a",
+            "an",
+        }
+        filtered = [token for token in tokens if token not in stopwords and len(token) > 1]
+        deduped = list(dict.fromkeys(filtered))
+        return deduped[:limit]
 
     def _score_prompts(self, plan: "VideoPlan", services: list[str]) -> float:
         """프롬프트 품질 평가 (서비스별 기준 적용)"""
@@ -502,6 +561,8 @@ class VideoPlanScorer:
             issues.append("샷 간 일관성이 부족합니다.")
         if dimensions["platform_fit"] < 70:
             issues.append("플랫폼 제약을 준수하지 않습니다.")
+        if "keyframe_completeness" in dimensions and dimensions["keyframe_completeness"] < 70:
+            issues.append("Runway 스티칭용 keyframe 정보가 부족합니다.")
 
         # 서비스별 구체적 이슈
         for service in services:
@@ -583,6 +644,9 @@ class VideoPlanScorer:
                 suggestions.append("Veo: generate_audio=true일 때 audio_mood를 설정하고 style_preset을 활용하세요.")
             elif service == "sora":
                 suggestions.append("Sora: 카메라 워크(slow pan, tracking, drone)와 분위기 묘사를 포함하세요.")
+
+        if "keyframe_completeness" in dimensions and dimensions["keyframe_completeness"] < 70:
+            suggestions.append("Runway 스티칭 시 visual_anchor와 shot별 keyframe_image_prompt를 보강하세요.")
 
         return suggestions
 
