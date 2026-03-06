@@ -88,14 +88,20 @@ class TestReferenceLoader:
 
     def test_load_account_config_auto(self, tmp_path: Path, monkeypatch):
         """Auto-load account config from account_id."""
-        # Create mock account config
-        accounts_dir = tmp_path / "config" / "accounts"
-        accounts_dir.mkdir(parents=True)
-        account_file = accounts_dir / "testaccount.yml"
-        account_file.write_text(
+        account_dir = tmp_path / "config" / "accounts" / "testaccount"
+        account_dir.mkdir(parents=True)
+        account_index = account_dir / "_index.yml"
+        account_index.write_text(
             """
 account_id: testaccount
 name: "Test Account"
+description: "Test"
+style_name: "test_style"
+includes: [channels]
+"""
+        )
+        (account_dir / "channels.yml").write_text(
+            """
 channels:
   linkedin:
     enabled: true

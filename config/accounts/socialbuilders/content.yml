@@ -1,0 +1,18 @@
+content_settings:
+  use_exploration: true
+  apply_reference_style: true
+  generate_packs: true
+  generate_image_prompts: true
+
+visual_settings:
+  default_layout_preset: minimal_dark
+  channel_layouts:
+    twitter:
+      spacing:
+        body_padding: 70
+    linkedin:
+      spacing:
+        body_padding: 80
+    instagram:
+      spacing:
+        body_padding: 60

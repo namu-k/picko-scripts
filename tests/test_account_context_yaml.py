@@ -70,7 +70,21 @@ def test_load_identity_uses_yaml_when_directory_exists(
 ):
     """load_identity should prefer config/accounts/{id}/account.yml over legacy markdown."""
     monkeypatch.setattr(account_context_module, "PROJECT_ROOT", tmp_path)
-    mock_config = SimpleNamespace(accounts_dir="config/accounts")
+
+    profile = {
+        "account_id": "test_account",
+        "one_liner": "Test account one liner",
+        "target_audience": ["developers", "founders"],
+        "value_proposition": "Test value prop",
+        "pillars": ["P1: Growth", "P2: Product"],
+        "boundaries": ["No politics", "No spam"],
+        "bio": "Test bio",
+    }
+
+    mock_config = SimpleNamespace(
+        accounts_dir="config/accounts",
+        get_account=lambda account_id: profile if account_id == "test_account" else {},
+    )
     monkeypatch.setattr(account_context_module, "get_config", lambda: mock_config)
 
     (tmp_path / "vault").mkdir(parents=True, exist_ok=True)

@@ -1,0 +1,5 @@
+weekly_slot:
+  customer_outcome: "0→1→10 실행 로드맵(검증→출시→성장→스케일업)"
+  operator_kpi: "주간 팔로워 순증가율(WoW)"
+  cta: "댓글로 질문/상황 남기기"
+  pillar_distribution: {P1: 2, P2: 2, P3: 2, P4: 1}

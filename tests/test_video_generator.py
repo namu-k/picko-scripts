@@ -1,6 +1,6 @@
 import json
 
-from picko.account_context import AccountIdentity
+from picko.account_context import AccountIdentity, WeeklySlot
 from picko.video.generator import VideoGenerator
 from picko.video.quality_scorer import VideoPlanScorer
 
@@ -154,3 +154,31 @@ def test_build_prompt_includes_selected_model_workflows():
     assert "### Luma Workflow" in prompt
     assert "### Runway Workflow" in prompt
     assert "### Pika Workflow" not in prompt
+
+
+def test_video_generator_build_prompt_includes_identity_and_weekly_fields():
+    identity = AccountIdentity(
+        account_id="test",
+        one_liner="Test one liner",
+        target_audience=["audience1", "audience2"],
+        value_proposition="Test value",
+        pillars=[],
+        tone_voice={},
+        boundaries=[],
+    )
+    weekly_slot = WeeklySlot(
+        week_of="2026-03-02",
+        account_id="test",
+        customer_outcome="Test outcome",
+        operator_kpi="Test KPI",
+        cta="Test CTA",
+        pillar_distribution={},
+    )
+
+    gen = VideoGenerator(account_id="test", services=["luma"], intent="ad")
+    prompt = gen._build_prompt(identity=identity, weekly_slot=weekly_slot, content_summary=None)
+
+    assert "Test one liner" in prompt
+    assert "audience1" in prompt or "audience2" in prompt
+    assert "Test outcome" in prompt
+    assert "Test CTA" in prompt

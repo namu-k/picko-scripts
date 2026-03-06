@@ -1,0 +1,5 @@
+account_id: dawn_mood_call
+name: "새벽감성"
+description: "새벽 감성, 몽환적 분위기의 통화 앱"
+style_name: dreamy_dawn
+includes: [scoring, channels, content, identity]

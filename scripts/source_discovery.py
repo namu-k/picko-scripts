@@ -90,15 +90,11 @@ class SourceDiscovery:
 
     def _load_account_profile(self) -> dict[str, Any]:
         """계정 프로필 로드"""
-        accounts_dir = Path(self.config.accounts_dir)
-        profile_path = accounts_dir / f"{self.account_id}.yml"
-
-        if not profile_path.exists():
-            logger.warning(f"Account profile not found: {profile_path}")
+        profile = self.config.get_account(self.account_id)
+        if not profile:
+            logger.warning(f"Account profile not found: {self.account_id}")
             return {}
-
-        with open(profile_path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f) or {}
+        return profile
 
     def _extract_keywords(self) -> list[str]:
         """계정 프로필에서 키워드 추출"""
@@ -234,8 +230,9 @@ class SourceDiscovery:
             # 도메인 추출
             domains: set[str] = set()
             for entry in feed.entries[:20]:
-                if entry.get("link"):
-                    domain = urlparse(entry.link).netloc
+                link = entry.get("link")
+                if isinstance(link, str):
+                    domain = urlparse(link).netloc
                     if domain and not domain.endswith("google.com"):
                         domains.add(domain)
 
@@ -362,8 +359,8 @@ class SourceDiscovery:
                                     platform="substack",
                                 )
                             )
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"RSS check failed for Substack feed {rss_url}: {e}")
 
             logger.info(f"[Substack] Found {len(candidates)} newsletters for '{keyword}'")
 
@@ -408,8 +405,8 @@ class SourceDiscovery:
                             if href.startswith("/"):
                                 return f"{base_url}{href}"
                             return href
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.debug(f"Failed parsing RSS links for {base_url}: {e}")
 
                 # 일반 경로 프로빙
                 for path in common_paths:

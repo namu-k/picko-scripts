@@ -11,6 +11,7 @@ from typing import Any
 import yaml
 from dotenv import load_dotenv
 
+from .account_config_loader import load_account_config
 from .logger import get_logger
 
 logger = get_logger("config")
@@ -235,73 +236,23 @@ class Config:
                 logger.debug(f"Loaded sources from {sources_path}")
         return self._sources
 
-    def _load_account_dir(self, dir_path: Path) -> dict[str, Any]:
-        """Load account profile from directory structure.
-
-        Expected files:
-        - account.yml (required)
-        - scoring.yml (optional)
-        - style.yml (optional)
-        """
-        account_path = dir_path / "account.yml"
-        if not account_path.exists():
-            logger.warning(f"account.yml not found in: {dir_path}")
-            return {}
-
-        with open(account_path, "r", encoding="utf-8") as f:
-            loaded_account = yaml.safe_load(f) or {}
-        if not isinstance(loaded_account, dict):
-            logger.warning(f"account.yml is not a dict: {account_path}")
-            return {}
-
-        account: dict[str, Any] = dict(loaded_account)
-
-        scoring_path = dir_path / "scoring.yml"
-        if scoring_path.exists():
-            with open(scoring_path, "r", encoding="utf-8") as f:
-                loaded_scoring = yaml.safe_load(f) or {}
-            if isinstance(loaded_scoring, dict):
-                account["interests"] = loaded_scoring.get("interests", {})
-                account["keywords"] = loaded_scoring.get("keywords", {})
-                account["trusted_sources"] = loaded_scoring.get("trusted_sources", [])
-
-        style_path = dir_path / "style.yml"
-        if style_path.exists():
-            with open(style_path, "r", encoding="utf-8") as f:
-                loaded_style = yaml.safe_load(f) or {}
-            if isinstance(loaded_style, dict):
-                account["visual_settings"] = loaded_style.get("visual_settings", {})
-
-        return account
-
     def get_account(self, account_id: str) -> dict[str, Any]:
         """계정 프로필 로드"""
         if account_id not in self._accounts:
+            loaded_profile: dict[str, Any] = {}
 
-            def _try_load(base: Path) -> dict[str, Any] | None:
-                dir_path = base / self.accounts_dir / account_id
-                if dir_path.is_dir():
-                    loaded_dir = self._load_account_dir(dir_path)
-                    if loaded_dir:
-                        logger.debug(f"Loaded account directory: {account_id} from {dir_path}")
-                        return loaded_dir
+            for root in (Path(self.vault.root), PROJECT_ROOT):
+                accounts_root = root / self.accounts_dir
+                try:
+                    loaded_profile = load_account_config(accounts_root, account_id)
+                except Exception as e:
+                    logger.warning(f"Failed to load account profile: {account_id} from {accounts_root} ({e})")
+                    loaded_profile = {}
 
-                account_path = base / self.accounts_dir / f"{account_id}.yml"
-                if account_path.exists():
-                    with open(account_path, "r", encoding="utf-8") as f:
-                        loaded = yaml.safe_load(f) or {}
-                    if not isinstance(loaded, dict):
-                        logger.warning(f"Account profile is not a dict: {account_id}, got {type(loaded)}")
-                        return {}
-                    logger.debug(f"Loaded account profile: {account_id} from {account_path}")
-                    return loaded
-                return None
+                if loaded_profile:
+                    break
 
-            loaded_profile = _try_load(Path(self.vault.root))
-            if loaded_profile is None:
-                loaded_profile = _try_load(PROJECT_ROOT)
-
-            if loaded_profile is None:
+            if not loaded_profile:
                 logger.warning(f"Account profile not found: {account_id}")
                 loaded_profile = {}
 
