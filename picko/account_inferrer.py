@@ -82,6 +82,12 @@ class AccountInferrer:
                 json_str = json_str.split("```json", maxsplit=1)[1].split("```", maxsplit=1)[0]
             elif "```" in json_str:
                 json_str = json_str.split("```", maxsplit=1)[1].split("```", maxsplit=1)[0]
+
+            start = json_str.find("{")
+            end = json_str.rfind("}")
+            if start != -1 and end != -1 and end > start:
+                json_str = json_str[start : end + 1]
+
             parsed = json.loads(json_str.strip())
             if isinstance(parsed, dict):
                 return parsed

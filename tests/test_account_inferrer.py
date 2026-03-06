@@ -215,3 +215,29 @@ class TestAccountInferrer:
             index = yaml.safe_load(f)
 
         assert index["account_id"] == "existing"
+
+
+class TestInferrerJsonParsing:
+    def test_parse_json_with_json_code_fence(self):
+        inferrer = AccountInferrer(MagicMock())
+        response = """Here is the result:\n```json\n{"interests": {"primary": ["AI"], "secondary": []}}\n```\nThanks"""
+        result = inferrer._parse_json_response(response)
+        assert result["interests"]["primary"] == ["AI"]
+
+    def test_parse_json_with_plain_code_fence(self):
+        inferrer = AccountInferrer(MagicMock())
+        response = """```\n{"keywords": {"high_relevance": ["test"]}}\n```"""
+        result = inferrer._parse_json_response(response)
+        assert result["keywords"]["high_relevance"] == ["test"]
+
+    def test_parse_json_with_leading_text(self):
+        inferrer = AccountInferrer(MagicMock())
+        response = 'Based on account profile: {"trusted_sources": ["TechCrunch"]}'
+        result = inferrer._parse_json_response(response)
+        assert result["trusted_sources"] == ["TechCrunch"]
+
+    def test_parse_json_with_trailing_text(self):
+        inferrer = AccountInferrer(MagicMock())
+        response = '{"tone": {"primary": "friendly"}}\nAdditional explanation follows.'
+        result = inferrer._parse_json_response(response)
+        assert result["tone"]["primary"] == "friendly"
