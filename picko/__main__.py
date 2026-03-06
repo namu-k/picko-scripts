@@ -3,13 +3,56 @@
 import argparse
 import json
 import logging
+import re
 from pathlib import Path
+from typing import Any
 
 from picko.account_config_loader import load_account_config
 from picko.config import PROJECT_ROOT, get_config
 from picko.video.generator import VideoGenerator
 
 logger = logging.getLogger(__name__)
+ACCOUNT_ID_PATTERN = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+def _is_empty_scoring(scoring: Any) -> bool:
+    if not isinstance(scoring, dict):
+        return True
+
+    interests = scoring.get("interests", {})
+    keywords = scoring.get("keywords", {})
+    trusted_sources = scoring.get("trusted_sources", [])
+
+    primary = interests.get("primary", []) if isinstance(interests, dict) else []
+    secondary = interests.get("secondary", []) if isinstance(interests, dict) else []
+
+    high = keywords.get("high_relevance", []) if isinstance(keywords, dict) else []
+    medium = keywords.get("medium_relevance", []) if isinstance(keywords, dict) else []
+    low = keywords.get("low_relevance", []) if isinstance(keywords, dict) else []
+
+    return not (primary or secondary or high or medium or low or trusted_sources)
+
+
+def _is_empty_content(content: Any) -> bool:
+    if not isinstance(content, dict):
+        return True
+
+    visual = content.get("visual_settings", {})
+    themes = content.get("content_themes", [])
+    preset = visual.get("default_layout_preset") if isinstance(visual, dict) else ""
+    return not (preset or themes)
+
+
+def _validate_account_id(account_id: str) -> bool:
+    return bool(account_id) and bool(ACCOUNT_ID_PATTERN.fullmatch(account_id))
+
+
+def _normalize_channels(channels_raw: Any) -> list[str]:
+    if isinstance(channels_raw, dict):
+        return [str(name) for name in channels_raw.keys()]
+    if isinstance(channels_raw, list):
+        return [str(item) for item in channels_raw]
+    return []
 
 
 def prompt(message: str) -> str:
@@ -34,6 +77,10 @@ def cmd_account_init(dry_run: bool = False) -> None:
     print("\n=== New Account Setup ===\n")
 
     account_id = prompt("Account ID (english, underscore)")
+    if not _validate_account_id(account_id):
+        print(f"Invalid account ID: {account_id}")
+        return
+
     name = prompt("Account name")
     description = prompt("Description")
     target_audience_str = prompt("Target audience (comma-separated)")
@@ -100,13 +147,7 @@ def cmd_account_regen(what: str, account_id: str) -> None:
         print(f"Account not found: {account_id}")
         return
 
-    channels_raw = loaded.get("channels", {})
-    if isinstance(channels_raw, dict):
-        channels = list(channels_raw.keys())
-    elif isinstance(channels_raw, list):
-        channels = [str(item) for item in channels_raw]
-    else:
-        channels = []
+    channels = _normalize_channels(loaded.get("channels", {}))
 
     seed = AccountSeed(
         account_id=str(loaded.get("account_id", account_id)),
@@ -122,14 +163,20 @@ def cmd_account_regen(what: str, account_id: str) -> None:
     inferrer = AccountInferrer(get_writer_client())
     if what in ("scoring", "all"):
         scoring = inferrer.infer_scoring(seed)
-        inferrer._write_yaml(account_dir / "scoring.yml", scoring)
-        print("Regenerated scoring.yml")
+        if _is_empty_scoring(scoring):
+            print(f"Skipped scoring.yml update due to empty inference result: {account_dir / 'scoring.yml'}")
+        else:
+            inferrer._write_yaml(account_dir / "scoring.yml", scoring)
+            print("Regenerated scoring.yml")
 
     if what in ("style", "all"):
         style = inferrer.infer_style(seed)
         content = inferrer._build_content_yml(style)
-        inferrer._write_yaml(account_dir / "content.yml", content)
-        print("Regenerated content.yml from style inference")
+        if _is_empty_content(content):
+            print(f"Skipped content.yml update due to empty inference result: {account_dir / 'content.yml'}")
+        else:
+            inferrer._write_yaml(account_dir / "content.yml", content)
+            print("Regenerated content.yml from style inference")
 
 
 def cmd_account_list() -> None:
@@ -141,19 +188,25 @@ def cmd_account_list() -> None:
 
     config = get_config()
     print("\nRegistered accounts:")
+    seen: set[str] = set()
 
     for account_dir in sorted(accounts_dir.iterdir()):
         if account_dir.is_dir():
-            loaded = config.get_account(account_dir.name)
+            account_id = account_dir.name
+            seen.add(account_id)
+            loaded = config.get_account(account_id)
             if loaded:
-                print(f"  {account_dir.name}: {loaded.get('name', 'Unknown')} (dir)")
+                print(f"  {account_id}: {loaded.get('name', 'Unknown')} (dir)")
 
     for account_file in sorted(accounts_dir.glob("*.yml")):
         if account_file.name.endswith(".bak"):
             continue
-        loaded = load_account_config(accounts_dir, account_file.stem)
+        account_id = account_file.stem
+        if account_id in seen:
+            continue
+        loaded = load_account_config(accounts_dir, account_id)
         if loaded:
-            print(f"  {account_file.stem}: {loaded.get('name', 'Unknown')} (legacy file)")
+            print(f"  {account_id}: {loaded.get('name', 'Unknown')} (legacy file)")
 
 
 def cmd_account_show(account_id: str) -> None:
