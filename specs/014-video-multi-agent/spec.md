@@ -4,8 +4,9 @@
 
 - **Spec ID**: 014
 - **Branch**: `014-video-multi-agent`
-- **Status**: Draft
+- **Status**: Ready for Implementation
 - **Created**: 2026-03-06
+- **Updated**: 2026-03-06 (v3 - 구현 가이드 추가)
 
 ---
 
@@ -138,7 +139,7 @@ experiment_vars: dict | None       # A/B 테스트 변수 (Orchestrator 참조)
 
 ---
 
-### 3.4 Stitch Planner (스티치 플래너) ⭐ NEW
+### 3.3 Stitch Planner (스티치 플래너) ⭐ NEW
 
 **역할**: 각 샷의 제작 방식 결정, 이미지 기반 영상 제작 전략 수립
 
@@ -147,6 +148,11 @@ experiment_vars: dict | None       # A/B 테스트 변수 (Orchestrator 참조)
 - continuity reference 정의
 - 전환 방식 및 자산 구성 계획
 - 최종 제작용 asset manifest 작성
+
+**입력**:
+- `shots[]` (Story Writer 출력)
+- `services[]` (요청된 서비스 목록)
+- `SERVICE_CONSTRAINTS` (서비스별 제약 사항)
 
 **출력**:
 - `generation_methods[]`
@@ -157,10 +163,33 @@ experiment_vars: dict | None       # A/B 테스트 변수 (Orchestrator 참조)
 **Tools**:
 | 도구 | 방식 | 설명 |
 |------|------|------|
-| `select_generation_method` | 규칙+LLM | shot별 생성 방식 선택 |
+| `select_generation_method` | 규칙+LLM | shot별 생성 방식 선택 (`SERVICE_CONSTRAINTS` 참조) |
 | `build_continuity_refs` | 규칙 | 캐릭터/배경/조명 일관성 참조 정리 |
 | `plan_stitch_sequence` | LLM | 이미지 시퀀스/스티치 계획 작성 |
 | `build_asset_manifest` | 규칙 | 제작 자산 목록 정리 |
+
+**select_generation_method 로직**:
+```python
+def select_generation_method(shot: ShotDraft, services: list[str]) -> str:
+    """shot + 서비스 제약을 보고 생성 방식 결정"""
+    from picko.video.constraints import SERVICE_CONSTRAINTS
+
+    for service in services:
+        c = SERVICE_CONSTRAINTS[service]
+
+        # image_stitch는 start_image 지원 필수
+        if not c.supports_start_image:
+            return "pure_video"
+
+        # keyframe_motion은 start+end 이미지 모두 필요
+        if shot.motion_type in ("morph", "interpolate"):
+            if c.supports_start_image and c.supports_end_image:
+                return "keyframe_motion"
+            return "pure_video"
+
+    # 복잡한 경우 LLM 보조 판단
+    return _llm_decide_method(shot, services)
+```
 
 ---
 
@@ -204,40 +233,52 @@ experiment_vars: dict | None       # A/B 테스트 변수 (Orchestrator 참조)
 
 ## 4. 상태 흐름
 
-### 기본 흐름
+### 기본 흐름 (2-pass + Fan-out)
 
 ```
 START
   ↓
-story_writer        # visual_anchor, shots[] 초안
+story_writer         → visual_anchor, shots[]
   ↓
-copywriter          # hook, captions, cta
+stitch_planner       → generation_methods[], stitch_plan, asset_manifest
   ↓
-stitch_planner      # ⭐ 제작 방식 먼저 결정
+┌─────────────────────┼─────────────────────┐
+│                     │                     │
+copywriter        prompt_engineer          │ (fan-out 병렬)
+│                     │                     │
+└─────────────────────┴─────────────────────┘
   ↓
-prompt_engineer     # 제작 방식에 맞는 프롬프트 생성
+reviewer             → quality_score, issues, revision_target
   ↓
-reviewer
-  ↓
-orchestrator
+orchestrator         → approved / cascade invalidation + 재실행
 ```
 
-**순서 변경 사유**: Stitch Planner가 제작 방식을 결정한 후에야 프롬프트 종류가 확정된다.
-- `image_stitch` → 이미지 프롬프트 필요
-- `pure_video` → 비디오 프롬프트만 필요
-- `keyframe_motion` → 이미지 + 비디오 프롬프트 모두 필요
+**핵심 변경점**:
+- Stitch Planner가 Story Writer 직후 실행 (generation_method 먼저 확정)
+- Copywriter와 Prompt Engineer는 **병렬 실행** (서로 의존 없음)
+- Prompt Engineer는 generation_method를 입력으로 받아 선택적 프롬프트 생성
 
-### 분기 흐름
+### 분기 흐름 (Cascade Invalidation)
 
 ```
 orchestrator 결과:
   [approved]                → END
-  [revise_story]            → story_writer
-  [revise_copy]             → copywriter
-  [revise_prompt]           → prompt_engineer
-  [revise_stitch_plan]      → stitch_planner
-  [max_iterations_reached]  → END
-  [human_review_required]   → END
+  [revise_story]            → story_writer + (stitch_planner, copywriter, prompt_engineer)  # cascade
+  [revise_stitch]           → stitch_planner + (prompt_engineer)  # cascade
+  [revise_copy]             → copywriter  # 독립적
+  [revise_prompt]           → prompt_engineer  # 독립적
+  [max_iterations]          → END
+  [budget_exceeded]         → END (human_review_required=true)
+```
+
+**Cascade 규칙**:
+```python
+INVALIDATION_CASCADE = {
+    "story_writer":     ["stitch_planner", "copywriter", "prompt_engineer"],
+    "stitch_planner":   ["prompt_engineer"],  # method 변경 → 프롬프트 재생성
+    "copywriter":       [],                    # 카피는 독립적
+    "prompt_engineer":  [],                    # 프롬프트는 독립적
+}
 ```
 
 ---
@@ -254,30 +295,31 @@ class VideoAgentState(TypedDict):
 
     # Context
     identity: dict
+    account_config: dict            # ⭐ NEW: visual_settings, channels 포함
     weekly_slot: dict | None
 
-    # ⭐ 마케팅 레이어 확장 포인트 (향후 사용)
+    # ⭐ 마케팅 레이어 확장 포인트
     campaign_context: dict | None      # 시리즈/캠페인 맥락
     performance_hints: list[str]       # 과거 성과 기반 힌트
     experiment_vars: dict | None       # A/B 테스트 변수
 
     # Planning
     visual_anchor: str
-    shots: list[dict]
+    shots: list[dict]               # ShotDraft 리스트
 
-    # Copy
+    # Production (Stitch Planner 출력) - ⭐ prompt_engineer보다 먼저 실행
+    generation_methods: list[str]
+    continuity_refs: ContinuityRefs
+    stitch_plan: StitchPlan
+    asset_manifest: AssetManifest
+
+    # Copy (copywriter와 prompt_engineer 병렬 실행)
     hook: str
     captions: list[str]
     cta: str
     overlay_texts: list[str]
 
-    # Production (Stitch Planner 출력)
-    generation_methods: list[str]
-    continuity_refs: ContinuityRefs
-    stitch_plan: StitchPlan            # ⭐ 구체적 계약 적용
-    asset_manifest: AssetManifest      # ⭐ 구체적 계약 적용
-
-    # Prompt (제작 방식 기반 생성)
+    # Prompt (generation_method 기반 생성)
     image_prompts: list[str]
     video_prompts: list[str]
     negative_prompts: list[str]
@@ -292,6 +334,10 @@ class VideoAgentState(TypedDict):
     iteration_count: int
     approved: bool
     human_review_required: bool
+
+    # ⭐ NEW: 비용 추적
+    llm_calls: int                  # 총 LLM 호출 횟수
+    token_budget: int               # 최대 허용 토큰 (기본: 50000)
 ```
 
 ---
@@ -642,7 +688,240 @@ Output: {...}
 
 ---
 
-## 14. 변경 이력
+## 14. 구현 상세
+
+### 14.1 에러 처리 전략
+
+각 노드에 `safe_node` 래퍼 적용:
+
+```python
+# nodes/base.py
+def safe_node(func):
+    """노드 실행 래퍼 — LLM 실패 시 상태에 에러 기록"""
+    def wrapper(state: VideoAgentState) -> dict:
+        try:
+            return func(state)
+        except Exception as e:
+            node_name = func.__name__.replace("_node", "")
+            logger.error(f"{node_name} failed: {e}")
+            return {
+                "quality_issues": state.get("quality_issues", []) + [f"{node_name} 실행 실패: {e}"],
+                "revision_target": node_name,
+            }
+    return wrapper
+
+@safe_node
+def story_writer_node(state: VideoAgentState) -> dict:
+    # ... 기존 로직
+```
+
+Orchestrator 입력 검증:
+
+```python
+def _validate_state_completeness(state: VideoAgentState) -> list[str]:
+    """필수 필드가 비어있으면 해당 에이전트를 재실행 대상으로"""
+    missing = []
+    if not state.get("visual_anchor"):
+        missing.append("story_writer")
+    if not state.get("shots"):
+        missing.append("story_writer")
+    if not state.get("generation_methods"):
+        missing.append("stitch_planner")
+    if not state.get("video_prompts") and not state.get("image_prompts"):
+        missing.append("prompt_engineer")
+    return missing
+```
+
+### 14.2 Reviewer와 기존 Scorer 통합
+
+Reviewer 노드에서 임시 VideoPlan 구성 후 기존 scorer 호출:
+
+```python
+# nodes/reviewer.py
+from picko.video.quality_scorer import VideoPlanScorer
+
+def _build_temp_plan(state: VideoAgentState) -> VideoPlan:
+    """state에서 임시 VideoPlan 구성 (scorer 호출용)"""
+    shots = []
+    for i, shot_draft in enumerate(state["shots"]):
+        shot = VideoShot(
+            index=i + 1,
+            duration_sec=shot_draft.get("duration_sec", 5),
+            shot_type=shot_draft.get("purpose", "main"),
+            script=shot_draft.get("scene_description", ""),
+            caption=state["captions"][i] if i < len(state["captions"]) else "",
+            background_prompt=state["video_prompts"][i] if i < len(state["video_prompts"]) else "",
+        )
+        _attach_service_params(shot, state, i)
+        shots.append(shot)
+
+    return VideoPlan(
+        id="temp_review",
+        account=state["account_id"],
+        intent=state["intent"],
+        goal="",
+        source=VideoSource(type="account_only"),
+        brand_style=BrandStyle(tone=""),
+        shots=shots,
+        target_services=state["services"],
+        platforms=state["platforms"],
+    )
+
+def review_node(state: VideoAgentState) -> dict:
+    temp_plan = _build_temp_plan(state)
+
+    # 기존 scorer 재사용
+    scorer = VideoPlanScorer()
+    score = scorer.score(temp_plan, state["services"])
+
+    # 멀티에이전트 전용 추가 검수
+    production_issues = _review_production_fit(state)
+
+    return {
+        "quality_score": score.overall,
+        "quality_issues": score.issues + production_issues,
+        "feedback_notes": score.suggestions,
+    }
+```
+
+### 14.3 ShotDraft → VideoShot 매핑
+
+VideoShot에 필드 추가 대신 `notes` dict 활용:
+
+```python
+def _shot_draft_to_video_shot(draft: dict, index: int, state: VideoAgentState) -> VideoShot:
+    shot = VideoShot(
+        index=index,
+        duration_sec=draft.get("duration_sec", 5),
+        shot_type=draft.get("purpose", "main"),
+        script=draft.get("scene_description", ""),
+        caption=state["captions"][index - 1] if index <= len(state["captions"]) else "",
+        background_prompt=state["video_prompts"][index - 1] if index <= len(state["video_prompts"]) else "",
+        transition_in=_get_transition(state["stitch_plan"], index, "in"),
+        transition_out=_get_transition(state["stitch_plan"], index, "out"),
+    )
+
+    # 에이전트 메타데이터를 notes에 보존
+    shot.notes = {
+        "emotional_beat": draft.get("emotional_beat", ""),
+        "generation_method": draft.get("generation_method", ""),
+        "risk_flags": ",".join(draft.get("risk_flags", [])),
+        "continuity": ",".join(draft.get("continuity_constraints", [])),
+    }
+
+    return shot
+```
+
+### 14.4 프롬프트 파일 로딩
+
+기존 `prompt_loader.py` 확장:
+
+```python
+# agents/prompts/loader.py
+from pathlib import Path
+
+PROMPTS_DIR = Path(__file__).parent
+
+def load_agent_prompt(agent_name: str) -> str:
+    """에이전트 시스템 프롬프트 로드"""
+    path = PROMPTS_DIR / f"{agent_name}.md"
+    return path.read_text(encoding="utf-8")
+```
+
+각 노드에서 사용:
+
+```python
+from picko.video.agents.prompts.loader import load_agent_prompt
+
+def story_writer_node(state):
+    system_prompt = load_agent_prompt("story_writer")
+    client = get_writer_client()
+    result = client.generate(
+        user_prompt,
+        system_prompt=system_prompt,
+        temperature=0.7
+    )
+```
+
+### 14.5 Account Config 전달
+
+그래프 초기화 시 전체 account YAML 로드:
+
+```python
+# graph.py
+from picko.config import get_config
+
+def _init_state(account_id: str, **kwargs) -> VideoAgentState:
+    config = get_config()
+    account_config = config.get_account(account_id)  # dawn_mood_call.yml 전체
+    identity = get_identity(account_id)
+
+    return VideoAgentState(
+        account_id=account_id,
+        identity=identity.__dict__ if identity else {},
+        account_config=account_config or {},  # visual_settings, channels 포함
+        # ...
+    )
+```
+
+Story Writer 프롬프트에서 활용:
+
+```markdown
+<!-- prompts/story_writer.md -->
+## 비주얼 설정
+- 레이아웃 프리셋: {{account_config.visual_settings.default_layout_preset}}
+- 채널 톤: {{account_config.channels.instagram.tone}}
+
+이 설정에 맞는 visual anchor를 생성하세요.
+```
+
+### 14.6 비용/토큰 관리
+
+Orchestrator가 매 반복마다 예산 확인:
+
+```python
+# config/video_agents.yml
+defaults:
+  token_budget: 50000  # 약 $0.50 (claude sonnet 기준)
+
+def enforce_budget(state: VideoAgentState) -> bool:
+    """예산 초과 시 human_review로 전환"""
+    return state["llm_calls"] < state.get("token_budget", 50000)
+```
+
+### 14.7 LangGraph 의존성
+
+```bash
+uv add langgraph
+```
+
+Phase 1 체크리스트에 추가:
+
+```yaml
+Phase 1. Foundation:
+  - [ ] uv add langgraph
+  - [ ] `agents/` 디렉토리 구조 생성
+  # ...
+```
+
+---
+
+## 15. 변경 이력
+
+### v3 (P0-P3 구현 가이드 반영)
+
+| 항목 | v2 | v3 (구현 가이드) |
+|------|-----|-----------------|
+| SERVICE_CONSTRAINTS 참조 | 없음 | `select_generation_method`에서 직접 조회 |
+| 에이전트 순서 (fan-out) | 순차 | **copywriter + prompt_engineer 병렬** (LangGraph fan-out) |
+| Cascade invalidation | 없음 | `INVALIDATION_CASCADE` 규칙 추가 |
+| 에러 처리 | 없음 | `safe_node` 래퍼 + 입력 검증 |
+| Reviewer-Scorer 통합 | 없음 | 임시 VideoPlan 구성 후 기존 Scorer 재사용 |
+| ShotDraft → VideoShot 매핑 | 없음 | `notes` dict에 메타데이터 보존 |
+| 비용 추적 | 없음 | `llm_calls`, `token_budget` 필드 추가 |
+| 프롬프트 로더 | 없음 | `prompts/loader.py` (기존 prompt_loader 확장) |
+| account_config | 없음 | `visual_settings`, `channels` 포함 |
+| LangGraph 의존성 | 미포함 | `uv add langgraph` 명시 |
 
 ### v2 (리뷰 반영)
 
