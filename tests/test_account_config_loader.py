@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from picko.account_config_loader import deep_merge, load_account_config
+from picko.account_config_loader import _validate_includes, deep_merge, load_account_config
 
 
 def _write_yaml(path: Path, data: object) -> None:
@@ -140,5 +140,75 @@ def test_loader_raises_valueerror_when_directory_missing_index(tmp_path: Path) -
     accounts_root = tmp_path / "accounts"
     (accounts_root / "acme").mkdir(parents=True)
 
-    with pytest.raises(ValueError, match="Missing _index.yml"):
+    with pytest.raises(ValueError, match="Missing account.yml"):
         _ = load_account_config(accounts_root, "acme")
+
+
+def test_loader_loads_legacy_directory_without_index(tmp_path: Path) -> None:
+    accounts_root = tmp_path / "accounts"
+    account_dir = accounts_root / "acme"
+
+    _write_yaml(
+        account_dir / "account.yml",
+        {
+            "account_id": "acme",
+            "name": "legacy-dir",
+            "description": "desc",
+            "target_audience": ["founders"],
+        },
+    )
+    _write_yaml(account_dir / "scoring.yml", {"interests": {"primary": ["ai"]}})
+    _write_yaml(account_dir / "style.yml", {"visual_settings": {"theme": "dark"}})
+
+    got = load_account_config(accounts_root, "acme")
+
+    assert got["name"] == "legacy-dir"
+    assert got["interests"]["primary"] == ["ai"]
+    assert got["visual_settings"]["theme"] == "dark"
+
+
+def test_validate_includes_rejects_parent_path_traversal() -> None:
+    with pytest.raises(ValueError, match="Invalid include"):
+        _validate_includes(["../secret"], Path("accounts/acme/_index.yml"))
+
+
+def test_validate_includes_rejects_absolute_or_prefixed_path() -> None:
+    with pytest.raises(ValueError, match="Invalid include"):
+        _validate_includes(["/etc/passwd"], Path("accounts/acme/_index.yml"))
+
+    with pytest.raises(ValueError, match="Invalid include"):
+        _validate_includes(["./scoring"], Path("accounts/acme/_index.yml"))
+
+
+def test_validate_includes_rejects_special_characters() -> None:
+    with pytest.raises(ValueError, match="Invalid include"):
+        _validate_includes(["scoring$HOST"], Path("accounts/acme/_index.yml"))
+
+
+def test_validate_includes_accepts_simple_safe_names() -> None:
+    includes = _validate_includes(["scoring", "style", "channels_v2"], Path("accounts/acme/_index.yml"))
+    assert includes == ["scoring", "style", "channels_v2"]
+
+
+def test_missing_slice_error_lists_available_files(tmp_path: Path) -> None:
+    accounts_root = tmp_path / "accounts"
+    account_dir = accounts_root / "acme"
+
+    _write_yaml(
+        account_dir / "_index.yml",
+        {
+            "account_id": "acme",
+            "name": "acme",
+            "description": "desc",
+            "includes": ["nonexistent"],
+        },
+    )
+    _write_yaml(account_dir / "style.yml", {"visual_settings": {"theme": "dark"}})
+
+    with pytest.raises(ValueError) as exc_info:
+        _ = load_account_config(accounts_root, "acme")
+
+    message = str(exc_info.value)
+    assert "nonexistent" in message
+    assert "Available" in message
+    assert "style" in message

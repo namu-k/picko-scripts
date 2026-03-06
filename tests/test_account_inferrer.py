@@ -167,24 +167,32 @@ class TestAccountInferrer:
         inferrer.generate_account_files(sample_seed, output_dir)
 
         assert output_dir.is_dir()
-        assert (output_dir / "account.yml").exists()
+        assert (output_dir / "_index.yml").exists()
+        assert (output_dir / "channels.yml").exists()
+        assert (output_dir / "content.yml").exists()
+        assert (output_dir / "identity.yml").exists()
         assert (output_dir / "scoring.yml").exists()
-        assert (output_dir / "style.yml").exists()
+        assert not (output_dir / "style.yml").exists()
 
-    def test_generate_account_files_account_yml_content(self, mock_llm_client, sample_seed, tmp_path):
-        """Test that account.yml contains seed information."""
+    def test_generate_account_files_identity_and_channels_content(self, mock_llm_client, sample_seed, tmp_path):
         inferrer = AccountInferrer(mock_llm_client)
         output_dir = tmp_path / "test_account"
 
         inferrer.generate_account_files(sample_seed, output_dir)
 
-        with open(output_dir / "account.yml", encoding="utf-8") as f:
-            account = yaml.safe_load(f)
+        with open(output_dir / "identity.yml", encoding="utf-8") as f:
+            identity = yaml.safe_load(f)
+        with open(output_dir / "channels.yml", encoding="utf-8") as f:
+            channels = yaml.safe_load(f)
+        with open(output_dir / "_index.yml", encoding="utf-8") as f:
+            index = yaml.safe_load(f)
 
-        assert account["account_id"] == "test_account"
-        assert account["name"] == "Test Account"
-        assert account["description"] == "AI insights for startup founders"
-        assert "twitter" in account["channels"]
+        assert identity["one_liner"] == ""
+        assert identity["target_audience"] == ["startup founders", "tech enthusiasts"]
+        assert "twitter" in channels
+        assert "linkedin" in channels
+        assert index["account_id"] == "test_account"
+        assert "content" in index["includes"]
 
     def test_generate_account_files_does_not_overwrite_existing(self, mock_llm_client, sample_seed, tmp_path):
         """Test that existing files are not overwritten by default."""
@@ -192,13 +200,44 @@ class TestAccountInferrer:
         output_dir = tmp_path / "test_account"
         output_dir.mkdir()
 
-        existing_content = {"account_id": "existing", "name": "Existing"}
-        with open(output_dir / "account.yml", "w", encoding="utf-8") as f:
+        existing_content = {
+            "account_id": "existing",
+            "name": "Existing",
+            "description": "d",
+            "style_name": "s",
+        }
+        with open(output_dir / "_index.yml", "w", encoding="utf-8") as f:
             yaml.safe_dump(existing_content, f)
 
         inferrer.generate_account_files(sample_seed, output_dir)
 
-        with open(output_dir / "account.yml", encoding="utf-8") as f:
-            account = yaml.safe_load(f)
+        with open(output_dir / "_index.yml", encoding="utf-8") as f:
+            index = yaml.safe_load(f)
 
-        assert account["account_id"] == "existing"
+        assert index["account_id"] == "existing"
+
+
+class TestInferrerJsonParsing:
+    def test_parse_json_with_json_code_fence(self):
+        inferrer = AccountInferrer(MagicMock())
+        response = """Here is the result:\n```json\n{"interests": {"primary": ["AI"], "secondary": []}}\n```\nThanks"""
+        result = inferrer._parse_json_response(response)
+        assert result["interests"]["primary"] == ["AI"]
+
+    def test_parse_json_with_plain_code_fence(self):
+        inferrer = AccountInferrer(MagicMock())
+        response = """```\n{"keywords": {"high_relevance": ["test"]}}\n```"""
+        result = inferrer._parse_json_response(response)
+        assert result["keywords"]["high_relevance"] == ["test"]
+
+    def test_parse_json_with_leading_text(self):
+        inferrer = AccountInferrer(MagicMock())
+        response = 'Based on account profile: {"trusted_sources": ["TechCrunch"]}'
+        result = inferrer._parse_json_response(response)
+        assert result["trusted_sources"] == ["TechCrunch"]
+
+    def test_parse_json_with_trailing_text(self):
+        inferrer = AccountInferrer(MagicMock())
+        response = '{"tone": {"primary": "friendly"}}\nAdditional explanation follows.'
+        result = inferrer._parse_json_response(response)
+        assert result["tone"]["primary"] == "friendly"

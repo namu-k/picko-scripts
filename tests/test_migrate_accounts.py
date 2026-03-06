@@ -104,3 +104,86 @@ def test_migrate_account_creates_backup(tmp_path: Path):
     migrate_account("test_account", tmp_path)
 
     assert src.with_suffix(".yml.bak").exists()
+
+
+def test_migration_skips_existing_directory_without_force(tmp_path: Path):
+    accounts_dir = tmp_path / "config" / "accounts"
+    accounts_dir.mkdir(parents=True)
+
+    src = accounts_dir / "test_account.yml"
+    with open(src, "w", encoding="utf-8") as f:
+        yaml.safe_dump({"account_id": "test_account", "name": "Legacy Name"}, f)
+
+    out_dir = accounts_dir / "test_account"
+    out_dir.mkdir(parents=True)
+    with open(out_dir / "account.yml", "w", encoding="utf-8") as f:
+        yaml.safe_dump({"account_id": "test_account", "name": "MODIFIED NAME"}, f)
+
+    migrate_account("test_account", tmp_path)
+
+    with open(out_dir / "account.yml", "r", encoding="utf-8") as f:
+        persisted = yaml.safe_load(f)
+
+    assert persisted["name"] == "MODIFIED NAME"
+    assert src.exists()
+    assert not src.with_suffix(".yml.bak").exists()
+
+
+def test_migration_force_overwrites_existing_directory(tmp_path: Path):
+    accounts_dir = tmp_path / "config" / "accounts"
+    accounts_dir.mkdir(parents=True)
+
+    src = accounts_dir / "test_account.yml"
+    with open(src, "w", encoding="utf-8") as f:
+        yaml.safe_dump({"account_id": "test_account", "name": "Legacy Name"}, f)
+
+    out_dir = accounts_dir / "test_account"
+    out_dir.mkdir(parents=True)
+    with open(out_dir / "account.yml", "w", encoding="utf-8") as f:
+        yaml.safe_dump({"account_id": "test_account", "name": "MODIFIED NAME"}, f)
+
+    migrate_account("test_account", tmp_path, force=True)
+
+    with open(out_dir / "account.yml", "r", encoding="utf-8") as f:
+        persisted = yaml.safe_load(f)
+
+    assert persisted["name"] == "Legacy Name"
+    assert src.with_suffix(".yml.bak").exists()
+
+
+def test_migration_preserves_existing_backup_with_timestamp(tmp_path: Path):
+    accounts_dir = tmp_path / "config" / "accounts"
+    accounts_dir.mkdir(parents=True)
+
+    src = accounts_dir / "test_account.yml"
+    with open(src, "w", encoding="utf-8") as f:
+        yaml.safe_dump({"account_id": "test_account", "name": "Legacy Name"}, f)
+
+    backup = src.with_suffix(".yml.bak")
+    backup.write_text("existing backup", encoding="utf-8")
+
+    migrate_account("test_account", tmp_path, force=True)
+
+    assert backup.exists()
+    backups = sorted(accounts_dir.glob("test_account.yml.bak.*"))
+    assert backups
+
+
+def test_migration_warns_when_directory_exists_without_force(tmp_path: Path, capsys):
+    accounts_dir = tmp_path / "config" / "accounts"
+    accounts_dir.mkdir(parents=True)
+
+    src = accounts_dir / "test_account.yml"
+    with open(src, "w", encoding="utf-8") as f:
+        yaml.safe_dump({"account_id": "test_account", "name": "Legacy Name"}, f)
+
+    out_dir = accounts_dir / "test_account"
+    out_dir.mkdir(parents=True)
+    with open(out_dir / "account.yml", "w", encoding="utf-8") as f:
+        yaml.safe_dump({"account_id": "test_account", "name": "MODIFIED NAME"}, f)
+
+    migrate_account("test_account", tmp_path)
+    captured = capsys.readouterr()
+
+    assert "already exists" in captured.out
+    assert "use --force" in captured.out

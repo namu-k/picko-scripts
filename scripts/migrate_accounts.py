@@ -1,6 +1,7 @@
 """Migrate account profiles from single-file to directory structure."""
 
 import argparse
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -31,7 +32,7 @@ def load_reference_style(style_name: str, config_dir: Path) -> dict[str, Any] | 
     return None
 
 
-def migrate_account(account_id: str, project_root: Path | None = None) -> None:
+def migrate_account(account_id: str, project_root: Path | None = None, force: bool = False) -> None:
     """Migrate one account file into directory format.
 
     Args:
@@ -54,9 +55,14 @@ def migrate_account(account_id: str, project_root: Path | None = None) -> None:
         logger.error(f"Account file is not a dict: {src}")
         return
 
+    out_dir = accounts_dir / account_id
+    if out_dir.exists() and not force:
+        logger.warning(f"Account directory already exists: {out_dir}")
+        print(f"Skipping {account_id}: {out_dir} already exists (use --force to overwrite)")
+        return
+
     logger.info(f"Migrating account: {account_id}")
 
-    out_dir = accounts_dir / account_id
     out_dir.mkdir(parents=True, exist_ok=True)
 
     account = {
@@ -114,6 +120,9 @@ def migrate_account(account_id: str, project_root: Path | None = None) -> None:
     write_yaml(out_dir / "style.yml", style)
 
     backup_path = src.with_suffix(".yml.bak")
+    if backup_path.exists():
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_path = src.with_suffix(f".yml.bak.{timestamp}")
     src.rename(backup_path)
 
     logger.info(f"Migration complete: {account_id}")
@@ -125,6 +134,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Migrate accounts to directory structure")
     parser.add_argument("accounts", nargs="*", help="Account IDs to migrate")
     parser.add_argument("--all", action="store_true", help="Migrate all single-file accounts")
+    parser.add_argument("--force", action="store_true", help="Overwrite existing target directories")
     parser.add_argument("--dry-run", action="store_true", help="Show migration targets only")
     args = parser.parse_args()
 
@@ -144,7 +154,7 @@ def main() -> None:
         return
 
     for account_id in accounts:
-        migrate_account(account_id)
+        migrate_account(account_id, force=args.force)
 
     print(f"Migrated {len(accounts)} account(s)")
 
