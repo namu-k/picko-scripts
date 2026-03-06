@@ -164,14 +164,25 @@ class AccountInferrer:
         output_dir: Path,
         overwrite: bool = False,
     ) -> None:
-        """Generate account.yml, scoring.yml, and style.yml under output_dir."""
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        account_path = output_dir / "account.yml"
-        if overwrite or not account_path.exists():
-            account_data = self._build_account_yml(seed)
-            self._write_yaml(account_path, account_data)
-            logger.info(f"Created: {account_path}")
+        index_path = output_dir / "_index.yml"
+        if overwrite or not index_path.exists():
+            index_data = self._build_index_yml(seed)
+            self._write_yaml(index_path, index_data)
+            logger.info(f"Created: {index_path}")
+
+        channels_path = output_dir / "channels.yml"
+        if overwrite or not channels_path.exists():
+            channels_data = self._build_channels_yml(seed)
+            self._write_yaml(channels_path, channels_data)
+            logger.info(f"Created: {channels_path}")
+
+        identity_path = output_dir / "identity.yml"
+        if overwrite or not identity_path.exists():
+            identity_data = self._build_identity_yml(seed)
+            self._write_yaml(identity_path, identity_data)
+            logger.info(f"Created: {identity_path}")
 
         scoring_path = output_dir / "scoring.yml"
         if overwrite or not scoring_path.exists():
@@ -179,25 +190,59 @@ class AccountInferrer:
             self._write_yaml(scoring_path, scoring_data)
             logger.info(f"Created: {scoring_path}")
 
-        style_path = output_dir / "style.yml"
-        if overwrite or not style_path.exists():
+        content_path = output_dir / "content.yml"
+        if overwrite or not content_path.exists():
             style_data = self.infer_style(seed)
-            self._write_yaml(style_path, style_data)
-            logger.info(f"Created: {style_path}")
+            content_data = self._build_content_yml(style_data)
+            self._write_yaml(content_path, content_data)
+            logger.info(f"Created: {content_path}")
 
-    def _build_account_yml(self, seed: AccountSeed) -> dict[str, Any]:
-        """Build account.yml structure from AccountSeed."""
-        channels_data: dict[str, dict[str, bool]] = {}
-        for channel in seed.channels:
-            channels_data[channel] = {"enabled": True}
+        style_path = output_dir / "style.yml"
+        if overwrite and style_path.exists():
+            style_path.unlink()
 
+    def _build_index_yml(self, seed: AccountSeed) -> dict[str, Any]:
         return {
             "account_id": seed.account_id,
             "name": seed.name,
             "description": seed.description,
+            "style_name": "default",
+            "includes": ["scoring", "channels", "content", "identity"],
+        }
+
+    def _build_channels_yml(self, seed: AccountSeed) -> dict[str, Any]:
+        return {channel: {"enabled": True} for channel in seed.channels}
+
+    def _build_identity_yml(self, seed: AccountSeed) -> dict[str, Any]:
+        return {
             "one_liner": seed.one_liner,
             "target_audience": seed.target_audience,
-            "channels": channels_data,
+            "value_proposition": "",
+            "pillars": [],
+            "tone_voice": {},
+            "boundaries": [],
+            "bio": "",
+            "bio_secondary": "",
+            "link_purpose": "",
+        }
+
+    def _build_content_yml(self, style_data: dict[str, Any]) -> dict[str, Any]:
+        visual_settings = style_data.get("visual_settings", {})
+        if not isinstance(visual_settings, dict):
+            visual_settings = {
+                "default_layout_preset": "minimal_dark",
+                "channel_layouts": {},
+            }
+
+        return {
+            "content_settings": {
+                "use_exploration": True,
+                "apply_reference_style": True,
+                "generate_packs": True,
+                "generate_image_prompts": True,
+            },
+            "visual_settings": visual_settings,
+            "content_themes": style_data.get("content_themes", []),
         }
 
     def _write_yaml(self, path: Path, data: dict[str, Any]) -> None:

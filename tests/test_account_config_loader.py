@@ -142,3 +142,26 @@ def test_loader_raises_valueerror_when_directory_missing_index(tmp_path: Path) -
 
     with pytest.raises(ValueError, match="Missing _index.yml"):
         _ = load_account_config(accounts_root, "acme")
+
+
+def test_loader_loads_legacy_directory_without_index(tmp_path: Path) -> None:
+    accounts_root = tmp_path / "accounts"
+    account_dir = accounts_root / "acme"
+
+    _write_yaml(
+        account_dir / "account.yml",
+        {
+            "account_id": "acme",
+            "name": "legacy-dir",
+            "description": "desc",
+            "target_audience": ["founders"],
+        },
+    )
+    _write_yaml(account_dir / "scoring.yml", {"interests": {"primary": ["ai"]}})
+    _write_yaml(account_dir / "style.yml", {"visual_settings": {"theme": "dark"}})
+
+    got = load_account_config(accounts_root, "acme")
+
+    assert got["name"] == "legacy-dir"
+    assert got["interests"]["primary"] == ["ai"]
+    assert got["visual_settings"]["theme"] == "dark"

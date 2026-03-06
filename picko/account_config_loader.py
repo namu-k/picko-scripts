@@ -5,7 +5,7 @@ from typing import Any
 
 import yaml
 
-REQUIRED_INDEX_KEYS = ("account_id", "name", "description", "style_name")
+REQUIRED_INDEX_KEYS = ("account_id", "name", "description")
 
 
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -39,12 +39,23 @@ def _validate_index_required_keys(cfg: dict[str, Any], index_path: Path) -> None
         raise ValueError(f"Missing required keys in _index.yml ({', '.join(missing)}): {index_path}")
 
 
+def _load_legacy_directory_account(account_dir: Path) -> dict[str, Any]:
+    account_path = account_dir / "account.yml"
+    if not account_path.exists():
+        raise ValueError(f"Missing _index.yml: {account_dir / '_index.yml'}")
+
+    cfg = _load_yaml_dict(account_path)
+    for name in ("scoring", "style", "content", "channels", "identity", "weekly_slot"):
+        slice_path = account_dir / f"{name}.yml"
+        if slice_path.exists():
+            cfg = deep_merge(cfg, _load_yaml_dict(slice_path))
+    return cfg
+
+
 def load_account_config(accounts_root: Path, account_id: str) -> dict[str, Any]:
     """Returns {} when not found, raises ValueError for invalid shapes."""
     account_dir = accounts_root / account_id
     index = account_dir / "_index.yml"
-    if account_dir.exists() and account_dir.is_dir() and not index.exists():
-        raise ValueError(f"Missing _index.yml: {index}")
     if index.exists():
         cfg = _load_yaml_dict(index)
         _validate_index_required_keys(cfg, index)
@@ -55,6 +66,9 @@ def load_account_config(accounts_root: Path, account_id: str) -> dict[str, Any]:
                 raise ValueError(f"Missing slice file: {slice_path}")
             cfg = deep_merge(cfg, _load_yaml_dict(slice_path))
         return cfg
+
+    if account_dir.exists() and account_dir.is_dir():
+        return _load_legacy_directory_account(account_dir)
 
     legacy = accounts_root / f"{account_id}.yml"
     if legacy.exists():

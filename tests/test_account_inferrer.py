@@ -167,24 +167,32 @@ class TestAccountInferrer:
         inferrer.generate_account_files(sample_seed, output_dir)
 
         assert output_dir.is_dir()
-        assert (output_dir / "account.yml").exists()
+        assert (output_dir / "_index.yml").exists()
+        assert (output_dir / "channels.yml").exists()
+        assert (output_dir / "content.yml").exists()
+        assert (output_dir / "identity.yml").exists()
         assert (output_dir / "scoring.yml").exists()
-        assert (output_dir / "style.yml").exists()
+        assert not (output_dir / "style.yml").exists()
 
-    def test_generate_account_files_account_yml_content(self, mock_llm_client, sample_seed, tmp_path):
-        """Test that account.yml contains seed information."""
+    def test_generate_account_files_identity_and_channels_content(self, mock_llm_client, sample_seed, tmp_path):
         inferrer = AccountInferrer(mock_llm_client)
         output_dir = tmp_path / "test_account"
 
         inferrer.generate_account_files(sample_seed, output_dir)
 
-        with open(output_dir / "account.yml", encoding="utf-8") as f:
-            account = yaml.safe_load(f)
+        with open(output_dir / "identity.yml", encoding="utf-8") as f:
+            identity = yaml.safe_load(f)
+        with open(output_dir / "channels.yml", encoding="utf-8") as f:
+            channels = yaml.safe_load(f)
+        with open(output_dir / "_index.yml", encoding="utf-8") as f:
+            index = yaml.safe_load(f)
 
-        assert account["account_id"] == "test_account"
-        assert account["name"] == "Test Account"
-        assert account["description"] == "AI insights for startup founders"
-        assert "twitter" in account["channels"]
+        assert identity["one_liner"] == ""
+        assert identity["target_audience"] == ["startup founders", "tech enthusiasts"]
+        assert "twitter" in channels
+        assert "linkedin" in channels
+        assert index["account_id"] == "test_account"
+        assert "content" in index["includes"]
 
     def test_generate_account_files_does_not_overwrite_existing(self, mock_llm_client, sample_seed, tmp_path):
         """Test that existing files are not overwritten by default."""
@@ -192,13 +200,18 @@ class TestAccountInferrer:
         output_dir = tmp_path / "test_account"
         output_dir.mkdir()
 
-        existing_content = {"account_id": "existing", "name": "Existing"}
-        with open(output_dir / "account.yml", "w", encoding="utf-8") as f:
+        existing_content = {
+            "account_id": "existing",
+            "name": "Existing",
+            "description": "d",
+            "style_name": "s",
+        }
+        with open(output_dir / "_index.yml", "w", encoding="utf-8") as f:
             yaml.safe_dump(existing_content, f)
 
         inferrer.generate_account_files(sample_seed, output_dir)
 
-        with open(output_dir / "account.yml", encoding="utf-8") as f:
-            account = yaml.safe_load(f)
+        with open(output_dir / "_index.yml", encoding="utf-8") as f:
+            index = yaml.safe_load(f)
 
-        assert account["account_id"] == "existing"
+        assert index["account_id"] == "existing"

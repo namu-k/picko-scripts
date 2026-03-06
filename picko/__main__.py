@@ -61,9 +61,11 @@ def cmd_account_init(dry_run: bool = False) -> None:
     output_dir = PROJECT_ROOT / "config" / "accounts" / account_id
     if dry_run:
         print("\n[DRY RUN] Would create:")
-        print(f"  {output_dir / 'account.yml'}")
+        print(f"  {output_dir / '_index.yml'}")
+        print(f"  {output_dir / 'channels.yml'}")
+        print(f"  {output_dir / 'identity.yml'}")
+        print(f"  {output_dir / 'content.yml'} (AI inferred)")
         print(f"  {output_dir / 'scoring.yml'} (AI inferred)")
-        print(f"  {output_dir / 'style.yml'} (AI inferred)")
         return
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -72,9 +74,11 @@ def cmd_account_init(dry_run: bool = False) -> None:
     inferrer.generate_account_files(seed, output_dir)
 
     print("\nDone!")
-    print(f"  {output_dir / 'account.yml'}")
+    print(f"  {output_dir / '_index.yml'}")
+    print(f"  {output_dir / 'channels.yml'}")
+    print(f"  {output_dir / 'identity.yml'}")
+    print(f"  {output_dir / 'content.yml'}")
     print(f"  {output_dir / 'scoring.yml'}")
-    print(f"  {output_dir / 'style.yml'}")
     print(f"\nRegenerate later: picko account regen all {account_id}")
 
 
@@ -123,8 +127,9 @@ def cmd_account_regen(what: str, account_id: str) -> None:
 
     if what in ("style", "all"):
         style = inferrer.infer_style(seed)
-        inferrer._write_yaml(account_dir / "style.yml", style)
-        print("Regenerated style.yml")
+        content = inferrer._build_content_yml(style)
+        inferrer._write_yaml(account_dir / "content.yml", content)
+        print("Regenerated content.yml from style inference")
 
 
 def cmd_account_list() -> None:
