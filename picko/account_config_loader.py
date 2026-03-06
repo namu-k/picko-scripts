@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 REQUIRED_INDEX_KEYS = ("account_id", "name", "description")
+SAFE_INCLUDE_NAME_PATTERN = re.compile(r"^[a-zA-Z][a-zA-Z0-9_-]*$")
 
 
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -30,6 +32,20 @@ def _load_yaml_dict(path: Path) -> dict[str, Any]:
 def _validate_includes(includes: Any, index_path: Path) -> list[str]:
     if not isinstance(includes, list) or not all(isinstance(name, str) for name in includes):
         raise ValueError(f"'includes' must be a list of strings: {index_path}")
+
+    for name in includes:
+        if "/" in name or "\\" in name:
+            raise ValueError(f"Invalid include '{name}': path separators are not allowed in includes ({index_path})")
+        if name.startswith("."):
+            raise ValueError(
+                f"Invalid include '{name}': relative path prefixes are not allowed in includes ({index_path})"
+            )
+        if not SAFE_INCLUDE_NAME_PATTERN.match(name):
+            raise ValueError(
+                f"Invalid include '{name}': must start with a letter and use only "
+                f"letters, numbers, _ or - ({index_path})"
+            )
+
     return includes
 
 
@@ -42,7 +58,9 @@ def _validate_index_required_keys(cfg: dict[str, Any], index_path: Path) -> None
 def _load_legacy_directory_account(account_dir: Path) -> dict[str, Any]:
     account_path = account_dir / "account.yml"
     if not account_path.exists():
-        raise ValueError(f"Missing _index.yml: {account_dir / '_index.yml'}")
+        raise ValueError(
+            f"Missing account.yml in legacy directory: {account_dir}. " f"Legacy layout requires account.yml."
+        )
 
     cfg = _load_yaml_dict(account_path)
     for name in ("scoring", "style", "content", "channels", "identity", "weekly_slot"):
@@ -63,7 +81,13 @@ def load_account_config(accounts_root: Path, account_id: str) -> dict[str, Any]:
         for name in includes:
             slice_path = account_dir / f"{name}.yml"
             if not slice_path.exists():
-                raise ValueError(f"Missing slice file: {slice_path}")
+                available = sorted(path.stem for path in account_dir.glob("*.yml") if path.name != "_index.yml")
+                available_text = ", ".join(available) if available else "(none)"
+                raise ValueError(
+                    f"Missing slice file: {slice_path}. "
+                    f"Requested include: {name}. Available: {available_text}. "
+                    "Check _index.yml includes or create the missing slice file."
+                )
             cfg = deep_merge(cfg, _load_yaml_dict(slice_path))
         return cfg
 
