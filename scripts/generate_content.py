@@ -568,6 +568,40 @@ class ContentGenerator:
 
         return sections
 
+    def _parse_image_prompt_output(self, response: str) -> dict[str, str]:
+        sections = self._parse_generated_sections(response)
+
+        def pick(*keys: str, default: str = "") -> str:
+            for key in keys:
+                value = sections.get(key)
+                if isinstance(value, str) and value.strip():
+                    return value.strip()
+            return default
+
+        prompt = pick("MAIN_PROMPT", "메인 프롬프트", default=response.strip())
+        negative_prompt = pick(
+            "NEGATIVE_PROMPT",
+            "네거티브 프롬프트",
+            default="text, watermark, low quality",
+        )
+        style_keywords = pick("STYLE_KEYWORDS", "스타일", default="modern, clean")
+        mood = pick("MOOD", "분위기", default="professional")
+        color_palette = pick("COLOR_PALETTE", "색상", default="brand colors")
+        focal_subject = pick("FOCAL_SUBJECT", "PRIMARY_MESSAGE_VISUAL", "HERO_FOCUS")
+        composition = pick("COMPOSITION")
+
+        return {
+            "prompt": prompt,
+            "negative_prompt": negative_prompt,
+            "style": style_keywords,
+            "mood": mood,
+            "colors": color_palette,
+            "style_keywords": style_keywords,
+            "color_palette": color_palette,
+            "focal_subject": focal_subject,
+            "composition": composition,
+        }
+
     def _run_validation_if_enabled(self, output_path: str, content_type: str) -> None:
         """설정 기반 자동 검증 실행"""
         if self.dry_run:
@@ -676,15 +710,20 @@ class ContentGenerator:
         )
 
         response = self.llm.generate(prompt, max_tokens=500)
-        sections = self._parse_generated_sections(response)
+        parsed = self._parse_image_prompt_output(response)
 
         prompt_data = {
             "id": f"img_{item['input_id']}",
             "source_content_id": item["input_id"],
-            "prompt": sections.get("메인 프롬프트", response),
-            "style": sections.get("스타일", "modern, clean"),
-            "mood": sections.get("분위기", "professional"),
-            "colors": sections.get("색상", "brand colors"),
+            "prompt": parsed["prompt"],
+            "negative_prompt": parsed["negative_prompt"],
+            "style": parsed["style"],
+            "mood": parsed["mood"],
+            "colors": parsed["colors"],
+            "style_keywords": parsed["style_keywords"],
+            "color_palette": parsed["color_palette"],
+            "focal_subject": parsed["focal_subject"],
+            "composition": parsed["composition"],
         }
 
         content = self.renderer.render_image_prompt(prompt_data)
@@ -863,7 +902,12 @@ class ContentGenerator:
             }
         except FileNotFoundError:
             logger.debug(f"Longform not found for derivative check: {input_id}")
-            return {"status": "pending", "packs_channels": [], "images_approved": False, "videos_approved": False}
+            return {
+                "status": "pending",
+                "packs_channels": [],
+                "images_approved": False,
+                "videos_approved": False,
+            }
 
     def _load_longform_content(self, input_id: str) -> dict[str, Any] | None:
         """롱폼 노트 내용 로드"""

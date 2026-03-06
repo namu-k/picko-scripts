@@ -995,6 +995,96 @@ class TestGenerationAndApprovalPaths:
         assert mock_vault.write_note.called
 
     @patch("scripts.generate_content.get_config")
+    def test_generate_image_prompt_parses_output_fixed_blocks(self, mock_get_config, mock_config, mock_vault):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator.config = mock_config
+        generator.vault = mock_vault
+        generator.prompt_loader = MagicMock()
+        generator.prompt_loader.get_image_prompt.return_value = "prompt"
+        generator.llm = MagicMock()
+        generator.llm.generate.return_value = """
+[MAIN_PROMPT]
+A cozy desk scene with phone glow and cinematic lighting, 16:9
+
+[NEGATIVE_PROMPT]
+text, watermark, logo artifacts, low quality
+
+[FOCAL_SUBJECT]
+Phone screen glow on desk
+
+[COMPOSITION]
+Center-right focal subject with left-side headline safe space
+
+[STYLE_KEYWORDS]
+cinematic, editorial, minimal, photorealistic
+
+[MOOD]
+calm, intimate
+
+[COLOR_PALETTE]
+dark navy background, warm amber accent, soft cyan highlight
+"""
+        generator.renderer = MagicMock()
+        generator.renderer.render_image_prompt.return_value = "---\nid: img_x\n---\nbody"
+        generator.dry_run = True
+
+        ok = generator._generate_image_prompt({"input_id": "x", "account_id": "socialbuilders"}, {})
+
+        assert ok is True
+        assert generator.renderer.render_image_prompt.call_args is not None
+        prompt_data = generator.renderer.render_image_prompt.call_args.args[0]
+        assert prompt_data["prompt"].startswith("A cozy desk scene")
+        assert prompt_data["negative_prompt"] == "text, watermark, logo artifacts, low quality"
+        assert prompt_data["focal_subject"] == "Phone screen glow on desk"
+        assert "headline safe space" in prompt_data["composition"]
+        assert "cinematic" in prompt_data["style_keywords"]
+        assert prompt_data["mood"] == "calm, intimate"
+        assert "warm amber" in prompt_data["color_palette"]
+        assert prompt_data["style"] == "cinematic, editorial, minimal, photorealistic"
+        assert prompt_data["colors"] == "dark navy background, warm amber accent, soft cyan highlight"
+
+    @patch("scripts.generate_content.get_config")
+    def test_generate_image_prompt_keeps_legacy_block_compatibility(self, mock_get_config, mock_config, mock_vault):
+        from scripts.generate_content import ContentGenerator
+
+        mock_get_config.return_value = mock_config
+        generator = ContentGenerator.__new__(ContentGenerator)
+        generator.config = mock_config
+        generator.vault = mock_vault
+        generator.prompt_loader = MagicMock()
+        generator.prompt_loader.get_image_prompt.return_value = "prompt"
+        generator.llm = MagicMock()
+        generator.llm.generate.return_value = """
+[메인 프롬프트]
+Legacy visual prompt
+
+[스타일]
+modern, clean
+
+[분위기]
+professional
+
+[색상]
+brand blue, white
+"""
+        generator.renderer = MagicMock()
+        generator.renderer.render_image_prompt.return_value = "---\nid: img_x\n---\nbody"
+        generator.dry_run = True
+
+        ok = generator._generate_image_prompt({"input_id": "x", "account_id": "socialbuilders"}, {})
+
+        assert ok is True
+        assert generator.renderer.render_image_prompt.call_args is not None
+        prompt_data = generator.renderer.render_image_prompt.call_args.args[0]
+        assert prompt_data["prompt"] == "Legacy visual prompt"
+        assert prompt_data["style"] == "modern, clean"
+        assert prompt_data["mood"] == "professional"
+        assert prompt_data["colors"] == "brand blue, white"
+
+    @patch("scripts.generate_content.get_config")
     def test_generate_packs_with_approval_branches(self, mock_get_config, mock_config):
         from scripts.generate_content import ContentGenerator
 

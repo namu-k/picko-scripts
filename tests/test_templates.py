@@ -68,7 +68,12 @@ class TestTemplateRenderer:
                 "id": "test_123",
                 "title": "Test Article",
                 "writing_status": "pending",
-                "score": {"total": 0.85, "novelty": 0.9, "relevance": 0.8, "quality": 0.85},
+                "score": {
+                    "total": 0.85,
+                    "novelty": 0.9,
+                    "relevance": 0.8,
+                    "quality": 0.85,
+                },
                 "source": "TechCrunch",
                 "source_url": "https://techcrunch.com/test",
                 "summary": "Test summary content",
@@ -116,12 +121,19 @@ class TestTemplateRenderer:
             "source_content_id": "longform_123",
             "prompt": "A futuristic AI interface",
             "style": "cyberpunk",
+            "style_keywords": "cyberpunk, neon, high-contrast",
             "mood": "dramatic",
             "colors": "neon blue and pink",
+            "color_palette": "dark background, neon blue, hot pink",
             "negative_prompt": "text, blurry",
+            "focal_subject": "Holographic AI dashboard",
+            "composition": "Center subject with top-left safe title area",
             "reference_images": ["ref1.jpg", "ref2.jpg"],
         }
         result = renderer.render_image_prompt(content)
         assert "# Image Prompt" in result
         assert "## 메인 프롬프트" in result
         assert "A futuristic AI interface" in result
+        assert "## 구도/핵심 포인트" in result
+        assert "Holographic AI dashboard" in result
+        assert "top-left safe title area" in result

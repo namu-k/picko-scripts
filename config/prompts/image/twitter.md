@@ -1,36 +1,44 @@
-# Twitter 이미지 프롬프트
+# Twitter Image Prompt (Output-Fixed)
 
-다음 콘텐츠에 어울리는 Twitter용 카드 이미지를 생성해주세요.
+Generate one Twitter/X card image prompt from the input.
 
-**제목**: {{ title }}
-**요약**: {{ summary }}
-**태그**: {{ tags | join(", ") }}
+## Input
+- Title: {{ title }}
+- Summary: {{ summary }}
+- Tags: {{ tags | join(", ") }}
 
-**이미지 스펙**:
-- 비율: {{ image_specs.aspect_ratio }}
-- 스타일: {{ image_specs.style }}
-- 권장 크기: {{ image_specs.recommended_size }}
-
-**레이아웃 힌트**:
+## Channel Spec
+- Aspect Ratio: {{ image_specs.aspect_ratio }}
+- Style Direction: {{ image_specs.style }}
+- Recommended Size: {{ image_specs.recommended_size }}
+- Layout Hints:
 {% for hint in image_specs.layout_hints %}
-- {{ hint }}
+  - {{ hint }}
 {% endfor %}
 
----
+## Twitter Optimization Rules
+- First-glance clarity: subject must be recognizable within 1 second
+- Leave clear negative space for optional headline overlay
+- Strong focal contrast for feed-stopping visibility
+- Keep composition simple: one primary subject, one secondary support element
+- Avoid crowded scenes and tiny details that collapse in mobile feed
+- No visible text, no watermark, no logo artifacts in generated image
 
-다음 형식으로 작성해주세요:
+## Required Output Format (Return exactly these 6 blocks)
+[MAIN_PROMPT]
+<Production-ready English prompt optimized for Twitter card image>
 
-[메인 프롬프트]
-Twitter 카드에 최적화된 이미지 설명.
-텍스트 오버레이가 가능하도록 여백 확보.
-스크롤을 멈추게 하는 시각적 요소 포함.
+[NEGATIVE_PROMPT]
+<Comma-separated exclusions>
 
-[스타일]
-미니멀하고 깔끔한 디자인.
-브랜드 컬러 활용.
+[FOCAL_SUBJECT]
+<Primary subject in 1 line>
 
-[분위기]
-전문적이면서도 친근한 느낌.
+[COMPOSITION]
+<Framing, camera distance, safe-space placement>
 
-[색상]
-주요 색상 팔레트 (최대 3-4색).
+[STYLE_KEYWORDS]
+<5-8 keywords, comma-separated>
+
+[COLOR_PALETTE]
+<background, primary, accent, optional highlight>

@@ -1,36 +1,44 @@
-# Newsletter 이미지 프롬프트
+# Newsletter Image Prompt (Output-Fixed)
 
-다음 콘텐츠에 어울리는 뉴스레터용 히어로 이미지를 생성해주세요.
+Generate one newsletter hero image prompt from the input.
 
-**제목**: {{ title }}
-**요약**: {{ summary }}
-**태그**: {{ tags | join(", ") }}
+## Input
+- Title: {{ title }}
+- Summary: {{ summary }}
+- Tags: {{ tags | join(", ") }}
 
-**이미지 스펙**:
-- 비율: {{ image_specs.aspect_ratio }}
-- 스타일: {{ image_specs.style }}
-- 권장 크기: {{ image_specs.recommended_size }}
-
-**레이아웃 힌트**:
+## Channel Spec
+- Aspect Ratio: {{ image_specs.aspect_ratio }}
+- Style Direction: {{ image_specs.style }}
+- Recommended Size: {{ image_specs.recommended_size }}
+- Layout Hints:
 {% for hint in image_specs.layout_hints %}
-- {{ hint }}
+  - {{ hint }}
 {% endfor %}
 
----
+## Newsletter Hero Optimization Rules
+- Hero intent first: image should communicate the issue's core topic at a glance
+- Reserve generous headline-safe space for email title/subtitle overlay
+- Use an editorial composition with strong focal point and calm background
+- Prefer narrative clarity over decorative complexity
+- Maintain brand-consistent tone and restrained palette
+- No visible text, no watermark, no logo artifacts in generated image
 
-다음 형식으로 작성해주세요:
+## Required Output Format (Return exactly these 6 blocks)
+[MAIN_PROMPT]
+<Production-ready English prompt optimized for newsletter hero image>
 
-[메인 프롬프트]
-이메일 뉴스레터 상단 히어로 이미지.
-헤드라인 텍스트 오버레이를 위한 충분한 여백.
-일관된 브랜딩 요소 포함.
+[NEGATIVE_PROMPT]
+<Comma-separated exclusions>
 
-[스타일]
-에디토리얼 스타일의 세련된 디자인.
-잡지 커버처럼 눈길을 끄는 구성.
+[HERO_FOCUS]
+<Primary focal subject and supporting context>
 
-[분위기]
-전문적이고 신뢰감 있는 분위기.
+[COMPOSITION]
+<Header-safe area, focal placement, depth layering>
 
-[색상]
-브랜드 아이덴티티에 맞는 일관된 색상.
+[STYLE_KEYWORDS]
+<5-8 keywords, comma-separated>
+
+[COLOR_PALETTE]
+<background, primary, accent, optional highlight>

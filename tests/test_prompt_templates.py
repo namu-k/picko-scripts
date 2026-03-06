@@ -183,3 +183,7 @@ class TestTemplateContent:
     def test_veo_template_has_audio_guidance(self):
         template = get_prompt_template("veo")
         assert "오디오" in template or "audio" in template.lower()
+
+    def test_runway_template_includes_reference_image_url_field(self):
+        template = get_prompt_template("runway")
+        assert "reference_image_url" in template

@@ -3,7 +3,7 @@ Tests for video/quality_scorer.py
 """
 
 from picko.video.quality_scorer import QUALITY_THRESHOLD, QualityScore, VideoPlanScorer, score_video_plan
-from picko.video_plan import BrandStyle, LumaParams, VideoIntent, VideoPlan, VideoShot, VideoSource
+from picko.video_plan import BrandStyle, LumaParams, RunwayParams, VideoIntent, VideoPlan, VideoShot, VideoSource
 
 
 def make_plan(
@@ -336,3 +336,39 @@ class TestScoreVideoPlanFunction:
         scorer = VideoPlanScorer()
         result2 = scorer.score(plan)
         assert result1.overall == result2.overall
+
+
+class TestVideoPlanScorerKeyframeCompleteness:
+    def test_keyframe_dimension_enabled_for_runway(self):
+        runway = RunwayParams(
+            prompt="phone glow close-up in 3AM bedroom",
+            negative_prompt="text, watermark",
+            motion=4,
+            camera_move="static",
+        )
+        shot = VideoShot(
+            index=1,
+            duration_sec=5,
+            shot_type="intro",
+            script="scene",
+            caption="",
+            keyframe_image_prompt="3AM bedroom side profile in phone glow, 9:16 vertical",
+            runway=runway,
+        )
+        plan = make_plan(services=["runway"], shots=[shot])
+        plan.visual_anchor = "3AM bedroom cool blue moonlight phone glow 9:16 vertical"
+
+        result = VideoPlanScorer().score(plan, ["runway"])
+
+        assert "keyframe_completeness" in result.dimensions
+
+    def test_keyframe_dimension_disabled_without_runway(self):
+        plan = make_plan(
+            services=["luma"],
+            shots=[make_shot(index=1, luma=make_high_quality_luma_params())],
+        )
+        plan.visual_anchor = "3AM bedroom cool blue moonlight phone glow 9:16 vertical"
+
+        result = VideoPlanScorer().score(plan, ["luma"])
+
+        assert "keyframe_completeness" not in result.dimensions
