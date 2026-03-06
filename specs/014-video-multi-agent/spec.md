@@ -358,6 +358,8 @@ ShotDraft = {
     "camera_intent": str,        # 카메라 의도
     "motion_type": str,          # 모션 타입
     "continuity_constraints": list[str],  # 연속성 제약
+    "narrative_transition": str | None,   # ⭐ 샷 간 서사 전환 의도
+    # "contrast_shift" | "emotional_continuity" | "time_passage" | "reveal"
     "overlay_text_needed": bool,
     "generation_method": str | None,  # pure_video | keyframe_motion | image_stitch
     "risk_flags": list[str],

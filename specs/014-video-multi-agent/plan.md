@@ -99,6 +99,8 @@ class ShotDraft:
     camera_intent: str
     motion_type: str
     continuity_constraints: list[str] = field(default_factory=list)
+    narrative_transition: str | None = None  # ⭐ 샷 간 서사 전환 의도
+    # "contrast_shift" | "emotional_continuity" | "time_passage" | "reveal"
     overlay_text_needed: bool = False
     generation_method: str | None = None
     risk_flags: list[str] = field(default_factory=list)
@@ -179,6 +181,9 @@ def build_video_agent_graph():
     builder.add_edge("copywriter", "reviewer")
     builder.add_edge("prompt_engineer", "reviewer")
 
+    # ⭐ reviewer → orchestrator (필수!)
+    builder.add_edge("reviewer", "orchestrator")
+
     # Conditional routing
     builder.add_conditional_edges(
         "orchestrator",
@@ -203,7 +208,107 @@ class VideoAgentGraph:
         # ... implementation
 ```
 
-### 1.6 검증
+### 1.6 프롬프트 로더
+**파일**: `picko/video/agents/prompts/loader.py`
+```python
+from pathlib import Path
+from jinja2 import Template
+
+PROMPTS_DIR = Path(__file__).parent
+
+class AgentPromptLoader:
+    """에이전트 시스템 프롬프트 로더"""
+
+    def __init__(self):
+        self.cache: dict[str, str] = {}
+
+    def load(self, agent_name: str) -> str:
+        """에이전트 프롬프트 파일 로드"""
+        if agent_name in self.cache:
+            return self.cache[agent_name]
+
+        path = PROMPTS_DIR / f"{agent_name}.md"
+        if not path.exists():
+            raise FileNotFoundError(f"Prompt file not found: {path}")
+
+        content = path.read_text(encoding="utf-8")
+        self.cache[agent_name] = content
+        return content
+
+    def render(self, agent_name: str, variables: dict) -> str:
+        """프롬프트 렌더링 (Jinja2)"""
+        template_str = self.load(agent_name)
+        template = Template(template_str)
+        return template.render(**variables)
+```
+
+### 1.7 그래프 초기화 (account_config)
+**파일**: `picko/video/agents/graph.py`
+```python
+from picko.config import get_config
+from picko.account_context import get_identity, get_weekly_slot
+
+class VideoAgentGraph:
+    def __init__(self):
+        self.graph = build_video_agent_graph()
+        self.compiled = self.graph.compile()
+
+    def generate(self, account_id: str, **kwargs) -> VideoAgentState:
+        # 계정 컨텍스트 로드
+        config = get_config()
+        identity = get_identity(account_id)
+        weekly_slot = get_weekly_slot(kwargs.get("week_of")) if kwargs.get("week_of") else None
+        account_config = config.get_account(account_id) or {}
+
+        # 초기 상태 구성
+        initial_state: VideoAgentState = {
+            # Input
+            "account_id": account_id,
+            "intent": kwargs.get("intent", "ad"),
+            "services": kwargs.get("services", ["luma"]),
+            "platforms": kwargs.get("platforms", ["instagram_reel"]),
+            # Context
+            "identity": identity.__dict__ if identity else {},
+            "account_config": account_config,  # visual_settings, channels
+            "weekly_slot": weekly_slot.__dict__ if weekly_slot else None,
+            # Marketing extension
+            "campaign_context": kwargs.get("campaign_context"),
+            "performance_hints": kwargs.get("performance_hints", []),
+            "experiment_vars": kwargs.get("experiment_vars"),
+            # Planning
+            "visual_anchor": "",
+            "shots": [],
+            # Production
+            "generation_methods": [],
+            "continuity_refs": {},
+            "stitch_plan": {},
+            "asset_manifest": [],
+            # Copy
+            "hook": "",
+            "captions": [],
+            "cta": "",
+            "overlay_texts": [],
+            # Prompt
+            "image_prompts": [],
+            "video_prompts": [],
+            "negative_prompts": [],
+            # Review
+            "quality_score": 0.0,
+            "quality_issues": [],
+            "feedback_notes": [],
+            "revision_target": None,
+            # Control
+            "iteration_count": 0,
+            "approved": False,
+            "human_review_required": False,
+            "llm_calls": 0,
+            "token_budget": kwargs.get("token_budget", 50000),
+        }
+
+        return self.compiled.invoke(initial_state)
+```
+
+### 1.8 검증
 - [ ] `VideoAgentState` 타입 체크
 - [ ] `ShotDraft` 직렬화/역직렬화
 - [ ] LangGraph 컴파일
@@ -324,20 +429,69 @@ def invalidate_downstream(state: VideoAgentState, targets: list[str]) -> VideoAg
 
 ### 3.4 Conditional Routing
 ```python
+def enforce_budget(state: VideoAgentState) -> bool:
+    """예산 초과 확인"""
+    return state["llm_calls"] < state.get("token_budget", 50000)
+
 def route_by_revision(state: VideoAgentState) -> str:
+    # 1. 승인됨 → 종료
     if state["approved"]:
         return "approved"
-    if state["iteration_count"] >= state.get("max_iterations", 3):
-        return "approved"
 
+    # 2. 예산 초과 → 종료 + human_review
+    if not enforce_budget(state):
+        return "budget_exceeded"
+
+    # 3. 최대 반복 도달 → 종료 (approved=False)
+    if state["iteration_count"] >= state.get("max_iterations", 3):
+        return "max_iterations"
+
+    # 4. 리비전 타겟에 따라 재실행
     revision = state.get("revision_target")
     if revision == "story_writer":
         return "revise_story"
     elif revision == "stitch_planner":
         return "revise_stitch"
-    # ...
+    elif revision == "copywriter":
+        return "revise_copy"
+    elif revision == "prompt_engineer":
+        return "revise_prompt"
+
+    # 기본: 종료
     return "approved"
 ```
+
+**conditional_edges 정의**:
+```python
+builder.add_conditional_edges(
+    "orchestrator",
+    route_by_revision,
+    {
+        "approved": END,
+        "max_iterations": END,      # END but approved=False
+        "budget_exceeded": END,      # END + human_review_required=True
+        "revise_story": "story_writer",
+        "revise_stitch": "stitch_planner",
+        "revise_copy": "copywriter",
+        "revise_prompt": "prompt_engineer",
+    }
+)
+```
+
+### 3.5 Cascade 재실행 트레이드오프
+
+현재 엣지 구조상 `revise_stitch → stitch_planner` 후 자동으로 `copywriter`도 재실행됨:
+```
+stitch_planner → copywriter (기본 엣지)
+```
+
+이는 불필요한 LLM 호출이지만, 단순화를 위해 수용함:
+
+**대안** (복잡도 증가):
+- 리비전용 서브그래프 분리
+- 동적 엣지 추가/제거
+
+**현재 결정**: 단순화 우선, 불필요한 호출 수용
 
 ### 3.5 검증
 - [ ] copywriter → hook, captions, cta 생성
