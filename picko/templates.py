@@ -358,11 +358,18 @@ created_at: {{ created_at }}
 
 {{ prompt }}
 
+## 구도/핵심 포인트
+
+{% if focal_subject %}- **Focal Subject**: {{ focal_subject }}
+{% endif %}{% if composition %}- **Composition**: {{ composition }}
+{% endif %}{% if not focal_subject and not composition %}없음
+{% endif %}
+
 ## 스타일 가이드
 
-- **Style**: {{ style | default("modern, clean") }}
+- **Style**: {{ style | default(style_keywords | default("modern, clean")) }}
 - **Mood**: {{ mood | default("professional") }}
-- **Colors**: {{ colors | default("brand colors") }}
+- **Colors**: {{ colors | default(color_palette | default("brand colors")) }}
 
 ## 네거티브 프롬프트
 
