@@ -43,7 +43,7 @@ dev = [
     "black==26.1.0",
     "isort==7.0.0",
     "mypy==1.19.1",
-    "types-PyYAML==6.0.0.20240311",
+    "types-PyYAML==6.0.12.20240311",
     "pre-commit==4.5.1",
     "safety==3.7.0",
     "pip-audit==2.10.0",
