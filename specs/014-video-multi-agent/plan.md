@@ -1,8 +1,143 @@
-# 014-video-multi-agent Implementation Plan
+# 014-video-multi-agent Implementation Plan (v2)
 
 ## Overview
 
-스펙 문서 `specs/014-video-multi-agent/spec.md` 기반 구현 계획
+스펙 문서 `specs/014-video-multi-agent/spec.md` v4 기반 구현 계획.
+
+**v2 핵심 변경사항**:
+- shot_id 기반 상태 스키마 (배열 인덱스 제거)
+- recipe-based production (2단 레시피 선택)
+- Reviewer 3단 분리 (Plan / Artifact / Human Gate)
+- Audio Director 추가
+- TerminalStatus enum (boolean 조합 제거)
+- 구조화된 이슈 코드 (키워드 매칭 제거)
+- CreativeBrief 입력 스키마
+- Provider/Service/Platform 3층 출력
+- manual_assisted -> API 전환 설계
+
+---
+
+## Design Decisions (구현 전 확정된 설계 결정)
+
+### D1. Fan-out / Fan-in 동작 방식
+
+LangGraph StateGraph에서 stitch_planner 이후 copywriter, prompt_engineer, audio_director가 **3-way fan-out**으로 병렬 실행. plan_reviewer는 세 predecessor가 모두 완료된 후 1회만 실행.
+
+병렬 노드가 동일 필드에 쓰는 경우 reducer 필요:
+- `llm_calls_used`: `Annotated[int, operator.add]`
+- `tokens_used_estimate`: `Annotated[int, operator.add]`
+- `cost_usd_estimate`: `Annotated[float, operator.add]`
+- 나머지 필드는 각 노드가 전담하므로 충돌 없음
+
+### D2. State 필드 소유권
+
+| 필드 | 설정 주체 | 시점 |
+|------|----------|------|
+| `plan_review`, `revision_issues` | Plan Reviewer | 매 review 후 |
+| `terminal_status`, `iteration_count` | Orchestrator | 매 routing 전 |
+| `llm_calls_used`, `tokens_used_estimate`, `cost_usd_estimate` | 각 노드 (반환 dict) | LLM 호출 직후 |
+| `artifact_review` | Artifact Reviewer | 렌더 결과 업로드 후 |
+
+Plan Reviewer는 **평가만**. 승인/거절 결정은 Orchestrator 전담.
+
+### D3. Cascade Invalidation = 필드 초기화 (clear)
+
+"invalidate" = 해당 에이전트 출력 필드를 `{}` / `""` / `None`으로 초기화.
+이전 결과 보존 없음. 재실행하면 처음부터 생성.
+
+`revise_story` 시 실행 순서:
+```
+story_writer -> stitch_planner -> copywriter || prompt_engineer || audio_director
+```
+
+### D4. Orchestrator 결정 로직
+
+```
+Orchestrator 결정 (TerminalStatus 기반):
+  if cost_usd >= budget:        -> BLOCKED (비용 초과)
+  if score >= auto_threshold:   -> AUTO_APPROVED
+  if score <= human_threshold:  -> NEEDS_HUMAN_REVIEW
+  if iterations >= max:         -> MAX_ITERATIONS_REACHED
+  if 60 < score < 85:          -> REVISE_REQUIRED (issues 기반 dispatch)
+  hard fail (brand violation):  -> REVISE_REQUIRED (story_writer 필수)
+```
+
+### D5. shot_id 기반 데이터 정합성
+
+**모든 shot-level 데이터는 shot_id를 키로 사용한다.**
+
+| Dict | 보장 주체 |
+|------|----------|
+| `shots_by_id` | story_writer |
+| `production_by_shot_id` | stitch_planner |
+| `copy_by_shot_id` | copywriter |
+| `prompts_by_shot_id` | prompt_engineer |
+| `audio_by_shot_id` | audio_director |
+
+`shot_order: list[str]`로 순서를 보존한다.
+
+불변식: 모든 shot-level dict의 key set == set(shot_order)
+
+### D6. Duration 출처
+
+- 총 영상 길이: `creative_brief.target_duration_sec` (기본: 플랫폼별)
+  - instagram_reel: 15s, tiktok: 30s, youtube_shorts: 60s
+- story_writer가 shot별 `duration_sec` 초안 설정
+- stitch_planner가 `total_duration_sec`에 맞게 조정
+
+### D7. Revision Routing (구조화된 이슈 코드)
+
+키워드 매칭 대신 `ReviewIssue.code` 프리픽스로 target agent를 결정:
+
+```python
+_CODE_AGENT_MAP = {
+    "story.":       "story_writer",
+    "continuity.":  "stitch_planner",
+    "production.":  "stitch_planner",
+    "copy.":        "copywriter",
+    "prompt.":      "prompt_engineer",
+    "audio.":       "audio_director",
+}
+
+def resolve_revision_targets(issues: list[ReviewIssue]) -> list[str]:
+    """이슈 코드에서 target agents 추출 (우선순위: severity 순)"""
+    sorted_issues = sorted(issues, key=lambda i: _SEVERITY_ORDER[i.severity])
+    targets = []
+    for issue in sorted_issues:
+        for prefix, agent in _CODE_AGENT_MAP.items():
+            if issue.code.startswith(prefix) and agent not in targets:
+                targets.append(agent)
+    return targets
+```
+
+다중 이슈 동시 처리: 가장 upstream인 agent부터 cascade 실행.
+
+### D8. Error Handling
+
+`safe_node` -> `revision_issues`에 에러 기록 -> plan_reviewer가 score=0 -> orchestrator가 REVISE_REQUIRED.
+iteration으로 카운트되므로 max_iterations에 도달하면 종료.
+
+### D9. manual_assisted 렌더 루프
+
+Planning graph가 완료되면 `render_brief`를 출력한다.
+사용자가 외부 도구(Sora 앱, Runway 앱 등)에서 렌더 후 결과 파일을 업로드.
+Artifact Reviewer가 3층 QA를 수행. QA 통과 후 **Publish Reviewer (human gate)** 가 최종 게시 승인.
+
+```
+planning_graph.invoke() -> render_briefs
+user renders externally
+user uploads result
+artifact_reviewer.invoke(result, plan) -> pass / fail_auto / fail_manual
+  [pass]        -> publish_reviewer_node (human gate: 감성/브랜드/리스크 확인)
+  [fail_auto]   -> 자동 재생성 제안 (bounded autonomy 항목만)
+  [fail_manual] -> 사람 검토 요청
+publish_reviewer_node -> PUBLISH_APPROVED / PUBLISH_BLOCKED
+```
+
+`publish_reviewer_node`는 **제거 불가 human gate**: 감성 여운, 브랜드 일관성, 리스크를 사람이 최종 확인.
+상태에 `publish_status: str` 필드를 추가 (`"pending" | "approved" | "blocked"`).
+
+API 전환 시: render_brief -> API executor -> artifact_reviewer -> publish_reviewer (계약 동일)
 
 ---
 
@@ -22,24 +157,72 @@ touch picko/video/agents/__init__.py
 touch picko/video/agents/nodes/__init__.py
 touch picko/video/agents/tools/__init__.py
 touch picko/video/agents/prompts/__init__.py
+
+# node 파일
+touch picko/video/agents/nodes/base.py
+touch picko/video/agents/nodes/story_writer.py
+touch picko/video/agents/nodes/copywriter.py
+touch picko/video/agents/nodes/prompt_engineer.py
+touch picko/video/agents/nodes/stitch_planner.py
+touch picko/video/agents/nodes/audio_director.py
+touch picko/video/agents/nodes/plan_reviewer.py
+touch picko/video/agents/nodes/artifact_reviewer.py
+touch picko/video/agents/nodes/orchestrator.py
+
+# tool 파일
+touch picko/video/agents/tools/base.py
+touch picko/video/agents/tools/story.py
+touch picko/video/agents/tools/copy.py
+touch picko/video/agents/tools/prompt.py
+touch picko/video/agents/tools/stitch.py
+touch picko/video/agents/tools/audio.py
+touch picko/video/agents/tools/review.py
+touch picko/video/agents/tools/artifact_qa.py
+touch picko/video/agents/tools/orchestrate.py
+
+# prompt 파일
+touch picko/video/agents/prompts/story_writer.md
+touch picko/video/agents/prompts/copywriter.md
+touch picko/video/agents/prompts/prompt_engineer.md
+touch picko/video/agents/prompts/stitch_planner.md
+touch picko/video/agents/prompts/audio_director.md
+touch picko/video/agents/prompts/plan_reviewer.md
+touch picko/video/agents/prompts/orchestrator.md
+
+# provider registry
+touch picko/video/agents/providers.py
 ```
 
 ### 1.3 상태/스키마 정의
 
 **파일**: `picko/video/agents/state.py`
 ```python
-from typing import TypedDict
+import operator
+from enum import Enum
+from typing import Annotated, TypedDict
+
+
+class TerminalStatus(str, Enum):
+    PENDING = "pending"
+    AUTO_APPROVED = "auto_approved"
+    NEEDS_HUMAN_REVIEW = "needs_human_review"
+    REVISE_REQUIRED = "revise_required"
+    BLOCKED = "blocked"
+    MAX_ITERATIONS_REACHED = "max_iterations_reached"
+
 
 class VideoAgentState(TypedDict):
-    # Input
+    # === Input ===
     account_id: str
     intent: str
     services: list[str]
     platforms: list[str]
+    execution_mode: str                      # "manual_assisted" | "api"
+    creative_brief: dict                     # CreativeBrief as dict
 
-    # Context
+    # === Context ===
     identity: dict
-    account_config: dict  # visual_settings, channels
+    account_config: dict
     weekly_slot: dict | None
 
     # Marketing extension
@@ -47,45 +230,73 @@ class VideoAgentState(TypedDict):
     performance_hints: list[str]
     experiment_vars: dict | None
 
-    # Planning
+    # === Planning (shot_id 기반) ===
     visual_anchor: str
-    shots: list[dict]  # ShotDraft[]
+    shots_by_id: dict[str, dict]             # {shot_id: ShotDraft}
+    shot_order: list[str]                    # shot_id 순서
 
-    # Production
-    generation_methods: list[str]
-    continuity_refs: dict
-    stitch_plan: dict
-    asset_manifest: list[dict]
+    # === Production (shot_id 기반) ===
+    production_by_shot_id: dict[str, dict]   # {shot_id: ProductionSpec}
+    continuity_refs: dict                    # ContinuityRefs
+    stitch_plan: dict                        # StitchPlan
+    asset_manifest: list[dict]               # list[AssetItem]
 
-    # Copy
-    hook: str
-    captions: list[str]
-    cta: str
-    overlay_texts: list[str]
+    # === Copy (shot_id 기반) ===
+    copy_by_shot_id: dict[str, dict]         # {shot_id: CopyBundle}
 
-    # Prompt
-    image_prompts: list[str]
-    video_prompts: list[str]
-    negative_prompts: list[str]
+    # === Prompt (shot_id 기반) ===
+    prompts_by_shot_id: dict[str, dict]      # {shot_id: PromptBundle}
 
-    # Review
-    quality_score: float
-    quality_issues: list[str]
-    feedback_notes: list[str]
-    revision_target: str | None
+    # === Audio (shot_id 기반) ===
+    audio_by_shot_id: dict[str, dict]        # {shot_id: AudioSpec}
 
-    # Control
+    # === Plan Review ===
+    plan_review: dict                        # PlanReviewResult
+    revision_issues: list[dict]              # list[ReviewIssue]
+
+    # === Artifact Review ===
+    artifact_review: dict | None             # ArtifactReviewResult
+
+    # === Publish Review (human gate) ===
+    publish_status: str                      # "pending" | "approved" | "blocked"
+
+    # === Control ===
+    terminal_status: str                     # TerminalStatus value
     iteration_count: int
-    approved: bool
-    human_review_required: bool
-    llm_calls: int
-    token_budget: int
+    max_iterations: int
+    auto_approve_threshold: float
+    human_review_threshold: float
+
+    # === Cost Tracking (분리된 메트릭) ===
+    llm_calls_used: Annotated[int, operator.add]
+    tokens_used_estimate: Annotated[int, operator.add]
+    cost_usd_estimate: Annotated[float, operator.add]
+    cost_budget_usd: float
 ```
 
 **파일**: `picko/video/agents/schemas.py`
 ```python
 from dataclasses import dataclass, field
-from typing import Any
+
+
+@dataclass
+class CreativeBrief:
+    account_id: str
+    intent: str                        # ad | explainer | brand | trend
+    objective: str = ""
+    audience: str = ""
+    emotional_target: str = ""
+    message_pillar: str = ""
+    proof_points: list[str] = field(default_factory=list)
+    product_surface: str = ""
+    cta_policy: str = "soft"
+    target_duration_sec: float = 15.0
+    platforms: list[str] = field(default_factory=list)
+    services: list[str] = field(default_factory=list)
+    execution_mode: str = "manual_assisted"
+    series_id: str | None = None
+    brand_rules_ref: str | None = None
+
 
 @dataclass
 class ShotDraft:
@@ -98,40 +309,212 @@ class ShotDraft:
     lighting: str
     camera_intent: str
     motion_type: str
+    duration_sec: float = 5.0
     continuity_constraints: list[str] = field(default_factory=list)
-    narrative_transition: str | None = None  # ⭐ 샷 간 서사 전환 의도
-    # "contrast_shift" | "emotional_continuity" | "time_passage" | "reveal"
+    narrative_transition: str | None = None
     overlay_text_needed: bool = False
-    generation_method: str | None = None
     risk_flags: list[str] = field(default_factory=list)
+
+
+@dataclass
+class RenderRecipe:
+    image_service: str | None = None
+    motion_service: str | None = None
+    stitch_engine: str | None = None
+    audio_strategy: str = "silent_visual"
+    continuity_ref_source: str = ""
+
+
+@dataclass
+class ProductionSpec:
+    shot_id: str
+    production_mode: str               # pure_video | keyframe_motion | image_stitch | hybrid_segment
+    render_recipe: RenderRecipe = field(default_factory=RenderRecipe)
+    fallback_recipe: RenderRecipe | None = None
+
+
+@dataclass
+class CopyBundle:
+    hook: str | None = None
+    caption: str = ""
+    cta: str | None = None
+    overlay_text: str | None = None
+
+
+@dataclass
+class PromptBundle:
+    video_prompt: str = ""
+    image_prompt: str = ""
+    negative_prompt: str = ""
+    service_specific_params: dict = field(default_factory=dict)
+
+
+@dataclass
+class AudioSpec:
+    audio_strategy: str = "silent_visual"
+    voiceover_needed: bool = False
+    voiceover_script: str | None = None
+    silence_windows: list[tuple[float, float]] = field(default_factory=list)
+    ambient_profile: str = ""
+    bgm_profile: str = ""
+    sfx_cues: list[dict] = field(default_factory=list)
+    caption_timing_ref: str | None = None
+
+
+@dataclass
+class ReviewIssue:
+    code: str                          # "continuity.lighting_drift"
+    severity: str                      # "critical" | "high" | "medium" | "low"
+    target_agents: list[str] = field(default_factory=list)
+    shot_ids: list[str] = field(default_factory=list)
+    description: str = ""
+
 
 @dataclass
 class StitchSegment:
     segment_id: str
     shot_ids: list[str]
-    method: str  # pure_video | keyframe_motion | image_stitch
+    method: str
     transition_in: str
     transition_out: str
     duration_sec: float
     assets_required: list[str] = field(default_factory=list)
     processing_notes: str = ""
 
+
 @dataclass
 class StitchPlan:
-    strategy: str  # sequential | parallel | hybrid
+    strategy: str
     segments: list[StitchSegment]
     total_duration_sec: float
-    transition_style: str  # crossfade | cut | morph | wipe
+    transition_style: str
+
 
 @dataclass
 class AssetItem:
     asset_id: str
-    type: str  # image | video | audio
+    type: str                          # image | video | audio
     shot_ids: list[str]
     generation_service: str
     prompt_ref: str
-    status: str  # pending | generated | failed
+    status: str = "pending"
+    depends_on: list[str] = field(default_factory=list)
+    estimated_cost_usd: float = 0.0
     file_path: str | None = None
+```
+
+**파일**: `picko/video/agents/providers.py`
+```python
+from dataclasses import dataclass, field
+
+
+@dataclass
+class ProviderCapability:
+    provider_id: str
+    display_name: str
+    execution_modes: list[str]
+    supported_ratios: list[str]
+    supported_durations: list[float]
+    max_duration_per_clip: float
+    supports_start_image: bool
+    supports_end_image: bool
+    native_audio: bool
+    post_audio_api: bool = False
+    supports_reference_image: bool = False
+    supports_first_last_frame: bool = False
+
+
+PROVIDER_CAPABILITIES: dict[str, ProviderCapability] = {
+    "sora_app": ProviderCapability(
+        provider_id="sora_app",
+        display_name="Sora (App)",
+        execution_modes=["manual_assisted"],
+        supported_ratios=["9:16", "16:9", "1:1"],
+        supported_durations=[5, 10, 15, 20],
+        max_duration_per_clip=20.0,
+        supports_start_image=True,
+        supports_end_image=False,
+        native_audio=True,
+        supports_reference_image=True,
+    ),
+    "sora_api": ProviderCapability(
+        provider_id="sora_api",
+        display_name="Sora (API)",
+        execution_modes=["api"],
+        supported_ratios=["9:16", "16:9", "1:1"],   # canonical; API 내부 해상도는 _normalize_ratio로 변환
+        supported_durations=[4, 8, 12],
+        max_duration_per_clip=12.0,
+        supports_start_image=True,
+        supports_end_image=False,
+        native_audio=True,
+        supports_reference_image=True,
+    ),
+    "veo_api": ProviderCapability(
+        provider_id="veo_api",
+        display_name="Veo 3.1 (API)",
+        execution_modes=["api"],
+        supported_ratios=["9:16", "16:9"],
+        supported_durations=[4, 6, 8],
+        max_duration_per_clip=8.0,
+        supports_start_image=True,
+        supports_end_image=False,
+        native_audio=True,
+        supports_reference_image=True,
+        supports_first_last_frame=True,
+    ),
+    "runway_api": ProviderCapability(
+        provider_id="runway_api",
+        display_name="Runway Gen-4.5 (API)",
+        execution_modes=["api"],
+        supported_ratios=["9:16", "16:9", "1:1"],
+        supported_durations=[5, 10],
+        max_duration_per_clip=10.0,
+        supports_start_image=True,
+        supports_end_image=True,
+        native_audio=False,
+        post_audio_api=True,
+        supports_reference_image=True,
+    ),
+    "runway_app": ProviderCapability(
+        provider_id="runway_app",
+        display_name="Runway (App)",
+        execution_modes=["manual_assisted"],
+        supported_ratios=["9:16", "16:9", "1:1"],
+        supported_durations=[5, 10],
+        max_duration_per_clip=10.0,
+        supports_start_image=True,
+        supports_end_image=True,
+        native_audio=False,
+        post_audio_api=True,
+        supports_reference_image=True,
+    ),
+}
+
+
+def get_providers_for_mode(execution_mode: str) -> dict[str, ProviderCapability]:
+    """execution_mode에 맞는 provider만 필터"""
+    return {
+        pid: cap
+        for pid, cap in PROVIDER_CAPABILITIES.items()
+        if execution_mode in cap.execution_modes
+    }
+
+
+def get_providers_for_mode_and_services(
+    execution_mode: str,
+    requested_services: list[str],
+) -> dict[str, ProviderCapability]:
+    """execution_mode + 사용자 requested_services 교집합 필터.
+    교집합이 비어 있으면 mode-only 필터로 fallback."""
+    mode_providers = get_providers_for_mode(execution_mode)
+    if not requested_services:
+        return mode_providers
+    intersected = {
+        pid: cap
+        for pid, cap in mode_providers.items()
+        if pid in requested_services
+    }
+    return intersected if intersected else mode_providers  # fallback
 ```
 
 ### 1.4 BaseTool 클래스
@@ -139,6 +522,7 @@ class AssetItem:
 ```python
 from abc import ABC, abstractmethod
 from typing import Any
+
 
 class BaseTool(ABC):
     name: str
@@ -156,6 +540,7 @@ from langgraph.graph import StateGraph, END
 
 from picko.video.agents.state import VideoAgentState
 
+
 def build_video_agent_graph():
     builder = StateGraph(VideoAgentState)
 
@@ -164,454 +549,825 @@ def build_video_agent_graph():
     builder.add_node("stitch_planner", stitch_planner_node)
     builder.add_node("copywriter", copywriter_node)
     builder.add_node("prompt_engineer", prompt_engineer_node)
-    builder.add_node("reviewer", reviewer_node)
+    builder.add_node("audio_director", audio_director_node)
+    builder.add_node("plan_reviewer", plan_reviewer_node)
     builder.add_node("orchestrator", orchestrator_node)
 
     # Entry
     builder.set_entry_point("story_writer")
 
-    # Linear flow
+    # Linear: story -> stitch
     builder.add_edge("story_writer", "stitch_planner")
 
-    # Fan-out (parallel)
+    # Fan-out (3-way parallel)
     builder.add_edge("stitch_planner", "copywriter")
     builder.add_edge("stitch_planner", "prompt_engineer")
+    builder.add_edge("stitch_planner", "audio_director")
 
-    # Fan-in
-    builder.add_edge("copywriter", "reviewer")
-    builder.add_edge("prompt_engineer", "reviewer")
+    # Fan-in (3 -> plan_reviewer)
+    builder.add_edge("copywriter", "plan_reviewer")
+    builder.add_edge("prompt_engineer", "plan_reviewer")
+    builder.add_edge("audio_director", "plan_reviewer")
 
-    # ⭐ reviewer → orchestrator (필수!)
-    builder.add_edge("reviewer", "orchestrator")
+    # plan_reviewer -> orchestrator
+    builder.add_edge("plan_reviewer", "orchestrator")
 
     # Conditional routing
     builder.add_conditional_edges(
         "orchestrator",
         route_by_revision,
         {
-            "approved": END,
+            "auto_approved": END,
+            "needs_human_review": END,
+            "max_iterations_reached": END,
+            "blocked": END,
             "revise_story": "story_writer",
             "revise_stitch": "stitch_planner",
             "revise_copy": "copywriter",
             "revise_prompt": "prompt_engineer",
-        }
+            "revise_audio": "audio_director",
+        },
     )
 
     return builder
 
-class VideoAgentGraph:
-    def __init__(self):
-        self.graph = build_video_agent_graph()
-        self.compiled = self.graph.compile()
 
-    def generate(self, account_id: str, **kwargs) -> VideoAgentState:
-        # ... implementation
+def route_by_revision(state: VideoAgentState) -> str:
+    status = state.get("terminal_status", "pending")
+
+    if status == "auto_approved":
+        return "auto_approved"
+    if status == "needs_human_review":
+        return "needs_human_review"
+    if status == "max_iterations_reached":
+        return "max_iterations_reached"
+    if status == "blocked":
+        return "blocked"
+
+    # REVISE_REQUIRED: revision_issues에서 가장 upstream agent 찾기
+    issues = state.get("revision_issues", [])
+    targets = _resolve_revision_targets(issues)
+    if not targets:
+        return "revise_story"  # 방어
+
+    primary = targets[0]
+    route_map = {
+        "story_writer": "revise_story",
+        "stitch_planner": "revise_stitch",
+        "copywriter": "revise_copy",
+        "prompt_engineer": "revise_prompt",
+        "audio_director": "revise_audio",
+    }
+    return route_map.get(primary, "revise_story")
+
+
+# Issue code -> agent mapping
+_CODE_AGENT_MAP = {
+    "story.": "story_writer",
+    "continuity.": "stitch_planner",
+    "production.": "stitch_planner",
+    "copy.": "copywriter",
+    "prompt.": "prompt_engineer",
+    "audio.": "audio_director",
+}
+
+_SEVERITY_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3}
+
+# Agent upstream order (가장 upstream이 먼저)
+_AGENT_UPSTREAM_ORDER = {
+    "story_writer": 0,
+    "stitch_planner": 1,
+    "copywriter": 2,
+    "prompt_engineer": 2,
+    "audio_director": 2,
+}
+
+
+def _resolve_revision_targets(issues: list[dict]) -> list[str]:
+    """이슈 코드에서 target agents 추출, upstream 순서로 정렬"""
+    sorted_issues = sorted(
+        issues,
+        key=lambda i: _SEVERITY_ORDER.get(i.get("severity", "low"), 3),
+    )
+    targets = []
+    for issue in sorted_issues:
+        code = issue.get("code", "")
+        for prefix, agent in _CODE_AGENT_MAP.items():
+            if code.startswith(prefix) and agent not in targets:
+                targets.append(agent)
+        # issue에 직접 target_agents가 있으면 사용
+        for agent in issue.get("target_agents", []):
+            if agent not in targets:
+                targets.append(agent)
+    # upstream 순서로 정렬
+    targets.sort(key=lambda a: _AGENT_UPSTREAM_ORDER.get(a, 99))
+    return targets
 ```
 
-### 1.6 프롬프트 로더
-**파일**: `picko/video/agents/prompts/loader.py`
+### 1.6 그래프 초기화
+
 ```python
+# graph.py (continued)
+import yaml
 from pathlib import Path
-from jinja2 import Template
-
-PROMPTS_DIR = Path(__file__).parent
-
-class AgentPromptLoader:
-    """에이전트 시스템 프롬프트 로더"""
-
-    def __init__(self):
-        self.cache: dict[str, str] = {}
-
-    def load(self, agent_name: str) -> str:
-        """에이전트 프롬프트 파일 로드"""
-        if agent_name in self.cache:
-            return self.cache[agent_name]
-
-        path = PROMPTS_DIR / f"{agent_name}.md"
-        if not path.exists():
-            raise FileNotFoundError(f"Prompt file not found: {path}")
-
-        content = path.read_text(encoding="utf-8")
-        self.cache[agent_name] = content
-        return content
-
-    def render(self, agent_name: str, variables: dict) -> str:
-        """프롬프트 렌더링 (Jinja2)"""
-        template_str = self.load(agent_name)
-        template = Template(template_str)
-        return template.render(**variables)
-```
-
-### 1.7 그래프 초기화 (account_config)
-**파일**: `picko/video/agents/graph.py`
-```python
 from picko.config import get_config
 from picko.account_context import get_identity, get_weekly_slot
 
+_PLATFORM_DURATION: dict[str, float] = {
+    "instagram_reel": 15.0,
+    "tiktok": 30.0,
+    "youtube_shorts": 60.0,
+}
+
+_AGENT_CONFIG_PATH = Path(__file__).parents[3] / "config" / "video_agents.yml"
+
+
 class VideoAgentGraph:
     def __init__(self):
         self.graph = build_video_agent_graph()
         self.compiled = self.graph.compile()
+        self._agent_config = self._load_agent_config()
 
-    def generate(self, account_id: str, **kwargs) -> VideoAgentState:
-        # 계정 컨텍스트 로드
+    def _load_agent_config(self) -> dict:
+        if _AGENT_CONFIG_PATH.exists():
+            return yaml.safe_load(_AGENT_CONFIG_PATH.read_text()) or {}
+        return {}
+
+    def generate(self, creative_brief: dict, **kwargs) -> VideoAgentState:
         config = get_config()
+        account_id = creative_brief["account_id"]
         identity = get_identity(account_id)
-        weekly_slot = get_weekly_slot(kwargs.get("week_of")) if kwargs.get("week_of") else None
         account_config = config.get_account(account_id) or {}
+        defaults = self._agent_config.get("defaults", {})
+        platforms = creative_brief.get("platforms", ["instagram_reel"])
+        execution_mode = creative_brief.get("execution_mode", "manual_assisted")
 
-        # 초기 상태 구성
         initial_state: VideoAgentState = {
             # Input
             "account_id": account_id,
-            "intent": kwargs.get("intent", "ad"),
-            "services": kwargs.get("services", ["luma"]),
-            "platforms": kwargs.get("platforms", ["instagram_reel"]),
+            "intent": creative_brief.get("intent", "brand"),
+            "services": creative_brief.get("services", ["sora_app"]),
+            "platforms": platforms,
+            "execution_mode": execution_mode,
+            "creative_brief": creative_brief,
             # Context
             "identity": identity.__dict__ if identity else {},
-            "account_config": account_config,  # visual_settings, channels
-            "weekly_slot": weekly_slot.__dict__ if weekly_slot else None,
+            "account_config": account_config,
+            "weekly_slot": None,
             # Marketing extension
             "campaign_context": kwargs.get("campaign_context"),
             "performance_hints": kwargs.get("performance_hints", []),
             "experiment_vars": kwargs.get("experiment_vars"),
             # Planning
             "visual_anchor": "",
-            "shots": [],
+            "shots_by_id": {},
+            "shot_order": [],
             # Production
-            "generation_methods": [],
+            "production_by_shot_id": {},
             "continuity_refs": {},
             "stitch_plan": {},
             "asset_manifest": [],
             # Copy
-            "hook": "",
-            "captions": [],
-            "cta": "",
-            "overlay_texts": [],
+            "copy_by_shot_id": {},
             # Prompt
-            "image_prompts": [],
-            "video_prompts": [],
-            "negative_prompts": [],
-            # Review
-            "quality_score": 0.0,
-            "quality_issues": [],
-            "feedback_notes": [],
-            "revision_target": None,
+            "prompts_by_shot_id": {},
+            # Audio
+            "audio_by_shot_id": {},
+            # Plan Review
+            "plan_review": {},
+            "revision_issues": [],
+            # Artifact Review
+            "artifact_review": None,
+            # Publish Review
+            "publish_status": "pending",
             # Control
+            "terminal_status": "pending",
             "iteration_count": 0,
-            "approved": False,
-            "human_review_required": False,
-            "llm_calls": 0,
-            "token_budget": kwargs.get("token_budget", 50000),
+            "max_iterations": defaults.get("max_iterations", 3),
+            "auto_approve_threshold": defaults.get("auto_approve_threshold", 85),
+            "human_review_threshold": defaults.get("human_review_threshold", 60),
+            # Cost
+            "llm_calls_used": 0,
+            "tokens_used_estimate": 0,
+            "cost_usd_estimate": 0.0,
+            "cost_budget_usd": defaults.get("cost_budget_usd", 1.0),
         }
 
         return self.compiled.invoke(initial_state)
 ```
 
-### 1.8 검증
+### 1.7 검증
 - [ ] `VideoAgentState` 타입 체크
-- [ ] `ShotDraft` 직렬화/역직렬화
-- [ ] LangGraph 컴파일
+- [ ] `CreativeBrief`, `ShotDraft`, `ProductionSpec` 직렬화/역직렬화
+- [ ] `TerminalStatus` enum 동작
+- [ ] `ReviewIssue` 구조 검증
+- [ ] `ProviderCapability` + `get_providers_for_mode()` 동작
+- [ ] LangGraph 컴파일 (3-way fan-out)
 
 ---
 
-## Phase 2: Core Production Flow (3-4일)
+## Phase 2: Core Planning Flow (3-4일)
 
 ### 2.1 Story Writer Node
 **파일**: `picko/video/agents/nodes/story_writer.py`
 
-**Tools** (`tools/story.py`):
-- `analyze_intent` (규칙) - Intent별 샷 구조 매핑
-- `generate_anchor` (LLM) - visual_anchor 생성
-- `plan_shots` (LLM) - shot sequence 생성
+**입력**: `creative_brief`, `identity`, `account_config`
+**출력**: `visual_anchor`, `shots_by_id`, `shot_order`
 
-### 2.2 Stitch Planner Node ⭐
+```python
+@safe_node
+def story_writer_node(state: VideoAgentState) -> dict:
+    brief = state["creative_brief"]
+    identity = state["identity"]
+
+    # LLM: generate visual anchor + shots
+    visual_anchor = generate_anchor(brief, identity)
+    shots = plan_shots(brief, visual_anchor, identity)
+
+    # shot_id 기반 구조로 변환
+    shots_by_id = {s["shot_id"]: s for s in shots}
+    shot_order = [s["shot_id"] for s in shots]
+
+    return {
+        "visual_anchor": visual_anchor,
+        "shots_by_id": shots_by_id,
+        "shot_order": shot_order,
+        "llm_calls_used": 2,
+        "tokens_used_estimate": 1500,      # anchor + plan_shots 합산 추정
+        "cost_usd_estimate": 0.006,        # Sonnet 4.6 기준: 1500 tokens ~$0.006
+    }
+```
+
+### 2.2 Stitch Planner Node (recipe-based)
 **파일**: `picko/video/agents/nodes/stitch_planner.py`
 
-**Tools** (`tools/stitch.py`):
-- `select_generation_method` - SERVICE_CONSTRAINTS 참조
-- `build_continuity_refs`
-- `plan_stitch_sequence`
-- `build_asset_manifest`
+**핵심 변경**: 서비스 capability 판단이 아닌 **2단 recipe selection**.
 
-**핵심 구현**:
 ```python
-# tools/stitch.py
-from picko.video.constraints import SERVICE_CONSTRAINTS
+@safe_node
+def stitch_planner_node(state: VideoAgentState) -> dict:
+    shots_by_id = state["shots_by_id"]
+    shot_order = state["shot_order"]
+    execution_mode = state["execution_mode"]
+    requested_services = state.get("services", [])
 
-def select_generation_method(shot: ShotDraft, services: list[str]) -> str:
-    """shot + 서비스 제약을 보고 생성 방식 결정"""
-    for service in services:
-        c = SERVICE_CONSTRAINTS[service]
+    # execution_mode + 사용자 requested_services 교집합 필터
+    providers = get_providers_for_mode_and_services(execution_mode, requested_services)
 
-        # image_stitch는 start_image 지원 필수
-        if not c.supports_start_image:
-            return "pure_video"
+    # shot별 production spec 결정 (2단 recipe)
+    production_by_shot_id = {}
+    for shot_id in shot_order:
+        shot = ShotDraft(**shots_by_id[shot_id])
 
-        # keyframe_motion은 start+end 이미지 모두 필요
-        if shot.motion_type in ("morph", "interpolate"):
-            if c.supports_start_image and c.supports_end_image:
-                return "keyframe_motion"
-            return "pure_video"
+        # 1단계: production_mode 결정 (서비스 독립)
+        mode = select_production_mode(shot, list(providers.values()))
 
-    # 복잡한 경우 LLM 보조 판단
-    return _llm_decide_method(shot, services)
+        # 2단계: recipe 할당 (provider 매칭)
+        spec = assign_render_recipe(shot_id, mode, list(providers.values()), execution_mode)
+        production_by_shot_id[shot_id] = asdict(spec)
+
+    # duration 조정
+    target_dur = state["creative_brief"].get("target_duration_sec", 15.0)
+    adjusted_shots = _distribute_duration(shots_by_id, shot_order, target_dur)
+
+    # continuity refs + stitch plan + asset manifest
+    continuity_refs = build_continuity_refs(adjusted_shots, shot_order)
+    stitch_plan = plan_stitch_sequence(adjusted_shots, shot_order, production_by_shot_id)
+    asset_manifest = build_asset_manifest(adjusted_shots, shot_order, production_by_shot_id)
+
+    return {
+        "shots_by_id": adjusted_shots,
+        "production_by_shot_id": production_by_shot_id,
+        "continuity_refs": continuity_refs,
+        "stitch_plan": stitch_plan,
+        "asset_manifest": asset_manifest,
+        "llm_calls_used": 1,
+        "tokens_used_estimate": 800,
+        "cost_usd_estimate": 0.003,
+    }
 ```
 
 ### 2.3 Prompt Engineer Node
 **파일**: `picko/video/agents/nodes/prompt_engineer.py`
 
-**Tools** (`tools/prompt.py`):
-- `build_service_prompt` - generation_method 기반
-- `create_keyframe_prompt`
-- `apply_negative_prompt`
+production_mode에 따라 적절한 프롬프트 생성:
+- `pure_video`: video_prompt 중심
+- `keyframe_motion`: image_prompt + video_prompt
+- `image_stitch`: image_prompt 중심
 
-### 2.4 Reviewer Node (기본)
-**파일**: `picko/video/agents/nodes/reviewer.py`
+```python
+@safe_node
+def prompt_engineer_node(state: VideoAgentState) -> dict:
+    prompts_by_shot_id = {}
+    for shot_id in state["shot_order"]:
+        shot = state["shots_by_id"][shot_id]
+        prod = state["production_by_shot_id"][shot_id]
+        mode = prod["production_mode"]
+        recipe = prod["render_recipe"]
 
-- 기존 `VideoPlanScorer` 재사용
-- `_build_temp_plan()` 함수
+        bundle = build_prompt_bundle(shot, mode, recipe)
+        prompts_by_shot_id[shot_id] = asdict(bundle)
 
-### 2.5 검증
-- [ ] story_writer → visual_anchor, shots 생성
-- [ ] stitch_planner → generation_methods 결정
-- [ ] prompt_engineer → 프롬프트 생성
+    n_shots = len(state["shot_order"])
+    return {
+        "prompts_by_shot_id": prompts_by_shot_id,
+        "llm_calls_used": n_shots,
+        "tokens_used_estimate": n_shots * 400,
+        "cost_usd_estimate": n_shots * 0.0016,
+    }
+```
 
----
+### 2.4 Audio Director Node
+**파일**: `picko/video/agents/nodes/audio_director.py`
 
-## Phase 3: Copy & Review Loop (3-4일)
+```python
+@safe_node
+def audio_director_node(state: VideoAgentState) -> dict:
+    brief = state["creative_brief"]
+    audio_by_shot_id = {}
 
-### 3.1 Copywriter Node
+    for shot_id in state["shot_order"]:
+        shot = state["shots_by_id"][shot_id]
+        prod = state["production_by_shot_id"][shot_id]
+
+        audio_spec = plan_audio_for_shot(
+            shot=shot,
+            production_spec=prod,
+            emotional_target=brief.get("emotional_target", ""),
+        )
+        audio_by_shot_id[shot_id] = asdict(audio_spec)
+
+    return {
+        "audio_by_shot_id": audio_by_shot_id,
+        "llm_calls_used": 1,
+        "tokens_used_estimate": 600,
+        "cost_usd_estimate": 0.0024,
+    }
+```
+
+### 2.5 Copywriter Node
 **파일**: `picko/video/agents/nodes/copywriter.py`
 
-**Tools** (`tools/copy.py`):
-- `create_hook` (LLM)
-- `generate_caption` (LLM)
-- `write_cta` (LLM)
-
-### 3.2 Reviewer 고도화
-- `check_consistency` (규칙)
-- `validate_brand` (규칙)
-- `review_structure` (LLM)
-- `review_production_fit` (LLM)
-
-### 3.3 Orchestrator Node
-**파일**: `picko/video/agents/nodes/orchestrator.py`
-
-**구현 사항**:
 ```python
-# Cascade invalidation 규칙
-INVALIDATION_CASCADE = {
-    "story_writer":     ["stitch_planner", "copywriter", "prompt_engineer"],
-    "stitch_planner":   ["prompt_engineer"],
-    "copywriter":       [],
-    "prompt_engineer":  [],
-}
+@safe_node
+def copywriter_node(state: VideoAgentState) -> dict:
+    brief = state["creative_brief"]
+    copy_by_shot_id = {}
 
-def decide_next_step(revision_target: str) -> list[str]:
-    """재호출 대상 + cascade 대상 반환"""
-    targets = [revision_target] + INVALIDATION_CASCADE.get(revision_target, [])
-    return targets
+    for i, shot_id in enumerate(state["shot_order"]):
+        shot = state["shots_by_id"][shot_id]
+        is_first = (i == 0)
+        is_last = (i == len(state["shot_order"]) - 1)
 
-def invalidate_downstream(state: VideoAgentState, targets: list[str]) -> VideoAgentState:
-    """재실행 대상의 출력 필드를 초기화"""
-    field_map = {
-        "story_writer":     ["visual_anchor", "shots"],
-        "stitch_planner":   ["generation_methods", "stitch_plan", "asset_manifest", "continuity_refs"],
-        "copywriter":       ["hook", "captions", "cta", "overlay_texts"],
-        "prompt_engineer":  ["image_prompts", "video_prompts", "negative_prompts"],
+        bundle = generate_copy_for_shot(
+            shot=shot,
+            brief=brief,
+            is_first=is_first,
+            is_last=is_last,
+        )
+        copy_by_shot_id[shot_id] = asdict(bundle)
+
+    return {
+        "copy_by_shot_id": copy_by_shot_id,
+        "llm_calls_used": 1,
+        "tokens_used_estimate": 500,
+        "cost_usd_estimate": 0.002,
     }
-    for target in targets:
-        for field in field_map.get(target, []):
-            state[field] = type(state[field])()
-    return state
 ```
 
-### 3.4 Conditional Routing
-```python
-def enforce_budget(state: VideoAgentState) -> bool:
-    """예산 초과 확인"""
-    return state["llm_calls"] < state.get("token_budget", 50000)
-
-def route_by_revision(state: VideoAgentState) -> str:
-    # 1. 승인됨 → 종료
-    if state["approved"]:
-        return "approved"
-
-    # 2. 예산 초과 → 종료 + human_review
-    if not enforce_budget(state):
-        return "budget_exceeded"
-
-    # 3. 최대 반복 도달 → 종료 (approved=False)
-    if state["iteration_count"] >= state.get("max_iterations", 3):
-        return "max_iterations"
-
-    # 4. 리비전 타겟에 따라 재실행
-    revision = state.get("revision_target")
-    if revision == "story_writer":
-        return "revise_story"
-    elif revision == "stitch_planner":
-        return "revise_stitch"
-    elif revision == "copywriter":
-        return "revise_copy"
-    elif revision == "prompt_engineer":
-        return "revise_prompt"
-
-    # 기본: 종료
-    return "approved"
-```
-
-**conditional_edges 정의**:
-```python
-builder.add_conditional_edges(
-    "orchestrator",
-    route_by_revision,
-    {
-        "approved": END,
-        "max_iterations": END,      # END but approved=False
-        "budget_exceeded": END,      # END + human_review_required=True
-        "revise_story": "story_writer",
-        "revise_stitch": "stitch_planner",
-        "revise_copy": "copywriter",
-        "revise_prompt": "prompt_engineer",
-    }
-)
-```
-
-### 3.5 Cascade 재실행 트레이드오프
-
-현재 엣지 구조상 `revise_stitch → stitch_planner` 후 자동으로 `copywriter`도 재실행됨:
-```
-stitch_planner → copywriter (기본 엣지)
-```
-
-이는 불필요한 LLM 호출이지만, 단순화를 위해 수용함:
-
-**대안** (복잡도 증가):
-- 리비전용 서브그래프 분리
-- 동적 엣지 추가/제거
-
-**현재 결정**: 단순화 우선, 불필요한 호출 수용
-
-### 3.5 검증
-- [ ] copywriter → hook, captions, cta 생성
-- [ ] reviewer → quality_score, issues 생성
-- [ ] orchestrator → cascade invalidation 동작
-- [ ] revision 루프 테스트
+### 2.6 검증
+- [ ] story_writer -> shots_by_id, shot_order, visual_anchor
+- [ ] stitch_planner -> production_by_shot_id (recipe-based)
+- [ ] prompt_engineer -> prompts_by_shot_id
+- [ ] audio_director -> audio_by_shot_id
+- [ ] copywriter -> copy_by_shot_id
+- [ ] 불변식: 모든 dict key set == set(shot_order)
 
 ---
 
-## Phase 4: Integration (2-3일)
+## Phase 3: Review & Control Loop (3-4일)
 
-### 4.1 VideoGenerator 수정
-**파일**: `picko/video/generator.py`
+### 3.1 Plan Reviewer Node
+**파일**: `picko/video/agents/nodes/plan_reviewer.py`
+
+기존 `VideoPlanScorer` 재사용 + 멀티에이전트 전용 검수 항목 추가.
+
 ```python
-def generate(self, validate: bool = True) -> VideoPlan:
-    if self.use_multi_agent:
-        return self._generate_with_agents(validate)
-    return self._generate_legacy(validate)
+@safe_node
+def plan_reviewer_node(state: VideoAgentState) -> dict:
+    # 기존 scorer 재사용 (임시 VideoPlan 구성)
+    temp_plan = _build_temp_plan(state)
+    scorer = VideoPlanScorer()
+    score = scorer.score(temp_plan, state["services"])
 
+    # 멀티에이전트 전용 추가 검수
+    production_issues = _review_production_fit(state)
+    audio_issues = _review_audio_fit(state)
+
+    # 구조화된 이슈 코드 생성
+    review_issues = []
+    for issue_text in score.issues:
+        review_issues.append(_classify_issue(issue_text))
+    review_issues.extend(production_issues)
+    review_issues.extend(audio_issues)
+
+    return {
+        "plan_review": {
+            "quality_score": score.overall,
+            "issues": [asdict(i) for i in review_issues],
+            "feedback_notes": score.suggestions,
+        },
+        "revision_issues": [asdict(i) for i in review_issues],
+        "llm_calls_used": 2,
+        "tokens_used_estimate": 1200,
+        "cost_usd_estimate": 0.0048,
+    }
+
+
+def _classify_issue(issue_text: str) -> ReviewIssue:
+    """텍스트 이슈를 구조화된 ReviewIssue로 변환"""
+    # 이슈 텍스트에서 코드/severity 추론
+    code = _infer_issue_code(issue_text)
+    severity = _infer_severity(issue_text)
+    targets = _infer_target_agents(code)
+    return ReviewIssue(
+        code=code,
+        severity=severity,
+        target_agents=targets,
+        description=issue_text,
+    )
+```
+
+### 3.2 Orchestrator Node
+**파일**: `picko/video/agents/nodes/orchestrator.py`
+
+TerminalStatus enum 기반 결정.
+
+```python
+INVALIDATION_CASCADE = {
+    "story_writer":     ["stitch_planner", "copywriter", "prompt_engineer", "audio_director"],
+    "stitch_planner":   ["prompt_engineer", "audio_director"],
+    "copywriter":       [],
+    "prompt_engineer":  [],
+    "audio_director":   [],
+}
+
+_FIELD_DEFAULTS: dict[str, dict] = {
+    "story_writer":     {"visual_anchor": "", "shots_by_id": {}, "shot_order": []},
+    "stitch_planner":   {"production_by_shot_id": {}, "stitch_plan": {}, "asset_manifest": [], "continuity_refs": {}},
+    "copywriter":       {"copy_by_shot_id": {}},
+    "prompt_engineer":  {"prompts_by_shot_id": {}},
+    "audio_director":   {"audio_by_shot_id": {}},
+}
+
+
+def orchestrator_node(state: VideoAgentState) -> dict:
+    updates: dict = {
+        "iteration_count": state["iteration_count"] + 1,
+    }
+
+    score = state.get("plan_review", {}).get("quality_score", 0.0)
+    cost = state.get("cost_usd_estimate", 0.0)
+    budget = state.get("cost_budget_usd", 1.0)
+    auto_threshold = state.get("auto_approve_threshold", 85)
+    human_threshold = state.get("human_review_threshold", 60)
+    max_iter = state.get("max_iterations", 3)
+
+    # 비용 초과
+    if cost >= budget:
+        updates["terminal_status"] = "blocked"
+        return updates
+
+    # 자동 승인
+    if score >= auto_threshold:
+        updates["terminal_status"] = "auto_approved"
+        return updates
+
+    # max iterations
+    if state["iteration_count"] + 1 >= max_iter:
+        updates["terminal_status"] = "max_iterations_reached"
+        return updates
+
+    # human review
+    if score <= human_threshold:
+        updates["terminal_status"] = "needs_human_review"
+        return updates
+
+    # Hard fail: brand violation -> story_writer 필수 (D4 규칙)
+    issues = state.get("revision_issues", [])
+    has_brand_violation = any(
+        i.get("code", "").startswith("copy.brand_violation") for i in issues
+    )
+    if has_brand_violation:
+        updates["terminal_status"] = "revise_required"
+        cascade_updates = _build_invalidation_updates("story_writer")
+        updates.update(cascade_updates)
+        return updates
+
+    # Revision required (일반)
+    updates["terminal_status"] = "revise_required"
+    targets = _resolve_revision_targets(issues)
+    if targets:
+        primary = targets[0]
+        cascade_updates = _build_invalidation_updates(primary)
+        updates.update(cascade_updates)
+
+    return updates
+
+
+def _build_invalidation_updates(revision_target: str) -> dict:
+    targets = [revision_target] + INVALIDATION_CASCADE.get(revision_target, [])
+    updates: dict = {}
+    for target in targets:
+        updates.update(_FIELD_DEFAULTS.get(target, {}))
+    return updates
+```
+
+### 3.3 검증
+- [ ] plan_reviewer -> 구조화된 ReviewIssue 출력
+- [ ] orchestrator -> TerminalStatus enum 기반 결정
+- [ ] cascade invalidation (shot_id 기반 dict 초기화)
+- [ ] revision loop 동작 (이슈 코드 -> agent routing)
+- [ ] 비용 초과 -> BLOCKED
+- [ ] max_iterations -> MAX_ITERATIONS_REACHED
+
+---
+
+## Phase 4: Artifact Review & Manual Loop (3-4일)
+
+### 4.1 Render Brief 출력
+
+Planning graph 완료 시 (AUTO_APPROVED) 렌더 브리프 생성:
+
+```python
+def build_render_briefs(state: VideoAgentState) -> list[dict]:
+    """서비스별 렌더 지침서 생성 (manual_assisted용)"""
+    briefs = []
+    for shot_id in state["shot_order"]:
+        prod = state["production_by_shot_id"][shot_id]
+        prompt = state["prompts_by_shot_id"][shot_id]
+        audio = state["audio_by_shot_id"][shot_id]
+        copy = state["copy_by_shot_id"][shot_id]
+        shot = state["shots_by_id"][shot_id]
+
+        briefs.append({
+            "shot_id": shot_id,
+            "provider": prod["render_recipe"].get("motion_service") or prod["render_recipe"].get("image_service"),
+            "production_mode": prod["production_mode"],
+            "video_prompt": prompt.get("video_prompt", ""),
+            "image_prompt": prompt.get("image_prompt", ""),
+            "negative_prompt": prompt.get("negative_prompt", ""),
+            "audio_strategy": audio.get("audio_strategy", "silent_visual"),
+            "duration_sec": shot.get("duration_sec", 5.0),
+            "scene_description": shot.get("scene_description", ""),
+            "caption": copy.get("caption", ""),
+            "service_specific_params": prompt.get("service_specific_params", {}),
+        })
+    return briefs
+```
+
+### 4.2 Artifact Reviewer - Deterministic Checks
+**파일**: `picko/video/agents/tools/artifact_qa.py`
+
+```python
+def deterministic_checks(file_path: str, expected: dict) -> list[dict]:
+    """규칙 기반 미디어 파일 검사 (VLM에 의존하지 않는 객관적 검사)"""
+    issues = []
+
+    # 파일 손상 여부 (가장 먼저)
+    if not _is_file_intact(file_path):
+        issues.append({"check": "file_integrity", "auto_regen_ok": True, "description": "file corrupted or unreadable"})
+        return issues  # 이후 검사 불가
+
+    # duration check
+    actual_dur = _get_media_duration(file_path)
+    if abs(actual_dur - expected["duration_sec"]) > 1.0:
+        issues.append({"check": "duration", "expected": expected["duration_sec"], "actual": actual_dur, "auto_regen_ok": True})
+
+    # aspect ratio check (canonical ratio 문자열로 정규화 후 비교)
+    actual_ratio = _normalize_ratio(_get_aspect_ratio(file_path))
+    expected_ratio = _normalize_ratio(expected.get("aspect_ratio", ""))
+    if actual_ratio != expected_ratio:
+        issues.append({"check": "aspect_ratio", "expected": expected_ratio, "actual": actual_ratio, "auto_regen_ok": True})
+
+    # fps check
+    actual_fps = _get_fps(file_path)
+    expected_fps = expected.get("fps")
+    if expected_fps and abs(actual_fps - expected_fps) > 1.0:
+        issues.append({"check": "fps", "expected": expected_fps, "actual": actual_fps, "auto_regen_ok": True})
+
+    # audio track presence
+    has_audio = _has_audio_track(file_path)
+    if expected.get("audio_strategy") != "silent_visual" and not has_audio:
+        issues.append({"check": "audio_missing", "expected": "audio track present", "auto_regen_ok": True})
+
+    # waveform/loudness check (오디오 있는 경우만)
+    if has_audio:
+        loudness_lufs = _get_loudness_lufs(file_path)
+        if loudness_lufs is not None and loudness_lufs < -40.0:
+            issues.append({"check": "loudness_too_low", "actual_lufs": loudness_lufs, "auto_regen_ok": True})
+
+    # OCR: 텍스트 오버레이 필요한 shot인데 텍스트 없는 경우
+    if expected.get("overlay_text_needed"):
+        detected_text = _ocr_detect_text(file_path)
+        if not detected_text:
+            issues.append({"check": "overlay_text_missing", "auto_regen_ok": True})
+
+    return issues
+
+
+def _normalize_ratio(ratio: str) -> str:
+    """'1080x1920' -> '9:16', '1920x1080' -> '16:9' 등 canonical ratio로 정규화"""
+    _RESOLUTION_TO_RATIO = {
+        "1080x1920": "9:16",
+        "1920x1080": "16:9",
+        "1080x1080": "1:1",
+    }
+    return _RESOLUTION_TO_RATIO.get(ratio, ratio)
+```
+
+### 4.3 Artifact Reviewer - VLM QA
+**파일**: `picko/video/agents/nodes/artifact_reviewer.py`
+
+VLM은 **좁은 질문**만 수행. Open-ended 평가 금지.
+
+```python
+VLM_QA_QUESTIONS = [
+    "Does the video contain an intro hook in the first 3 seconds? (yes/no)",
+    "Is the visual anchor ({anchor}) maintained throughout? (yes/no/partial)",
+    "Are there any prohibited elements (violence, explicit content)? (yes/no)",
+    "Does the character appearance remain consistent? (yes/no/partial)",
+    "Is the lighting consistent with the plan ({lighting})? (yes/no)",
+]
+
+def artifact_reviewer_node(state: dict, uploaded_file: str) -> dict:
+    """렌더 결과물 3층 QA"""
+    expected = _build_expected_from_plan(state)
+
+    # Layer 1: Deterministic
+    det_issues = deterministic_checks(uploaded_file, expected)
+
+    # Layer 2: VLM (only if deterministic passes)
+    vlm_issues = []
+    if not det_issues:
+        vlm_issues = vlm_structural_qa(uploaded_file, state)
+
+    # Layer 3: Human gate flag
+    needs_human = any(i.get("needs_human") for i in vlm_issues)
+
+    auto_regen_items = [i for i in (det_issues + vlm_issues) if i.get("auto_regen_ok")]
+    human_review_items = [i for i in (det_issues + vlm_issues) if not i.get("auto_regen_ok")]
+
+    return {
+        "artifact_review": {
+            "passed": not det_issues and not vlm_issues,
+            "deterministic_issues": det_issues,
+            "vlm_issues": vlm_issues,
+            "auto_regen_suggestions": auto_regen_items,
+            "human_review_items": human_review_items,
+            "needs_human_gate": needs_human or bool(human_review_items),
+        },
+    }
+```
+
+### 4.4 Publish Reviewer Node (Human Gate)
+**파일**: `picko/video/agents/nodes/publish_reviewer.py`
+
+artifact_reviewer 통과 후 반드시 거치는 human gate. 제거 불가.
+
+```python
+def publish_reviewer_node(state: dict, human_decision: str) -> dict:
+    """사람이 감성/브랜드/리스크를 최종 확인 후 게시 승인/거절.
+    human_decision: "approved" | "blocked"
+    """
+    return {
+        "publish_status": human_decision,
+    }
+```
+
+CLI/UI 연동 시: `human_decision`을 사용자 입력에서 받는다.
+게시 자동화 파이프라인에서도 이 노드는 interactive pause point로 유지.
+
+### 4.5 검증
+- [ ] render_brief 출력 포맷 검증 (render_briefs in VideoPlan)
+- [ ] deterministic_checks 동작
+- [ ] VLM QA 좁은 질문 패턴 검증
+- [ ] auto_regen vs human_review 분류
+- [ ] publish_reviewer_node -> publish_status 업데이트
+- [ ] publish_status "pending" -> "approved" / "blocked" 전환
+
+---
+
+## Phase 5: Integration & Testing (2-3일)
+
+### 5.1 VideoGenerator 수정
+**파일**: `picko/video/generator.py`
+
+```python
 def _generate_with_agents(self, validate: bool) -> VideoPlan:
-    graph = VideoAgentGraph()
-    result = graph.generate(
+    # CreativeBrief의 핵심 필드를 모두 채운다.
+    # VideoGenerator가 보유한 속성을 최대한 매핑하고, 없는 필드는 기본값.
+    brief = CreativeBrief(
         account_id=self.account_id,
         intent=self.intent,
-        services=self.services,
+        objective=getattr(self, "objective", ""),
+        audience=getattr(self, "audience", ""),
+        emotional_target=getattr(self, "emotional_target", ""),
+        message_pillar=getattr(self, "message_pillar", ""),
+        proof_points=getattr(self, "proof_points", []),
+        product_surface=getattr(self, "product_surface", ""),
+        cta_policy=getattr(self, "cta_policy", "soft"),
+        target_duration_sec=self.target_duration_sec,
         platforms=self.platforms,
-        week_of=self.week_of,
+        services=self.services,
+        execution_mode=getattr(self, "execution_mode", "manual_assisted"),
+        series_id=getattr(self, "series_id", None),
+        brand_rules_ref=getattr(self, "brand_rules_ref", None),
     )
+
+    graph = VideoAgentGraph()
+    result = graph.generate(creative_brief=asdict(brief))
     return self._state_to_plan(result)
 ```
 
-### 4.2 _state_to_plan() 구현
+### 5.2 _state_to_plan() (shot_id 기반)
+
 ```python
-def _shot_draft_to_video_shot(draft: dict, index: int, state: VideoAgentState) -> VideoShot:
-    shot = VideoShot(
-        index=index,
-        duration_sec=draft.get("duration_sec", 5),
-        shot_type=draft.get("purpose", "main"),
-        script=draft.get("scene_description", ""),
-        caption=state["captions"][index - 1] if index <= len(state["captions"]) else "",
-        background_prompt=state["video_prompts"][index - 1] if index <= len(state["video_prompts"]) else "",
-        transition_in=_get_transition(state["stitch_plan"], index, "in"),
-        transition_out=_get_transition(state["stitch_plan"], index, "out"),
+def _state_to_plan(self, state: VideoAgentState) -> VideoPlan:
+    shots = []
+    for i, shot_id in enumerate(state["shot_order"]):
+        shot_data = state["shots_by_id"][shot_id]
+        copy_data = state["copy_by_shot_id"].get(shot_id, {})
+        prompt_data = state["prompts_by_shot_id"].get(shot_id, {})
+        prod_data = state["production_by_shot_id"].get(shot_id, {})
+
+        shot = VideoShot(
+            index=i + 1,
+            duration_sec=shot_data.get("duration_sec", 5),
+            shot_type=shot_data.get("purpose", "main"),
+            script=shot_data.get("scene_description", ""),
+            caption=copy_data.get("caption", ""),
+            background_prompt=prompt_data.get("video_prompt", ""),
+        )
+        shot.notes = {
+            "shot_id": shot_id,
+            "emotional_beat": shot_data.get("emotional_beat", ""),
+            "production_mode": prod_data.get("production_mode", ""),
+            "audio_strategy": state["audio_by_shot_id"].get(shot_id, {}).get("audio_strategy", ""),
+        }
+        shots.append(shot)
+
+    # render_briefs: manual_assisted 단계의 핵심 실무 산출물
+    render_briefs = build_render_briefs(state)
+
+    plan = VideoPlan(
+        id="agent_" + state["account_id"],
+        account=state["account_id"],
+        intent=state["intent"],
+        shots=shots,
+        target_services=state["services"],
+        platforms=state["platforms"],
+        stitch_plan=state.get("stitch_plan"),
+        asset_manifest=state.get("asset_manifest", []),
+        production_specs=state.get("production_by_shot_id", {}),
+        audio_specs=state.get("audio_by_shot_id", {}),
+        render_briefs=render_briefs,
+        platform_variants=[],   # reserved: Platform Variant Builder (P1)
     )
-    # 메타데이터 보존
-    shot.notes = {
-        "emotional_beat": draft.get("emotional_beat", ""),
-        "generation_method": draft.get("generation_method", ""),
-        "risk_flags": ",".join(draft.get("risk_flags", [])),
-        "continuity": ",".join(draft.get("continuity_constraints", [])),
-    }
-    return shot
+    return plan
 ```
 
-### 4.3 VideoPlan 확장
-**파일**: `picko/video_plan.py`
-```python
-@dataclass
-class VideoPlan:
-    # ... existing fields ...
-
-    # NEW
-    stitch_plan: StitchPlan | None = None
-    asset_manifest: list[dict] = field(default_factory=list)
-    generation_methods: list[str] = field(default_factory=list)
-```
-
-### 4.4 Dry-run 지원
-- `dry_run=True` 시 LLM 호출 없이 더미 데이터 반환
-
-### 4.5 검증
-- [ ] 기존 테스트 통과
-- [ ] `_generate_legacy()` 동작 유지
+### 5.3 검증
+- [ ] 기존 테스트 통과 (legacy path)
 - [ ] `_generate_with_agents()` 결과 검증
+- [ ] `_state_to_plan()` shot_id 매핑 정확성
+- [ ] render_brief 출력 동작
 
 ---
 
-## Phase 5: Testing & Polish (2-3일)
+## Phase 6: Testing & Polish (2-3일)
 
-### 5.1 단위 테스트
+### 6.1 단위 테스트
 **파일**: `tests/video/agents/`
 
-- `test_state.py` - 상태 직렬화/역직렬화
-- `test_schemas.py` - ShotDraft, StitchPlan 검증
+- `test_state.py` - 상태 직렬화/역직렬화, TerminalStatus
+- `test_schemas.py` - CreativeBrief, ShotDraft, ProductionSpec, ReviewIssue
+- `test_providers.py` - ProviderCapability, get_providers_for_mode
 - `test_tools_story.py` - Story Writer 도구들
-- `test_tools_stitch.py` - Stitch Planner 도구들
+- `test_tools_stitch.py` - Stitch Planner (recipe selection)
 - `test_tools_copy.py` - Copywriter 도구들
 - `test_tools_prompt.py` - Prompt Engineer 도구들
+- `test_tools_audio.py` - Audio Director 도구들
+- `test_tools_review.py` - Plan Reviewer (이슈 분류)
+- `test_artifact_qa.py` - Deterministic checks
 
-### 5.2 통합 테스트
-- `test_graph.py` - 전체 흐름 테스트
-- `test_revision_loop.py` - 재시도 루프 테스트
+### 6.2 통합 테스트
+- `test_graph.py` - 전체 흐름 (3-way fan-out)
+- `test_revision_loop.py` - 이슈 코드 기반 revision
 - `test_integration.py` - VideoGenerator 통합
+- `test_render_brief.py` - 렌더 브리프 출력
 
-### 5.3 에러 처리 테스트
-```python
-# nodes/base.py
-def safe_node(func):
-    """노드 실행 래퍼 — LLM 실패 시 상태에 에러 기록"""
-    def wrapper(state: VideoAgentState) -> dict:
-        try:
-            return func(state)
-        except Exception as e:
-            node_name = func.__name__.replace("_node", "")
-            logger.error(f"{node_name} failed: {e}")
-            return {
-                "quality_issues": state.get("quality_issues", []) + [f"{node_name} 실행 실패: {e}"],
-                "revision_target": node_name,
-            }
-    return wrapper
-```
-
-### 5.4 비용 추적
-```python
-def enforce_budget(state: VideoAgentState) -> bool:
-    """예산 초과 시 human_review로 전환"""
-    return state["llm_calls"] < state.get("token_budget", 50000)
-```
-
-### 5.5 검증
+### 6.3 검증
 - [ ] `pytest tests/video/agents/ -v` 통과
 - [ ] 커버리지 80% 이상
 
@@ -621,15 +1377,18 @@ def enforce_budget(state: VideoAgentState) -> bool:
 
 | 파일 | Phase | 설명 |
 |------|-------|------|
-| `picko/video/agents/state.py` | 1 | VideoAgentState 정의 |
-| `picko/video/agents/schemas.py` | 1 | ShotDraft, StitchPlan 등 |
-| `picko/video/agents/graph.py` | 1-3 | LangGraph 상태머신 |
-| `picko/video/agents/nodes/story_writer.py` | 2 | Story Writer 에이전트 |
-| `picko/video/agents/nodes/stitch_planner.py` | 2 | ⭐ 핵심 에이전트 |
-| `picko/video/agents/nodes/orchestrator.py` | 3 | 흐름 제어 |
-| `picko/video/agents/tools/stitch.py` | 2 | 스티치 도구들 |
-| `picko/video/generator.py` | 4 | 통합 진입점 |
-| `picko/video_plan.py` | 4 | VideoPlan 확장 |
+| `picko/video/agents/state.py` | 1 | VideoAgentState + TerminalStatus |
+| `picko/video/agents/schemas.py` | 1 | CreativeBrief, ProductionSpec, ReviewIssue 등 |
+| `picko/video/agents/providers.py` | 1 | ProviderCapability registry |
+| `picko/video/agents/graph.py` | 1-3 | LangGraph (3-way fan-out, 이슈 코드 routing) |
+| `picko/video/agents/nodes/stitch_planner.py` | 2 | recipe-based production |
+| `picko/video/agents/nodes/audio_director.py` | 2 | 오디오 전략 |
+| `picko/video/agents/nodes/plan_reviewer.py` | 3 | 구조화된 이슈 코드 |
+| `picko/video/agents/nodes/orchestrator.py` | 3 | TerminalStatus 기반 결정 |
+| `picko/video/agents/nodes/artifact_reviewer.py` | 4 | 3층 QA |
+| `picko/video/agents/nodes/publish_reviewer.py` | 4 | Human gate (게시 최종 승인) |
+| `picko/video/agents/tools/artifact_qa.py` | 4 | Deterministic + VLM |
+| `picko/video/generator.py` | 5 | 통합 진입점 |
 
 ---
 
@@ -648,14 +1407,17 @@ langgraph = "^0.2.0"
 # Phase 1
 pytest tests/video/agents/test_state.py -v
 pytest tests/video/agents/test_schemas.py -v
+pytest tests/video/agents/test_providers.py -v
 
-# Phase 2-3
+# Phase 2
 pytest tests/video/agents/test_tools_*.py -v
-pytest tests/video/agents/test_nodes.py -v
 
-# Phase 4-5
+# Phase 3
 pytest tests/video/agents/test_graph.py -v
-pytest tests/video/agents/test_integration.py -v
+
+# Phase 4
+pytest tests/video/agents/test_artifact_qa.py -v
+pytest tests/video/agents/test_render_brief.py -v
 
 # Full suite
 pytest tests/video/agents/ -v --cov=picko.video.agents
@@ -667,15 +1429,9 @@ pytest tests/video/agents/ -v --cov=picko.video.agents
 
 | 위험 | 대응 |
 |-----|------|
-| LangGraph API 변경 | 공식 문서 기반, 최신 버전 사용 |
-| LLM 응답 불안정 | `safe_node` 래퍼 + 재시도 로직 |
-| 기존 코드 호환성 | `use_multi_agent=False` 로 legacy 유지 |
-| 토큰 비용 초과 | `token_budget` + `enforce_budget()` |
-
----
-
-## Next Actions
-
-1. **Phase 1 시작**: 디렉토리 구조 생성 + 의존성 설치
-2. **상태/스키마 정의**: `state.py`, `schemas.py` 작성
-3. **기본 그래프 구조**: `graph.py` 작성
+| LangGraph 3-way fan-out 동작 | 공식 문서 기반 검증, fan-in barrier 테스트 |
+| VLM 영상 평가 정확도 | bounded autonomy: 자동 재생성은 객관적 항목만 |
+| Provider API 제약 변경 | PROVIDER_CAPABILITIES registry 분리, 업데이트 용이 |
+| manual -> API 전환 | planning/QA contract 분리, provider adapter만 교체 |
+| 비용 추적 정확도 | 3개 메트릭 분리, cost_budget_usd로 hard limit |
+| 기존 코드 호환성 | `use_multi_agent=False`로 legacy 유지 |

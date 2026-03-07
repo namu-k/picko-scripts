@@ -6,7 +6,7 @@
 - **Branch**: `014-video-multi-agent`
 - **Status**: Ready for Implementation
 - **Created**: 2026-03-06
-- **Updated**: 2026-03-06 (v3 - 구현 가이드 추가)
+- **Updated**: 2026-03-07 (v4 - production loop, reviewer 분리, recipe-based 설계)
 
 ---
 
@@ -18,21 +18,28 @@
 - 이미지 기반 제작과 비디오 기반 제작을 구분하지 못함
 - 피드백 루프가 단순 재시도 수준
 - 샷 단위 일관성, 감성 톤, 제작 전략 분리 개선 불가
+- 오디오 레이어 부재 (이 서비스는 목소리 기반 연결감이 핵심)
+- 플랫폼별/서비스별 출력 분리 없음
+- 실제 렌더 결과물에 대한 검수 체계 없음
+
+### 핵심 설계 원칙
+
+1. **Planning Engine + Production Loop 분리**: 기획 그래프와 실행 그래프를 명확히 나눈다
+2. **Recipe-based Production**: 서비스 선택이 아니라 제작 레시피 선택이 먼저
+3. **Bounded Autonomy**: VLM은 구조화된 품질 검사기로, 감성/브랜드는 사람이 판단
+4. **Manual-first, API-ready**: 구독형 수동 렌더로 시작, API 전환 시 계약 유지
 
 ### 1단계 목표
 
-> **새벽 감성 숏폼 영상을 위한 "기획 + 카피 + 프롬프트 + 제작전략 + 품질검수" 패키지를 멀티에이전트로 생성하는 비디오 제작 시스템을 구축한다.**
+> **새벽 감성 숏폼 영상을 위한 "기획 + 카피 + 프롬프트 + 오디오전략 + 제작전략 + 품질검수" 패키지를 멀티에이전트로 생성하고, 수동-보조형 렌더 루프를 통해 실제 영상까지 닫힌 production loop를 구축한다.**
 
 ### 범위 밖 (Out of Scope)
 
-- 감성 키워드 발굴
-- 브랜드 가이드 초안화
-- 시리즈 기획
-- 채널별 포맷 적응
-- 실험 설계
-- 성과 분석
-- 외부 피드백 통합
-- 레퍼런스 탐색 시스템
+- 감성 키워드 발굴, 브랜드 가이드 초안화
+- 시리즈 기획, 실험 설계, 성과 분석
+- 외부 피드백 통합, 레퍼런스 탐색 시스템
+- Product/UI Insert Planner (ad/explainer intent 전용 - P1)
+- Vault retrieval (과거 시리즈/anchor 재사용 - P1)
 
 ### 마케팅 레이어 확장 포인트
 
@@ -41,45 +48,57 @@
 ```python
 # VideoAgentState 내 확장 필드
 campaign_context: dict | None      # 시리즈/캠페인 맥락 (Story Writer 참조)
-performance_hints: list[str]       # 과거 성과 기반 힌트 (Reviewer 참조)
+performance_hints: list[str]       # 과거 성과 기반 힌트 (Plan Reviewer 참조)
 experiment_vars: dict | None       # A/B 테스트 변수 (Orchestrator 참조)
 ```
 
 | 마케팅 기능 | 주입 포인트 | 참조 에이전트 |
 |------------|------------|---------------|
 | A/B 실험 변수 | `experiment_vars` | Orchestrator |
-| 성과 데이터 피드백 | `performance_hints` | Reviewer |
+| 성과 데이터 피드백 | `performance_hints` | Plan Reviewer |
 | 시리즈/캠페인 컨텍스트 | `campaign_context` | Story Writer |
-| 채널별 포맷 적응 | `platforms[]` + 전용 노드 | (향후 추가) |
+| 채널별 포맷 적응 | `platform_variants[]` | Platform Variant Builder (P1) |
 
 ---
 
 ## 2. 시스템 범위
 
-### 포함 범위
+### A. Creative Planning Graph (이번 스펙)
 
 - 영상 콘셉트에 맞는 스토리 구조 설계
 - 샷 단위 장면 설명 생성
 - 훅, 캡션, CTA 등 카피 생성
 - 이미지 프롬프트 및 비디오 프롬프트 생성
-- 각 샷의 제작 방식 결정 (pure video / keyframe + motion / image sequence + stitch)
-- 샷 간 일관성, 브랜드 톤, 구조 품질 검수
+- 각 샷의 제작 레시피 결정 (production_mode + render_recipe)
+- 오디오 전략 수립 (audio_strategy per shot)
+- 샷 간 일관성, 브랜드 톤, 구조 품질 검수 (Plan Review)
+- 렌더 결과물 검수 (Artifact Review - VLM + deterministic)
+- 최종 게시 검수 (Publish Review - human gate)
 - 필요 시 특정 에이전트 재호출
+
+### B. Production Execution Graph (향후 - API 전환 시)
+
+- Asset Job Builder, Image/Motion Generator
+- Stitch Renderer, Caption Burn-in
+- Delivery Packager
+
+현재는 `manual_assisted` 모드: Planning Graph가 렌더 브리프를 출력하고, 사람이 결과 파일을 업로드하면 Artifact Review를 이어감.
 
 ### 결과물
 
 | 산출물 | 설명 |
 |--------|------|
-| `visual_anchor` | 전체 샷 공통 비주얼 기준 |
-| `shot_list` | 샷 시퀀스 |
-| `copy_pack` | 훅, 캡션, CTA, 오버레이 |
-| `image_prompt_pack` | 키프레임용 이미지 프롬프트 |
-| `video_prompt_pack` | 비디오 생성용 프롬프트 |
-| `production_plan` | 샷별 제작 방식 |
+| `master_plan` | 이야기/감정선/visual anchor/샷 구조 |
+| `copy_pack` | 훅, 캡션, CTA, 오버레이 (by shot_id) |
+| `prompt_pack` | 이미지/비디오 프롬프트 (by shot_id) |
+| `audio_plan` | 오디오 전략 (by shot_id) |
+| `production_specs` | 샷별 제작 레시피 (by shot_id) |
 | `stitch_plan` | 이미지 시퀀스/전환 계획 |
-| `asset_manifest` | 제작 필요 자산 목록 |
-| `review_notes` | 품질 검수 피드백 |
-| `final_status` | approved / rejected |
+| `asset_manifest` | 제작 필요 자산 목록 (job DAG 방향) |
+| `render_briefs` | 서비스별 렌더 브리프 (manual_assisted용) |
+| `platform_variants` | 플랫폼별 파생 스펙 (P1) |
+| `review_notes` | Plan/Artifact/Publish 검수 피드백 |
+| `terminal_status` | auto_approved / needs_human_review / revise_required / blocked / max_iterations_reached |
 
 ---
 
@@ -89,9 +108,13 @@ experiment_vars: dict | None       # A/B 테스트 변수 (Orchestrator 참조)
 
 **역할**: Narrative arc 설계, visual anchor 생성, 샷 시퀀스 작성
 
+**입력**:
+- `creative_brief` (CreativeBrief)
+- `identity`, `account_config`
+
 **출력**:
 - `visual_anchor`
-- `shots[]` 초안
+- `shots_by_id: Dict[str, ShotDraft]`
 
 **Tools**:
 | 도구 | 방식 | 설명 |
@@ -102,15 +125,115 @@ experiment_vars: dict | None       # A/B 테스트 변수 (Orchestrator 참조)
 
 ---
 
-### 3.2 Copywriter (카피라이터)
+### 3.2 Stitch Planner (스티치 플래너)
+
+**역할**: 각 샷의 제작 레시피 결정, production pipeline 설계
+
+**핵심 변경 (v4)**: `generation_method` 단일 결정이 아닌 **2단 recipe selection**.
+
+#### 1단계: shot별 production_mode 결정
+
+- `pure_video` - 단일 비디오 모델로 생성
+- `keyframe_motion` - 키프레임 이미지 + 모션 모델
+- `image_stitch` - 이미지 시퀀스 + 스티치 엔진
+- `hybrid_segment` - 복합 파이프라인
+
+#### 2단계: mode별 render_recipe assignment
+
+```python
+RenderRecipe = {
+    "image_service": str | None,    # "midjourney" | "flux" | None
+    "motion_service": str | None,   # "runway_api" | "sora_api" | None
+    "stitch_engine": str | None,    # 후처리 엔진
+    "audio_strategy": str,          # shot-level audio 전략
+    "continuity_ref_source": str,   # 일관성 참조 출처
+}
+```
+
+**입력**:
+- `shots_by_id` (Story Writer 출력)
+- `services[]` + `PROVIDER_CAPABILITIES`
+- `execution_mode` (manual_assisted | api)
+
+**출력**:
+- `production_by_shot_id: Dict[str, ProductionSpec]`
+- `continuity_refs: ContinuityRefs`
+- `stitch_plan: StitchPlan`
+- `asset_manifest: list[AssetItem]`
+
+**Tools**:
+| 도구 | 방식 | 설명 |
+|------|------|------|
+| `select_production_mode` | 규칙 | shot별 production mode 결정 |
+| `assign_render_recipe` | 규칙+LLM | mode별 recipe + fallback 할당 |
+| `build_continuity_refs` | 규칙 | 캐릭터/배경/조명 일관성 참조 정리 |
+| `plan_stitch_sequence` | LLM | 이미지 시퀀스/스티치 계획 작성 |
+| `build_asset_manifest` | 규칙 | 제작 자산 목록 정리 |
+
+**select_production_mode 로직 (v4)**:
+```python
+def select_production_mode(shot: ShotDraft, providers: list[ProviderCapability]) -> str:
+    """shot 요구사항 기반으로 production mode 결정 (서비스가 아닌 mode 먼저)"""
+
+    # 1. shot 요구사항 분석
+    needs_start_end_frame = shot.motion_type in ("morph", "interpolate")
+    needs_character_consistency = "character" in shot.continuity_constraints
+
+    # 2. mode 후보 평가 (서비스 독립적)
+    if needs_start_end_frame:
+        mode = "keyframe_motion"
+    elif needs_character_consistency and shot.motion_type == "static":
+        mode = "image_stitch"
+    else:
+        mode = "pure_video"
+
+    # 3. 선택된 mode를 지원하는 provider가 있는지 확인
+    if not _any_provider_supports(mode, providers):
+        mode = "pure_video"  # fallback
+
+    return mode
+
+def assign_render_recipe(
+    shot_id: str,
+    mode: str,
+    providers: list[ProviderCapability],
+    execution_mode: str,
+) -> ProductionSpec:
+    """mode + provider capabilities → 구체적 recipe 할당"""
+    primary = _best_provider_for_mode(mode, providers, execution_mode)
+    fallback = _fallback_provider_for_mode(mode, providers, execution_mode)
+
+    return ProductionSpec(
+        shot_id=shot_id,
+        production_mode=mode,
+        render_recipe=RenderRecipe(
+            image_service=primary.image_service,
+            motion_service=primary.motion_service,
+            stitch_engine=primary.stitch_engine,
+            audio_strategy=_infer_audio_strategy(shot_id, primary),
+            continuity_ref_source=primary.continuity_method,
+        ),
+        fallback_recipe=fallback,
+    )
+```
+
+---
+
+### 3.3 Copywriter (카피라이터)
 
 **역할**: 훅, 캡션, CTA 작성, 텍스트 오버레이 초안
 
 **출력**:
-- `hook`
-- `captions[]`
-- `cta`
-- `overlay_texts[]`
+- `copy_by_shot_id: Dict[str, CopyBundle]`
+
+```python
+CopyBundle = {
+    "hook": str | None,         # 첫 샷에만
+    "caption": str,
+    "cta": str | None,          # 마지막 샷에만
+    "overlay_text": str | None,
+}
+```
 
 **Tools**:
 | 도구 | 방식 | 설명 |
@@ -121,14 +244,21 @@ experiment_vars: dict | None       # A/B 테스트 변수 (Orchestrator 참조)
 
 ---
 
-### 3.3 Prompt Engineer (프롬프트 엔지니어)
+### 3.4 Prompt Engineer (프롬프트 엔지니어)
 
 **역할**: 서비스별 비디오/이미지 프롬프트 생성
 
 **출력**:
-- `video_prompts[]`
-- `image_prompts[]`
-- `negative_prompts[]`
+- `prompts_by_shot_id: Dict[str, PromptBundle]`
+
+```python
+PromptBundle = {
+    "video_prompt": str,          # production_mode에 따라 "" 가능
+    "image_prompt": str,          # production_mode에 따라 "" 가능
+    "negative_prompt": str,
+    "service_specific_params": dict,  # 서비스별 추가 파라미터
+}
+```
 
 **Tools**:
 | 도구 | 방식 | 설명 |
@@ -139,145 +269,228 @@ experiment_vars: dict | None       # A/B 테스트 변수 (Orchestrator 참조)
 
 ---
 
-### 3.3 Stitch Planner (스티치 플래너) ⭐ NEW
+### 3.5 Audio Director (오디오 디렉터) - NEW
 
-**역할**: 각 샷의 제작 방식 결정, 이미지 기반 영상 제작 전략 수립
+**역할**: 샷별 오디오 전략 수립
 
-**주요 책임**:
-- shot별 생성 방식 선택 (pure video / image + motion / image sequence + stitch)
-- continuity reference 정의
-- 전환 방식 및 자산 구성 계획
-- 최종 제작용 asset manifest 작성
+이 서비스는 "목소리 기반 연결감"이 본질이므로 오디오 레이어가 필수.
 
 **입력**:
-- `shots[]` (Story Writer 출력)
-- `services[]` (요청된 서비스 목록)
-- `SERVICE_CONSTRAINTS` (서비스별 제약 사항)
+- `shots_by_id`, `production_by_shot_id`
+- `creative_brief.emotional_target`
 
 **출력**:
-- `generation_methods[]`
-- `continuity_refs`
-- `stitch_plan`
-- `asset_manifest`
+- `audio_by_shot_id: Dict[str, AudioSpec]`
+
+```python
+AudioSpec = {
+    "audio_strategy": str,       # native_synced_audio | post_audio_tts_sfx | ambient_only | silent_visual
+    "voiceover_needed": bool,
+    "voiceover_script": str | None,
+    "silence_windows": list[tuple[float, float]],  # (start_sec, end_sec)
+    "ambient_profile": str,      # "late_night_room" | "city_rain" | "quiet_breathing"
+    "bgm_profile": str,          # "lo-fi calm" | "piano minimal" | "none"
+    "sfx_cues": list[dict],      # [{"time_sec": 3.0, "effect": "notification_soft"}]
+    "caption_timing_ref": str | None,
+}
+```
+
+**audio_strategy 정의**:
+
+| 전략 | 설명 | 적합 서비스 |
+|------|------|------------|
+| `native_synced_audio` | 영상 생성 시 오디오 동시 생성 | Sora 2, Veo 3.1 |
+| `post_audio_tts_sfx` | 영상 후 TTS/SFX/BGM 결합 | Runway + 별도 오디오 API |
+| `ambient_only` | 환경음/BGM만 | 모든 서비스 |
+| `silent_visual` | 무음 (자막 중심) | 모든 서비스 |
 
 **Tools**:
 | 도구 | 방식 | 설명 |
 |------|------|------|
-| `select_generation_method` | 규칙+LLM | shot별 생성 방식 선택 (`SERVICE_CONSTRAINTS` 참조) |
-| `build_continuity_refs` | 규칙 | 캐릭터/배경/조명 일관성 참조 정리 |
-| `plan_stitch_sequence` | LLM | 이미지 시퀀스/스티치 계획 작성 |
-| `build_asset_manifest` | 규칙 | 제작 자산 목록 정리 |
-
-**select_generation_method 로직**:
-```python
-def select_generation_method(shot: ShotDraft, services: list[str]) -> str:
-    """shot + 서비스 제약을 보고 생성 방식 결정"""
-    from picko.video.constraints import SERVICE_CONSTRAINTS
-
-    for service in services:
-        c = SERVICE_CONSTRAINTS[service]
-
-        # image_stitch는 start_image 지원 필수
-        if not c.supports_start_image:
-            return "pure_video"
-
-        # keyframe_motion은 start+end 이미지 모두 필요
-        if shot.motion_type in ("morph", "interpolate"):
-            if c.supports_start_image and c.supports_end_image:
-                return "keyframe_motion"
-            return "pure_video"
-
-    # 복잡한 경우 LLM 보조 판단
-    return _llm_decide_method(shot, services)
-```
+| `plan_audio_strategy` | LLM | shot별 오디오 전략 결정 |
+| `write_voiceover_script` | LLM | 보이스오버 스크립트 작성 |
+| `assign_ambient_profile` | 규칙 | 환경음/BGM 프로파일 매핑 |
 
 ---
 
-### 3.5 Reviewer (리뷰어)
+### 3.6 Plan Reviewer (계획 검수)
 
-**역할**: 구조, 감성 톤, 일관성, 제작 전략 품질 검수
+**역할**: 스토리/카피/프롬프트/오디오 계획의 사전 품질 검수
+
+**입력**: 전체 planning state (shots, copy, prompts, audio, production specs)
 
 **출력**:
-- `quality_score`
-- `quality_issues[]`
-- `feedback_notes[]`
-- `revision_target`
+- `plan_review: PlanReviewResult`
+
+```python
+PlanReviewResult = {
+    "quality_score": float,
+    "issues": list[ReviewIssue],
+    "feedback_notes": list[str],
+}
+```
 
 **Tools**:
 | 도구 | 방식 | 설명 |
 |------|------|------|
 | `check_consistency` | 규칙 | anchor/shot/continuity 일관성 검사 |
 | `validate_brand` | 규칙 | 금칙어/톤 위반 검사 |
-| `review_structure` | LLM | 전체 품질 평가 |
+| `review_structure` | LLM | 전체 구조 품질 평가 |
 | `review_production_fit` | LLM | shot과 제작 방식 적합성 평가 |
+| `review_audio_fit` | LLM | 오디오 전략과 감정선 적합성 |
 
 ---
 
-### 3.6 Orchestrator (오케스트레이터)
+### 3.7 Artifact Reviewer (산출물 검수) - NEW
+
+**역할**: 실제 렌더된 영상/오디오/자막 검수
+
+**적용 시점**: `manual_assisted` 모드에서 사용자가 렌더 결과를 업로드한 후
+
+**입력**: 렌더된 파일 + plan 대비 기대값
+
+**출력**:
+- `artifact_review: ArtifactReviewResult`
+
+#### 3층 QA 구조
+
+**1층: Deterministic Checks** (규칙/도구):
+- duration, aspect ratio, fps
+- audio track 존재 여부, waveform/loudness
+- OCR로 텍스트 존재 여부
+- 파일 손상 여부
+
+**2층: VLM Artifact Review** (Gemini/GPT-4.1):
+- 좁은 질문 방식 (open-ended 평가 금지)
+- "00:00~00:03에 intro hook가 있는가"
+- "bedroom/moonlight/phone glow 앵커가 유지되는가"
+- "금지 요소가 있는가"
+- segment 단위로 잘라서 전송 (1 FPS 한계 대응)
+
+**3층: Human Gate**:
+- 감성/브랜드/리스크 확인
+- 이 층은 제거 불가
+
+**자동 재생성 허용 범위** (bounded autonomy):
+
+| 자동 재생성 가능 | 사람 검토 필수 |
+|----------------|--------------|
+| aspect ratio 불일치 | 새벽 감성의 여운 충분한가 |
+| duration 불일치 | 목소리 톤 적절한가 |
+| 오디오 트랙 누락 | 감정선 과장 여부 |
+| CTA 오버레이 누락 | 브랜드 일관성 |
+| visual anchor 소실 | 미묘한 감각 실패 vs 기술 실패 |
+| 금지 요소 등장 | |
+
+**Tools**:
+| 도구 | 방식 | 설명 |
+|------|------|------|
+| `check_media_metadata` | 규칙 | duration/ratio/fps/audio 확인 |
+| `vlm_structural_qa` | VLM | 구조화된 영상 품질 질의 |
+| `check_anchor_consistency` | VLM | visual anchor 유지 확인 |
+| `flag_prohibited_content` | VLM | 금지 요소 탐지 |
+
+---
+
+### 3.8 Orchestrator (오케스트레이터)
 
 **역할**: 상태 흐름 제어, 재호출 결정, 반복 관리
 
 **출력**:
-- `approved`
+- `terminal_status: TerminalStatus`
 - `next_step`
-- `human_review_required`
+
+```python
+class TerminalStatus(str, Enum):
+    AUTO_APPROVED = "auto_approved"
+    NEEDS_HUMAN_REVIEW = "needs_human_review"
+    REVISE_REQUIRED = "revise_required"
+    BLOCKED = "blocked"
+    MAX_ITERATIONS_REACHED = "max_iterations_reached"
+```
 
 **Tools**:
 | 도구 | 방식 | 설명 |
 |------|------|------|
 | `decide_next_step` | 규칙 (+LLM 보조) | 다음 호출 에이전트 결정 |
 | `enforce_iteration_limit` | 규칙 | 반복 횟수 제한 |
-| `mark_human_review` | 규칙 | human review 필요 여부 판단 |
+| `enforce_budget` | 규칙 | 비용 예산 확인 |
 
 ---
 
 ## 4. 상태 흐름
 
-### 기본 흐름 (2-pass + Fan-out)
+### 기본 흐름 (Creative Planning Graph)
 
 ```
 START
-  ↓
-story_writer         → visual_anchor, shots[]
-  ↓
-stitch_planner       → generation_methods[], stitch_plan, asset_manifest
-  ↓
-┌─────────────────────┼─────────────────────┐
-│                     │                     │
-copywriter        prompt_engineer          │ (fan-out 병렬)
-│                     │                     │
-└─────────────────────┴─────────────────────┘
-  ↓
-reviewer             → quality_score, issues, revision_target
-  ↓
-orchestrator         → approved / cascade invalidation + 재실행
+  |
+story_writer         -> visual_anchor, shots_by_id
+  |
+stitch_planner       -> production_by_shot_id, stitch_plan, asset_manifest
+  |
++------------------+------------------+------------------+
+|                  |                  |                  |
+copywriter     prompt_engineer   audio_director        | (fan-out 병렬)
+|                  |                  |                  |
++------------------+------------------+------------------+
+  |
+plan_reviewer        -> plan_review (quality_score, issues)
+  |
+orchestrator         -> terminal_status / revision dispatch
+  |
+[auto_approved]  -> render_brief 출력 -> manual_assisted render
+[needs_human_review] -> human gate
+[revise_required]    -> cascade invalidation + 재실행
 ```
 
-**핵심 변경점**:
-- Stitch Planner가 Story Writer 직후 실행 (generation_method 먼저 확정)
-- Copywriter와 Prompt Engineer는 **병렬 실행** (서로 의존 없음)
-- Prompt Engineer는 generation_method를 입력으로 받아 선택적 프롬프트 생성
+### Manual-Assisted Render Loop
+
+```
+render_brief 출력
+  |
+사람이 Sora/Runway/Veo에서 렌더
+  |
+결과 파일 업로드
+  |
+artifact_reviewer    -> deterministic checks + VLM QA
+  |
+[pass]          -> publish_review (human gate)
+[fail_auto]     -> 재생성 제안 (자동 재생성 가능 항목)
+[fail_manual]   -> 사람 검토
+```
+
+### API 모드 전환 시
+
+```
+render_brief -> API render executor -> artifact_reviewer -> ...
+```
+
+Planning contract 유지, QA contract 유지, provider adapter만 교체.
 
 ### 분기 흐름 (Cascade Invalidation)
 
 ```
 orchestrator 결과:
-  [approved]                → END
-  [revise_story]            → story_writer + (stitch_planner, copywriter, prompt_engineer)  # cascade
-  [revise_stitch]           → stitch_planner + (prompt_engineer)  # cascade
-  [revise_copy]             → copywriter  # 독립적
-  [revise_prompt]           → prompt_engineer  # 독립적
-  [max_iterations]          → END
-  [budget_exceeded]         → END (human_review_required=true)
+  [auto_approved]           -> END (render_brief 출력)
+  [needs_human_review]      -> END (human gate)
+  [revise_story]            -> story_writer + cascade(stitch, copy, prompt, audio)
+  [revise_stitch]           -> stitch_planner + cascade(prompt, audio)
+  [revise_copy]             -> copywriter
+  [revise_prompt]           -> prompt_engineer
+  [revise_audio]            -> audio_director
+  [max_iterations_reached]  -> END
+  [blocked]                 -> END
 ```
 
 **Cascade 규칙**:
 ```python
 INVALIDATION_CASCADE = {
-    "story_writer":     ["stitch_planner", "copywriter", "prompt_engineer"],
-    "stitch_planner":   ["prompt_engineer"],  # method 변경 → 프롬프트 재생성
-    "copywriter":       [],                    # 카피는 독립적
-    "prompt_engineer":  [],                    # 프롬프트는 독립적
+    "story_writer":     ["stitch_planner", "copywriter", "prompt_engineer", "audio_director"],
+    "stitch_planner":   ["prompt_engineer", "audio_director"],
+    "copywriter":       [],
+    "prompt_engineer":  [],
+    "audio_director":   [],
 }
 ```
 
@@ -285,189 +498,401 @@ INVALIDATION_CASCADE = {
 
 ## 5. 상태 구조
 
+### 5.1 VideoAgentState (v4 - shot_id 기반)
+
 ```python
 class VideoAgentState(TypedDict):
-    # Input
+    # === Input: CreativeBrief ===
     account_id: str
-    intent: str
-    services: list[str]
-    platforms: list[str]
+    intent: str                        # ad | explainer | brand | trend
+    services: list[str]                # ["sora", "runway", "veo"]
+    platforms: list[str]               # ["instagram_reel", "tiktok", "youtube_shorts"]
+    execution_mode: str                # "manual_assisted" | "api"
 
-    # Context
+    # Intent-specific payload (CreativeBrief)
+    creative_brief: CreativeBrief      # 풍부한 입력 스키마
+
+    # === Context ===
     identity: dict
-    account_config: dict            # ⭐ NEW: visual_settings, channels 포함
+    account_config: dict
     weekly_slot: dict | None
 
-    # ⭐ 마케팅 레이어 확장 포인트
-    campaign_context: dict | None      # 시리즈/캠페인 맥락
-    performance_hints: list[str]       # 과거 성과 기반 힌트
-    experiment_vars: dict | None       # A/B 테스트 변수
+    # Marketing extension
+    campaign_context: dict | None
+    performance_hints: list[str]
+    experiment_vars: dict | None
 
-    # Planning
+    # === Planning (shot_id 기반) ===
     visual_anchor: str
-    shots: list[dict]               # ShotDraft 리스트
+    shots_by_id: dict[str, dict]       # Dict[shot_id, ShotDraft]
+    shot_order: list[str]              # shot_id 순서 보존
 
-    # Production (Stitch Planner 출력) - ⭐ prompt_engineer보다 먼저 실행
-    generation_methods: list[str]
-    continuity_refs: ContinuityRefs
-    stitch_plan: StitchPlan
-    asset_manifest: AssetManifest
+    # === Production (shot_id 기반) ===
+    production_by_shot_id: dict[str, dict]  # Dict[shot_id, ProductionSpec]
+    continuity_refs: dict                    # ContinuityRefs
+    stitch_plan: dict                        # StitchPlan
+    asset_manifest: list[dict]               # list[AssetItem]
 
-    # Copy (copywriter와 prompt_engineer 병렬 실행)
-    hook: str
-    captions: list[str]
-    cta: str
-    overlay_texts: list[str]
+    # === Copy (shot_id 기반) ===
+    copy_by_shot_id: dict[str, dict]   # Dict[shot_id, CopyBundle]
 
-    # Prompt (generation_method 기반 생성)
-    image_prompts: list[str]
-    video_prompts: list[str]
-    negative_prompts: list[str]
+    # === Prompt (shot_id 기반) ===
+    prompts_by_shot_id: dict[str, dict]  # Dict[shot_id, PromptBundle]
 
-    # Review
-    quality_score: float
-    quality_issues: list[str]
-    feedback_notes: list[str]
-    revision_target: str | None
+    # === Audio (shot_id 기반) ===
+    audio_by_shot_id: dict[str, dict]  # Dict[shot_id, AudioSpec]
 
-    # Control
+    # === Plan Review ===
+    plan_review: dict                  # PlanReviewResult
+    revision_issues: list[dict]        # list[ReviewIssue] - 구조화된 이슈
+
+    # === Artifact Review (렌더 후) ===
+    artifact_review: dict | None       # ArtifactReviewResult
+
+    # === Control ===
+    terminal_status: str               # TerminalStatus enum value
     iteration_count: int
-    approved: bool
-    human_review_required: bool
+    max_iterations: int
+    auto_approve_threshold: float
+    human_review_threshold: float
 
-    # ⭐ NEW: 비용 추적
-    llm_calls: int                  # 총 LLM 호출 횟수
-    token_budget: int               # 최대 허용 토큰 (기본: 50000)
+    # === Cost Tracking (분리된 메트릭) ===
+    llm_calls_used: Annotated[int, operator.add]
+    tokens_used_estimate: Annotated[int, operator.add]
+    cost_usd_estimate: Annotated[float, operator.add]
+    cost_budget_usd: float             # 최대 허용 비용
 ```
 
 ---
 
 ## 6. 데이터 계약
 
-### 6.1 ShotDraft
+### 6.1 CreativeBrief (풍부한 입력 스키마)
 
 ```python
-ShotDraft = {
-    "shot_id": str,
-    "purpose": str,              # 샷의 목적
-    "emotional_beat": str,       # 감정 포인트
-    "scene_description": str,    # 장면 설명
-    "subject": str,              # 피사체
-    "setting": str,              # 배경/세팅
-    "lighting": str,             # 조명
-    "camera_intent": str,        # 카메라 의도
-    "motion_type": str,          # 모션 타입
-    "continuity_constraints": list[str],  # 연속성 제약
-    "narrative_transition": str | None,   # ⭐ 샷 간 서사 전환 의도
-    # "contrast_shift" | "emotional_continuity" | "time_passage" | "reveal"
-    "overlay_text_needed": bool,
-    "generation_method": str | None,  # pure_video | keyframe_motion | image_stitch
-    "risk_flags": list[str],
-}
+@dataclass
+class CreativeBrief:
+    """intent별 payload를 가진 입력 스키마.
+    마케터 레이어가 이 비디오 엔진 위에 깔끔하게 올라가기 위한 인터페이스."""
+
+    account_id: str
+    intent: str                        # ad | explainer | brand | trend
+    objective: str = ""                # "install" | "engagement" | "awareness"
+    audience: str = ""                 # "20s night owls"
+    emotional_target: str = ""         # "lonely but calm"
+    message_pillar: str = ""           # "someone's voice at late night"
+    proof_points: list[str] = field(default_factory=list)
+    product_surface: str = ""          # "app_ui_light" | "none"
+    cta_policy: str = "soft"           # "soft" | "direct" | "none"
+    target_duration_sec: float = 15.0
+    platforms: list[str] = field(default_factory=list)
+    services: list[str] = field(default_factory=list)
+    execution_mode: str = "manual_assisted"
+    series_id: str | None = None
+    brand_rules_ref: str | None = None
 ```
 
-### 6.2 StitchPlan
+### 6.2 ShotDraft
 
 ```python
-StitchPlan = {
-    "strategy": str,                    # "sequential" | "parallel" | "hybrid"
-    "segments": list[StitchSegment],    # 각 세그먼트 정의
-    "total_duration_sec": float,
-    "transition_style": str,            # "crossfade" | "cut" | "morph" | "wipe"
-}
-
-StitchSegment = {
-    "segment_id": str,
-    "shot_ids": list[str],              # 이 세그먼트에 포함된 샷들
-    "method": str,                      # "pure_video" | "keyframe_motion" | "image_stitch"
-    "transition_in": str,               # "crossfade" | "cut" | "morph" | "fade"
-    "transition_out": str,
-    "duration_sec": float,
-    "assets_required": list[str],       # ["image_001.png", "video_002.mp4", ...]
-    "processing_notes": str,            # 생성 시 주의사항
-}
+@dataclass
+class ShotDraft:
+    shot_id: str
+    purpose: str
+    emotional_beat: str
+    scene_description: str
+    subject: str
+    setting: str
+    lighting: str
+    camera_intent: str
+    motion_type: str
+    duration_sec: float = 5.0
+    continuity_constraints: list[str] = field(default_factory=list)
+    narrative_transition: str | None = None
+    overlay_text_needed: bool = False
+    risk_flags: list[str] = field(default_factory=list)
 ```
 
-### 6.3 ContinuityRefs
+### 6.3 ProductionSpec (shot별 제작 레시피)
 
 ```python
-ContinuityRefs = {
-    "character": {
-        "description": str,             # "young woman, black hair, casual wear"
-        "key_features": list[str],      # ["glasses", "minimal makeup"]
-    },
-    "setting": {
-        "primary": str,                 # "bedroom, 3AM, moonlight"
-        "secondary": str | None,        # "living room, warm lamp"
-    },
-    "lighting": {
-        "type": str,                    # "moonlight", "warm lamp", "natural"
-        "color_temp": str,              # "cool blue", "warm orange"
-        "intensity": str,               # "dim", "soft", "bright"
-    },
-    "color_palette": list[str],         # ["#1a1a2e", "#16213e", "#0f3460"]
-}
+@dataclass
+class ProductionSpec:
+    shot_id: str
+    production_mode: str               # pure_video | keyframe_motion | image_stitch | hybrid_segment
+
+    render_recipe: RenderRecipe
+    fallback_recipe: RenderRecipe | None = None
+
+@dataclass
+class RenderRecipe:
+    image_service: str | None = None   # "midjourney" | "flux" | None
+    motion_service: str | None = None  # "runway_api" | "sora_api" | "veo_api" | None
+    stitch_engine: str | None = None
+    audio_strategy: str = "silent_visual"
+    continuity_ref_source: str = ""
 ```
 
-### 6.4 AssetManifest
+### 6.4 Provider/Service/Platform 계약 (3층 출력)
+
+#### Layer 1: Master Creative Plan
+- 이야기와 감정선, 샷 구조, visual anchor, copy intent
+
+#### Layer 2: Platform Variant Spec (P1)
+```python
+@dataclass
+class PlatformVariantSpec:
+    platform: str                      # "instagram_reel" | "tiktok" | "youtube_shorts"
+    duration_sec: float
+    safe_zone: dict                    # {"top": 80, "bottom": 120}
+    hook_strategy: str                 # "visual_first_2s" | "text_overlay"
+    end_card_type: str                 # "cta_card" | "fade_out" | "loop"
+    cta_placement: str                 # "overlay_bottom" | "end_screen"
+    caption_max_length: int
+    thumbnail_frame_shot_id: str | None = None
+```
+
+#### Layer 3: Service Render Recipe
+```python
+@dataclass
+class ServiceRenderSpec:
+    provider: str                      # "sora_app" | "sora_api" | "runway_app" | "runway_api" | "veo_api"
+    execution_mode: str                # "manual_assisted" | "api"
+    audio_strategy: str
+    supported_ratios: list[str]        # ["9:16", "16:9", "1:1"]
+    supported_durations: list[float]   # [4, 8, 12] (Sora API) | [4, 6, 8] (Veo)
+    reference_asset_method: str        # "start_image" | "start_end_image" | "none"
+    max_duration_per_clip: float
+    native_audio: bool
+```
+
+### 6.5 ReviewIssue (구조화된 이슈)
 
 ```python
-AssetManifest = list[AssetItem]
+@dataclass
+class ReviewIssue:
+    """키워드 매칭이 아닌 구조화된 이슈 코드 기반"""
+    code: str                          # "continuity.lighting_drift" | "copy.hook_weak"
+    severity: str                      # "critical" | "high" | "medium" | "low"
+    target_agents: list[str]           # ["stitch_planner", "prompt_engineer"]
+    shot_ids: list[str] = field(default_factory=list)  # 관련 샷
+    description: str = ""
+```
 
-AssetItem = {
-    "asset_id": str,                    # "img_001", "vid_001"
-    "type": str,                        # "image" | "video" | "audio"
-    "shot_ids": list[str],              # 사용되는 샷들
-    "generation_service": str,          # "runway" | "luma" | "midjourney"
-    "prompt_ref": str,                  # image_prompts 또는 video_prompts의 인덱스
-    "status": str,                      # "pending" | "generated" | "failed"
-    "file_path": str | None,            # 생성 후 파일 경로
+**이슈 코드 체계**:
+```
+story.arc_weak
+story.anchor_missing
+continuity.lighting_drift
+continuity.character_drift
+production.recipe_mismatch
+production.duration_overflow
+copy.hook_weak
+copy.tone_violation
+copy.brand_violation
+prompt.quality_low
+prompt.negative_missing
+audio.strategy_mismatch
+audio.voiceover_missing
+```
+
+### 6.6 StitchPlan, ContinuityRefs, AssetManifest
+
+(v3에서 변경 없음, shot_id 기반으로 참조 방식만 변경)
+
+```python
+@dataclass
+class StitchPlan:
+    strategy: str                      # "sequential" | "parallel" | "hybrid"
+    segments: list[StitchSegment]
+    total_duration_sec: float
+    transition_style: str
+
+@dataclass
+class StitchSegment:
+    segment_id: str
+    shot_ids: list[str]
+    method: str                        # production_mode
+    transition_in: str
+    transition_out: str
+    duration_sec: float
+    assets_required: list[str] = field(default_factory=list)
+    processing_notes: str = ""
+
+@dataclass
+class ContinuityRefs:
+    character: CharacterRef
+    setting: SettingRef
+    lighting: LightingRef
+    color_palette: list[str] = field(default_factory=list)
+```
+
+### 6.7 AssetItem
+
+```python
+@dataclass
+class AssetItem:
+    asset_id: str
+    type: str                          # "image" | "video" | "audio"
+    shot_ids: list[str]
+    generation_service: str
+    prompt_ref: str                    # shot_id 기반 참조
+    status: str                        # "pending" | "generated" | "failed"
+    depends_on: list[str] = field(default_factory=list)  # job dependency
+    estimated_cost_usd: float = 0.0
+    file_path: str | None = None
+```
+
+---
+
+## 7. Provider Capabilities Registry
+
+```python
+@dataclass
+class ProviderCapability:
+    provider_id: str                   # "sora_app" | "sora_api" | "runway_api" | "veo_api"
+    display_name: str
+    execution_modes: list[str]         # ["manual_assisted"] | ["api"] | ["manual_assisted", "api"]
+
+    # Video generation
+    supported_ratios: list[str]
+    supported_durations: list[float]
+    max_duration_per_clip: float
+    supports_start_image: bool
+    supports_end_image: bool
+
+    # Audio
+    native_audio: bool
+    post_audio_api: bool               # 별도 오디오 API 지원 여부
+
+    # Reference
+    supports_reference_image: bool
+    supports_first_last_frame: bool
+
+PROVIDER_CAPABILITIES = {
+    "sora_app": ProviderCapability(
+        provider_id="sora_app",
+        display_name="Sora (App)",
+        execution_modes=["manual_assisted"],
+        supported_ratios=["9:16", "16:9", "1:1"],
+        supported_durations=[5, 10, 15, 20],  # 앱: 최대 20초 편집
+        max_duration_per_clip=20.0,
+        supports_start_image=True,
+        supports_end_image=False,
+        native_audio=True,
+        post_audio_api=False,
+        supports_reference_image=True,
+        supports_first_last_frame=False,
+    ),
+    "sora_api": ProviderCapability(
+        provider_id="sora_api",
+        display_name="Sora (API)",
+        execution_modes=["api"],
+        supported_ratios=["1080x1920", "1920x1080", "1080x1080"],
+        supported_durations=[4, 8, 12],       # API: 4/8/12초
+        max_duration_per_clip=12.0,
+        supports_start_image=True,
+        supports_end_image=False,
+        native_audio=True,
+        post_audio_api=False,
+        supports_reference_image=True,
+        supports_first_last_frame=False,
+    ),
+    "veo_api": ProviderCapability(
+        provider_id="veo_api",
+        display_name="Veo 3.1 (API)",
+        execution_modes=["api"],
+        supported_ratios=["9:16", "16:9"],
+        supported_durations=[4, 6, 8],
+        max_duration_per_clip=8.0,
+        supports_start_image=True,
+        supports_end_image=False,
+        native_audio=True,
+        post_audio_api=False,
+        supports_reference_image=True,
+        supports_first_last_frame=True,
+    ),
+    "runway_api": ProviderCapability(
+        provider_id="runway_api",
+        display_name="Runway Gen-4.5 (API)",
+        execution_modes=["api"],
+        supported_ratios=["9:16", "16:9", "1:1"],
+        supported_durations=[5, 10],
+        max_duration_per_clip=10.0,
+        supports_start_image=True,
+        supports_end_image=True,
+        native_audio=False,
+        post_audio_api=True,              # 별도 SFX/TTS/dubbing API
+        supports_reference_image=True,
+        supports_first_last_frame=False,
+    ),
+    "runway_app": ProviderCapability(
+        provider_id="runway_app",
+        display_name="Runway (App)",
+        execution_modes=["manual_assisted"],
+        supported_ratios=["9:16", "16:9", "1:1"],
+        supported_durations=[5, 10],
+        max_duration_per_clip=10.0,
+        supports_start_image=True,
+        supports_end_image=True,
+        native_audio=False,
+        post_audio_api=True,
+        supports_reference_image=True,
+        supports_first_last_frame=False,
+    ),
 }
 ```
 
 ---
 
-## 7. 파일 구조
+## 8. 파일 구조
 
 ```
 picko/video/
-├── agents/
-│   ├── __init__.py
-│   ├── graph.py              # LangGraph 상태머신
-│   ├── state.py              # VideoAgentState
-│   ├── schemas.py            # ShotDraft 등
-│   │
-│   ├── nodes/
-│   │   ├── __init__.py
-│   │   ├── story_writer.py
-│   │   ├── copywriter.py
-│   │   ├── prompt_engineer.py
-│   │   ├── stitch_planner.py
-│   │   ├── reviewer.py
-│   │   └── orchestrator.py
-│   │
-│   ├── tools/
-│   │   ├── __init__.py
-│   │   ├── base.py           # BaseTool
-│   │   ├── story.py
-│   │   ├── copy.py
-│   │   ├── prompt.py
-│   │   ├── stitch.py         # NEW
-│   │   ├── review.py
-│   │   └── orchestrate.py
-│   │
-│   └── prompts/
-│       ├── story_writer.md
-│       ├── copywriter.md
-│       ├── prompt_engineer.md
-│       ├── stitch_planner.md
-│       ├── reviewer.md
-│       └── orchestrator.md
++-- agents/
+|   +-- __init__.py
+|   +-- graph.py              # LangGraph 상태머신
+|   +-- state.py              # VideoAgentState
+|   +-- schemas.py            # ShotDraft, ProductionSpec, CreativeBrief 등
+|   +-- providers.py          # ProviderCapability, PROVIDER_CAPABILITIES
+|   |
+|   +-- nodes/
+|   |   +-- __init__.py
+|   |   +-- base.py           # safe_node wrapper
+|   |   +-- story_writer.py
+|   |   +-- copywriter.py
+|   |   +-- prompt_engineer.py
+|   |   +-- stitch_planner.py
+|   |   +-- audio_director.py   # NEW
+|   |   +-- plan_reviewer.py    # RENAMED from reviewer.py
+|   |   +-- artifact_reviewer.py # NEW
+|   |   +-- orchestrator.py
+|   |
+|   +-- tools/
+|   |   +-- __init__.py
+|   |   +-- base.py           # BaseTool
+|   |   +-- story.py
+|   |   +-- copy.py
+|   |   +-- prompt.py
+|   |   +-- stitch.py
+|   |   +-- audio.py          # NEW
+|   |   +-- review.py
+|   |   +-- artifact_qa.py    # NEW (deterministic + VLM)
+|   |   +-- orchestrate.py
+|   |
+|   +-- prompts/
+|       +-- story_writer.md
+|       +-- copywriter.md
+|       +-- prompt_engineer.md
+|       +-- stitch_planner.md
+|       +-- audio_director.md  # NEW
+|       +-- plan_reviewer.md   # RENAMED
+|       +-- orchestrator.md
 ```
 
 ---
 
-## 8. 기존 시스템 통합
+## 9. 기존 시스템 통합
 
 ```python
 class VideoGenerator:
@@ -483,18 +908,13 @@ class VideoGenerator:
 ### 재사용 컴포넌트
 
 - `picko/video/prompt_templates.py` - SERVICE_CONFIGS
-- `picko/video/quality_scorer.py` - 품질 평가 로직
+- `picko/video/quality_scorer.py` - 품질 평가 로직 (Plan Reviewer에서 재사용)
 - `picko/account_context.py` - identity, weekly_slot
 - `picko/llm_client.py` - get_writer_client()
 
-### 8.1 VideoPlan 확장 전략
-
-현재 `VideoPlan`/`VideoShot`에는 stitch 관련 필드가 없다. `VideoAgentState → VideoPlan` 변환 시 다음 중 하나를 선택해야 한다:
-
-**옵션 A: VideoPlan 모델 확장 (권장)**
+### VideoPlan 확장 전략 (옵션 A: 모델 확장)
 
 ```python
-# picko/video_plan.py 수정
 @dataclass
 class VideoPlan:
     # ... 기존 필드 ...
@@ -502,123 +922,92 @@ class VideoPlan:
     # NEW: Production fields
     stitch_plan: StitchPlan | None = None
     asset_manifest: list[AssetItem] = field(default_factory=list)
-    generation_methods: list[str] = field(default_factory=list)
-
-@dataclass
-class VideoShot:
-    # ... 기존 필드 ...
-
-    # NEW: Production metadata
-    generation_method: str = ""  # pure_video | keyframe_motion | image_stitch
-    continuity_notes: str = ""
+    production_specs: dict = field(default_factory=dict)  # shot_id -> ProductionSpec
+    audio_specs: dict = field(default_factory=dict)       # shot_id -> AudioSpec
+    render_briefs: list[dict] = field(default_factory=list)  # 서비스별 렌더 브리프
 ```
-
-**옵션 B: 별도 산출물로 분리**
-
-```python
-# 새 파일: picko/video/production_plan.py
-@dataclass
-class ProductionPlan:
-    video_plan_id: str
-    stitch_plan: StitchPlan
-    asset_manifest: AssetManifest
-    generation_methods: list[str]
-
-# VideoGenerator.generate() returns tuple
-def generate(self) -> tuple[VideoPlan, ProductionPlan]:
-    ...
-```
-
-**결정**: 옵션 A 선택. 이유:
-1. 기존 코드가 `VideoPlan`만 반환하도록 작성됨
-2. JSON 직렬화/역직렬화가 이미 구현되어 있음
-3. `to_markdown()` 출력에 자연스럽게 포함 가능
 
 ---
 
-## 9. 구현 단계
+## 10. 구현 단계
 
 ### Phase 1. Foundation
 - [ ] `agents/` 디렉토리 구조 생성
-- [ ] `VideoAgentState` TypedDict 정의
-- [ ] `ShotDraft` 스키마 정의
+- [ ] `VideoAgentState` (shot_id 기반) 정의
+- [ ] `CreativeBrief`, `ShotDraft`, `ProductionSpec` 스키마 정의
+- [ ] `ProviderCapability` + `PROVIDER_CAPABILITIES` 정의
+- [ ] `TerminalStatus` enum 정의
+- [ ] `ReviewIssue` 구조화된 이슈 스키마 정의
 - [ ] LangGraph 기본 graph 구축
 - [ ] Legacy fallback 유지
 
-### Phase 2. Core Production Flow
+### Phase 2. Core Planning Flow
 - [ ] `story_writer` node + tools
+- [ ] `stitch_planner` node + tools (recipe-based)
 - [ ] `prompt_engineer` node + tools
-- [ ] `stitch_planner` node + tools ⭐
-- [ ] 선형 flow 구현
-- [ ] 최소 `reviewer` 추가
-
-### Phase 3. Copy & Review Loop
+- [ ] `audio_director` node + tools
 - [ ] `copywriter` node + tools
-- [ ] `reviewer` 고도화 (4개 tools)
+- [ ] 선형 + fan-out flow 구현
+
+### Phase 3. Review & Control Loop
+- [ ] `plan_reviewer` node + tools (기존 scorer 재사용)
 - [ ] `orchestrator` node + tools
-- [ ] Selective retry 구현
+- [ ] 구조화된 이슈 기반 revision routing
+- [ ] Cascade invalidation
+- [ ] Terminal status 기반 종료 로직
 
-### Phase 4. Integration
+### Phase 4. Artifact Review & Manual Loop
+- [ ] `artifact_reviewer` - deterministic checks
+- [ ] `artifact_reviewer` - VLM QA (Gemini)
+- [ ] Render brief 출력 포맷
+- [ ] Manual upload -> artifact review 흐름
+- [ ] Human gate 연동
+
+### Phase 5. Integration & Testing
 - [ ] `VideoGenerator` 연동
-- [ ] `_state_to_plan()` 변환 로직
-- [ ] 기존 scorer와 결합
-- [ ] Dry-run 지원
-
-### Phase 5. Testing & Polish
+- [ ] `_state_to_plan()` 변환 (shot_id 기반)
 - [ ] Tool 단위 테스트
 - [ ] Graph 통합 테스트
-- [ ] Retry path 테스트
+- [ ] Revision loop 테스트
 - [ ] Legacy compatibility 테스트
+
+### Phase 6. (P1) Platform & Enhancement
+- [ ] Platform Variant Builder
+- [ ] Vault retrieval (과거 anchor/시리즈 재사용)
+- [ ] Intent-specific rubric (ad/brand/trend/explainer 분리)
+- [ ] Asset manifest job DAG
 
 ---
 
-## 10. 검증 기준
+## 11. 검증 기준
 
 ### 성공 조건
 
 - 최소 1개의 `visual_anchor` 생성
-- 샷 구조가 유효해야 함
-- 카피와 프롬프트가 샷과 연결되어야 함
-- 각 shot에 생성 방식이 지정되어야 함
-- stitch plan 또는 pure video plan이 있어야 함
-- reviewer가 승인 또는 수정 사유를 명확히 출력
+- 샷 구조가 유효해야 함 (shot_id 기반, 순서 보존)
+- 카피/프롬프트/오디오가 샷과 shot_id로 연결
+- 각 shot에 `ProductionSpec` (production_mode + render_recipe) 지정
+- `audio_strategy`가 모든 shot에 지정
+- Plan Reviewer가 구조화된 이슈 코드로 검수 결과 출력
+- `terminal_status` enum으로 종료 상태 명확
+- 비용 추적 3개 메트릭 (llm_calls, tokens, cost_usd) 분리
 - 최대 반복 횟수 내 종료
-
-### 테스트
-
-```bash
-pytest tests/video/agents/ -v
-```
-
-```python
-from picko.video.agents.graph import VideoAgentGraph
-
-graph = VideoAgentGraph()
-result = graph.generate(
-    account_id="dawn_mood_call",
-    intent="ad",
-    services=["runway"],
-    platforms=["instagram_reel"],
-)
-
-print(f"Approved: {result['approved']}")
-print(f"Shots: {len(result['shots'])}")
-print(f"Asset Manifest: {result['asset_manifest']}")
-```
 
 ---
 
-## 11. 설정 파일
+## 12. 설정 파일
 
 ```yaml
 # config/video_agents.yml
 defaults:
   quality_threshold: 70
   max_iterations: 3
-  # ⭐ 개선: 승인 시 항상 리뷰가 아닌, 낮은 점수일 때만 리뷰
-  human_review_on_low_score: true
-  human_review_threshold: 60        # 60점 이하면 human review
-  auto_approve_threshold: 85        # 85점 이상이면 자동 승인
+  human_review_threshold: 60
+  auto_approve_threshold: 85
+  cost_budget_usd: 1.00
+
+execution:
+  default_mode: manual_assisted       # manual_assisted | api
 
 agents:
   story_writer:
@@ -633,318 +1022,91 @@ agents:
   stitch_planner:
     temperature: 0.2
     max_tokens: 2000
-  reviewer:
+  audio_director:
+    temperature: 0.5
+    max_tokens: 1500
+  plan_reviewer:
     temperature: 0.2
     max_tokens: 1500
+  artifact_reviewer:
+    vlm_provider: gemini              # gemini | gpt4
+    max_segments_per_review: 5
   orchestrator:
     temperature: 0.0
     max_tokens: 500
-```
 
-### 11.1 프롬프트 파일 스펙
-
-각 에이전트의 프롬프트 파일(`prompts/*.md`)은 다음 구조를 따른다:
-
-```markdown
-# {에이전트명} 프롬프트
-
-## Role
-{에이전트의 역할 설명}
-
-## Context Variables
-- {{variable_name}}: {설명}
-
-## Input Format
-{입력 JSON 스키마}
-
-## Output Format
-{출력 JSON 스키마}
-
-## Guidelines
-1. {지침 1}
-2. {지침 2}
-
-## Examples
-### Example 1
-Input: {...}
-Output: {...}
-```
-
-**Temperature와의 관계**:
-- `temperature: 0.0-0.3`: 정확성 중시, 일관된 출력 (Reviewer, Orchestrator, Prompt Engineer)
-- `temperature: 0.4-0.7`: 균형, 약간의 창의성 (Story Writer)
-- `temperature: 0.7-1.0`: 창의성 중시, 다양한 표현 (Copywriter)
-
----
-
-## 12. Critical Files
-
-| 파일 | 용도 |
-|------|------|
-| `picko/video/agents/graph.py` | LangGraph 상태머신 (핵심) |
-| `picko/video/agents/state.py` | VideoAgentState 정의 |
-| `picko/video/agents/schemas.py` | ShotDraft 스키마 |
-| `picko/video/agents/nodes/stitch_planner.py` | ⭐ 새로운 핵심 에이전트 |
-| `picko/video/agents/tools/stitch.py` | 스티치 관련 도구들 |
-| `picko/video/generator.py` | 통합 진입점 |
-
----
-
-## 14. 구현 상세
-
-### 14.1 에러 처리 전략
-
-각 노드에 `safe_node` 래퍼 적용:
-
-```python
-# nodes/base.py
-def safe_node(func):
-    """노드 실행 래퍼 — LLM 실패 시 상태에 에러 기록"""
-    def wrapper(state: VideoAgentState) -> dict:
-        try:
-            return func(state)
-        except Exception as e:
-            node_name = func.__name__.replace("_node", "")
-            logger.error(f"{node_name} failed: {e}")
-            return {
-                "quality_issues": state.get("quality_issues", []) + [f"{node_name} 실행 실패: {e}"],
-                "revision_target": node_name,
-            }
-    return wrapper
-
-@safe_node
-def story_writer_node(state: VideoAgentState) -> dict:
-    # ... 기존 로직
-```
-
-Orchestrator 입력 검증:
-
-```python
-def _validate_state_completeness(state: VideoAgentState) -> list[str]:
-    """필수 필드가 비어있으면 해당 에이전트를 재실행 대상으로"""
-    missing = []
-    if not state.get("visual_anchor"):
-        missing.append("story_writer")
-    if not state.get("shots"):
-        missing.append("story_writer")
-    if not state.get("generation_methods"):
-        missing.append("stitch_planner")
-    if not state.get("video_prompts") and not state.get("image_prompts"):
-        missing.append("prompt_engineer")
-    return missing
-```
-
-### 14.2 Reviewer와 기존 Scorer 통합
-
-Reviewer 노드에서 임시 VideoPlan 구성 후 기존 scorer 호출:
-
-```python
-# nodes/reviewer.py
-from picko.video.quality_scorer import VideoPlanScorer
-
-def _build_temp_plan(state: VideoAgentState) -> VideoPlan:
-    """state에서 임시 VideoPlan 구성 (scorer 호출용)"""
-    shots = []
-    for i, shot_draft in enumerate(state["shots"]):
-        shot = VideoShot(
-            index=i + 1,
-            duration_sec=shot_draft.get("duration_sec", 5),
-            shot_type=shot_draft.get("purpose", "main"),
-            script=shot_draft.get("scene_description", ""),
-            caption=state["captions"][i] if i < len(state["captions"]) else "",
-            background_prompt=state["video_prompts"][i] if i < len(state["video_prompts"]) else "",
-        )
-        _attach_service_params(shot, state, i)
-        shots.append(shot)
-
-    return VideoPlan(
-        id="temp_review",
-        account=state["account_id"],
-        intent=state["intent"],
-        goal="",
-        source=VideoSource(type="account_only"),
-        brand_style=BrandStyle(tone=""),
-        shots=shots,
-        target_services=state["services"],
-        platforms=state["platforms"],
-    )
-
-def review_node(state: VideoAgentState) -> dict:
-    temp_plan = _build_temp_plan(state)
-
-    # 기존 scorer 재사용
-    scorer = VideoPlanScorer()
-    score = scorer.score(temp_plan, state["services"])
-
-    # 멀티에이전트 전용 추가 검수
-    production_issues = _review_production_fit(state)
-
-    return {
-        "quality_score": score.overall,
-        "quality_issues": score.issues + production_issues,
-        "feedback_notes": score.suggestions,
-    }
-```
-
-### 14.3 ShotDraft → VideoShot 매핑
-
-VideoShot에 필드 추가 대신 `notes` dict 활용:
-
-```python
-def _shot_draft_to_video_shot(draft: dict, index: int, state: VideoAgentState) -> VideoShot:
-    shot = VideoShot(
-        index=index,
-        duration_sec=draft.get("duration_sec", 5),
-        shot_type=draft.get("purpose", "main"),
-        script=draft.get("scene_description", ""),
-        caption=state["captions"][index - 1] if index <= len(state["captions"]) else "",
-        background_prompt=state["video_prompts"][index - 1] if index <= len(state["video_prompts"]) else "",
-        transition_in=_get_transition(state["stitch_plan"], index, "in"),
-        transition_out=_get_transition(state["stitch_plan"], index, "out"),
-    )
-
-    # 에이전트 메타데이터를 notes에 보존
-    shot.notes = {
-        "emotional_beat": draft.get("emotional_beat", ""),
-        "generation_method": draft.get("generation_method", ""),
-        "risk_flags": ",".join(draft.get("risk_flags", [])),
-        "continuity": ",".join(draft.get("continuity_constraints", [])),
-    }
-
-    return shot
-```
-
-### 14.4 프롬프트 파일 로딩
-
-기존 `prompt_loader.py` 확장:
-
-```python
-# agents/prompts/loader.py
-from pathlib import Path
-
-PROMPTS_DIR = Path(__file__).parent
-
-def load_agent_prompt(agent_name: str) -> str:
-    """에이전트 시스템 프롬프트 로드"""
-    path = PROMPTS_DIR / f"{agent_name}.md"
-    return path.read_text(encoding="utf-8")
-```
-
-각 노드에서 사용:
-
-```python
-from picko.video.agents.prompts.loader import load_agent_prompt
-
-def story_writer_node(state):
-    system_prompt = load_agent_prompt("story_writer")
-    client = get_writer_client()
-    result = client.generate(
-        user_prompt,
-        system_prompt=system_prompt,
-        temperature=0.7
-    )
-```
-
-### 14.5 Account Config 전달
-
-그래프 초기화 시 전체 account YAML 로드:
-
-```python
-# graph.py
-from picko.config import get_config
-
-def _init_state(account_id: str, **kwargs) -> VideoAgentState:
-    config = get_config()
-    account_config = config.get_account(account_id)  # dawn_mood_call.yml 전체
-    identity = get_identity(account_id)
-
-    return VideoAgentState(
-        account_id=account_id,
-        identity=identity.__dict__ if identity else {},
-        account_config=account_config or {},  # visual_settings, channels 포함
-        # ...
-    )
-```
-
-Story Writer 프롬프트에서 활용:
-
-```markdown
-<!-- prompts/story_writer.md -->
-## 비주얼 설정
-- 레이아웃 프리셋: {{account_config.visual_settings.default_layout_preset}}
-- 채널 톤: {{account_config.channels.instagram.tone}}
-
-이 설정에 맞는 visual anchor를 생성하세요.
-```
-
-### 14.6 비용/토큰 관리
-
-Orchestrator가 매 반복마다 예산 확인:
-
-```python
-# config/video_agents.yml
-defaults:
-  token_budget: 50000  # 약 $0.50 (claude sonnet 기준)
-
-def enforce_budget(state: VideoAgentState) -> bool:
-    """예산 초과 시 human_review로 전환"""
-    return state["llm_calls"] < state.get("token_budget", 50000)
-```
-
-### 14.7 LangGraph 의존성
-
-```bash
-uv add langgraph
-```
-
-Phase 1 체크리스트에 추가:
-
-```yaml
-Phase 1. Foundation:
-  - [ ] uv add langgraph
-  - [ ] `agents/` 디렉토리 구조 생성
-  # ...
+providers:
+  # 기본 활성화 서비스 (execution_mode에 따라 필터)
+  manual_assisted: ["sora_app", "runway_app"]
+  api: ["sora_api", "runway_api", "veo_api"]
 ```
 
 ---
 
-## 15. 변경 이력
+## 13. 운영 모드 전환 설계
+
+### 단계 1: 구독형 수동-보조 렌더 (현재)
+- Story/Copy/Prompt/Audio plan 자동 생성
+- **render_brief** 출력 (서비스별 렌더 지침서)
+- 사람이 Sora/Runway/Veo에서 렌더
+- 결과 업로드
+
+### 단계 2: 자동 QA
+- Deterministic checks (규칙)
+- Gemini 기반 Artifact Reviewer (VLM)
+- Plan 대비 점검
+- 재생성 제안 (bounded autonomy)
+
+### 단계 3: 사람 최종 승인
+- 감성/브랜드/리스크 확인
+- 게시용 변형 승인
+
+### 단계 4: API 모드 전환
+- `execution_mode = "api"` 변경
+- Planning contract 유지, QA contract 유지
+- **Provider adapter만 교체** (render_brief -> API call)
+
+---
+
+## 14. 변경 이력
+
+### v4 (전문가 리뷰 반영 - production loop, v2 아키텍처)
+
+| 항목 | v3 | v4 |
+|------|-----|-----|
+| 상태 스키마 | 배열 인덱스 기반 | **shot_id 기반** (Dict[shot_id, ...]) |
+| generation_method | 단일 서비스 capability 판단 | **2단 recipe selection** (production_mode + render_recipe + fallback) |
+| Reviewer | 단일 Reviewer | **Plan Reviewer + Artifact Reviewer + Human Gate** 3단 분리 |
+| 오디오 | 없음 | **Audio Director** 에이전트 + `audio_strategy` 4종 |
+| terminal status | `approved` + `human_review_required` boolean | **TerminalStatus enum** 5종 |
+| revision routing | 키워드 매칭 (`_ISSUE_AGENT_MAP`) | **구조화된 이슈 코드** (`ReviewIssue.code`) |
+| 비용 추적 | `llm_calls` vs `token_budget` (단위 불일치) | **llm_calls + tokens_used + cost_usd** 3개 분리 |
+| 입력 스키마 | `account_id` + `intent` (얇음) | **CreativeBrief** (intent별 payload) |
+| 실행 모드 | 없음 | **execution_mode** (manual_assisted / api) |
+| Provider 계약 | `SERVICE_CONSTRAINTS` (서비스 제약) | **ProviderCapability** (provider/app/api 구분) |
+| 출력 계층 | 단일 VideoPlan | **3층** (Master Plan + Platform Variant + Service Recipe) |
+| VLM QA | 없음 | **3층 QA** (deterministic + VLM + human gate) |
+| Provider registry | 없음 | **PROVIDER_CAPABILITIES** (Sora app/api, Veo, Runway app/api) |
 
 ### v3 (P0-P3 구현 가이드 반영)
 
-| 항목 | v2 | v3 (구현 가이드) |
-|------|-----|-----------------|
-| SERVICE_CONSTRAINTS 참조 | 없음 | `select_generation_method`에서 직접 조회 |
-| 에이전트 순서 (fan-out) | 순차 | **copywriter + prompt_engineer 병렬** (LangGraph fan-out) |
-| Cascade invalidation | 없음 | `INVALIDATION_CASCADE` 규칙 추가 |
-| 에러 처리 | 없음 | `safe_node` 래퍼 + 입력 검증 |
+| 항목 | v2 | v3 |
+|------|-----|-----|
+| SERVICE_CONSTRAINTS 참조 | 없음 | select_generation_method에서 직접 조회 |
+| 에이전트 순서 (fan-out) | 순차 | copywriter + prompt_engineer 병렬 |
+| Cascade invalidation | 없음 | INVALIDATION_CASCADE 규칙 |
+| 에러 처리 | 없음 | safe_node 래퍼 |
 | Reviewer-Scorer 통합 | 없음 | 임시 VideoPlan 구성 후 기존 Scorer 재사용 |
-| ShotDraft → VideoShot 매핑 | 없음 | `notes` dict에 메타데이터 보존 |
-| 비용 추적 | 없음 | `llm_calls`, `token_budget` 필드 추가 |
-| 프롬프트 로더 | 없음 | `prompts/loader.py` (기존 prompt_loader 확장) |
-| account_config | 없음 | `visual_settings`, `channels` 포함 |
-| LangGraph 의존성 | 미포함 | `uv add langgraph` 명시 |
 
 ### v2 (리뷰 반영)
 
-| 항목 | v1 | v2 (리뷰 반영) |
-|------|-----|----------------|
-| 마케팅 확장 포인트 | 없음 | `campaign_context`, `performance_hints`, `experiment_vars` 추가 |
-| 에이전트 순서 | prompt → stitch | **stitch → prompt** (제작 방식 먼저 결정) |
-| StitchPlan 계약 | `dict` (느슨함) | `StitchPlan`, `StitchSegment` 명시적 계약 |
-| AssetManifest 계약 | `list[dict]` | `AssetItem` 명시적 계약 |
-| ContinuityRefs | 없음 | 캐릭터/배경/조명/색상 명시적 정의 |
-| human_review 로직 | 승인 시 항상 | **낮은 점수일 때만** (threshold 기반) |
-| 프롬프트 파일 스펙 | 없음 | 각 에이전트별 `.md` 파일 구조 정의 |
-| VideoPlan 확장 전략 | 불명확 | 옵션 A (모델 확장) 선택 및 명시화 |
+| 항목 | v1 | v2 |
+|------|-----|-----|
+| 마케팅 확장 포인트 | 없음 | campaign_context, performance_hints, experiment_vars |
+| 에이전트 순서 | prompt -> stitch | stitch -> prompt |
+| StitchPlan 계약 | dict (느슨함) | 명시적 계약 |
 
 ### v1 (초안)
 
-| 항목 | 이전 | v1 |
-|------|------|-----|
-| 에이전트 수 | 4개 | 6개 |
-| Director | 1개 | Reviewer + Orchestrator로 분리 |
-| Stitch Planner | 없음 | ⭐ 추가 (핵심) |
-| 상태 필드 | 기본 | production 관련 필드 추가 |
-| 구현 단계 | 4단계 | 5단계 (세분화) |
-| 범위 | 모호 | 1단계: 비디오 제작만 명확히 한정 |
+- 6개 에이전트, Director를 Reviewer + Orchestrator로 분리
+- Stitch Planner 추가
