@@ -1,0 +1,34 @@
+defaults:
+  quality_threshold: 70
+  max_iterations: 3
+  human_review_threshold: 60
+  auto_approve_threshold: 85
+  cost_budget_usd: 1.0
+
+execution:
+  default_mode: manual_assisted
+
+agents:
+  story_writer:
+    temperature: 0.7
+    max_tokens: 2000
+  copywriter:
+    temperature: 0.8
+    max_tokens: 1500
+  prompt_engineer:
+    temperature: 0.3
+    max_tokens: 3000
+  stitch_planner:
+    temperature: 0.2
+    max_tokens: 2000
+  audio_director:
+    temperature: 0.5
+    max_tokens: 1500
+  plan_reviewer:
+    temperature: 0.2
+    max_tokens: 1500
+  artifact_reviewer:
+    max_segments_per_review: 5
+  orchestrator:
+    temperature: 0.0
+    max_tokens: 500

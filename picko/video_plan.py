@@ -387,7 +387,7 @@ class VideoShot:
     transition_out: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        result = {
+        result: dict[str, Any] = {
             "index": self.index,
             "duration_sec": self.duration_sec,
             "shot_type": self.shot_type,
@@ -538,6 +538,14 @@ class VideoPlan:
     quality_suggestions: list[str] = field(default_factory=list)
     quality_warning: bool = False  # 최대 재시도 초과 시 True
 
+    stitch_plan: dict[str, Any] | None = None
+    asset_manifest: list[dict[str, Any]] = field(default_factory=list)
+    production_specs: dict[str, dict[str, Any]] = field(default_factory=dict)
+    audio_specs: dict[str, dict[str, Any]] = field(default_factory=dict)
+    render_briefs: list[dict[str, Any]] = field(default_factory=list)
+    platform_variants: list[dict[str, Any]] = field(default_factory=list)
+    publish_status: str = "pending"
+
     def __post_init__(self) -> None:
         if not self.created_at:
             self.created_at = datetime.now().strftime("%Y-%m-%d")
@@ -549,7 +557,7 @@ class VideoPlan:
     # ──────────────────────────────────────────────
 
     def to_dict(self) -> dict[str, Any]:
-        result = {
+        result: dict[str, Any] = {
             "id": self.id,
             "account": self.account,
             "intent": self.intent,
@@ -571,6 +579,20 @@ class VideoPlan:
             result["quality_suggestions"] = self.quality_suggestions
         if self.quality_warning:
             result["quality_warning"] = self.quality_warning
+        if self.stitch_plan:
+            result["stitch_plan"] = self.stitch_plan
+        if self.asset_manifest:
+            result["asset_manifest"] = self.asset_manifest
+        if self.production_specs:
+            result["production_specs"] = self.production_specs
+        if self.audio_specs:
+            result["audio_specs"] = self.audio_specs
+        if self.render_briefs:
+            result["render_briefs"] = self.render_briefs
+        if self.platform_variants:
+            result["platform_variants"] = self.platform_variants
+        if self.publish_status != "pending":
+            result["publish_status"] = self.publish_status
         return result
 
     def to_json(self, indent: int = 2) -> str:
@@ -594,6 +616,13 @@ class VideoPlan:
             quality_issues=d.get("quality_issues", []),
             quality_suggestions=d.get("quality_suggestions", []),
             quality_warning=d.get("quality_warning", False),
+            stitch_plan=d.get("stitch_plan"),
+            asset_manifest=d.get("asset_manifest", []),
+            production_specs=d.get("production_specs", {}),
+            audio_specs=d.get("audio_specs", {}),
+            render_briefs=d.get("render_briefs", []),
+            platform_variants=d.get("platform_variants", []),
+            publish_status=d.get("publish_status", "pending"),
         )
 
     @classmethod

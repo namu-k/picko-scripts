@@ -7,11 +7,14 @@ VideoPlan 생성 로직
 import json
 import logging
 import re
+from collections.abc import Mapping
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from picko.account_context import get_identity, get_weekly_slot
 from picko.llm_client import get_writer_client
+from picko.video.agents.graph import VideoAgentGraph
+from picko.video.agents.runtime import build_render_briefs
 from picko.video.quality_scorer import QUALITY_THRESHOLD, VideoPlanScorer
 from picko.video.validator import VideoPlanValidator
 from picko.video_plan import (
@@ -48,6 +51,7 @@ class VideoGenerator:
         content_id: str = "",
         week_of: str = "",
         lang: str = "ko",
+        use_multi_agent: bool = False,
     ) -> None:
         self.account_id = account_id
         self.services = services or ["luma"]
@@ -56,10 +60,15 @@ class VideoGenerator:
         self.content_id = content_id
         self.week_of = week_of
         self.lang = lang
+        self.use_multi_agent = use_multi_agent
         self._feedback: list[str] = []
 
     def generate(self, validate: bool = True) -> VideoPlan:
         """VideoPlan 생성 (품질 게이트 포함)"""
+        if self.use_multi_agent:
+            return self._generate_with_agents(validate=validate)
+
+        plan: VideoPlan | None = None
         for attempt in range(MAX_RETRIES + 1):
             plan = self._generate_plan()
 
@@ -93,7 +102,96 @@ class VideoGenerator:
 
         # 최대 재시도 초과
         logger.error(f"품질 기준 미달 after {MAX_RETRIES + 1} attempts")
+        if plan is None:
+            raise RuntimeError("Video plan generation failed before producing any plan")
         plan.quality_warning = True
+        return plan
+
+    def _generate_with_agents(self, validate: bool = True) -> VideoPlan:
+        identity = get_identity(self.account_id)
+        if not identity:
+            raise ValueError(f"계정을 찾을 수 없습니다: {self.account_id}")
+
+        creative_brief: dict[str, Any] = {
+            "account_id": self.account_id,
+            "intent": self.intent,
+            "objective": "",
+            "audience": ", ".join(identity.target_audience),
+            "message_pillar": identity.value_proposition,
+            "proof_points": [],
+            "target_duration_sec": 15.0,
+            "services": self.services,
+            "platforms": self.platforms,
+            "execution_mode": "manual_assisted",
+        }
+
+        graph = VideoAgentGraph()
+        state = graph.generate(creative_brief)
+        plan = self._state_to_plan(state)
+
+        if not validate:
+            return plan
+
+        validator = VideoPlanValidator(plan)
+        errors = validator.validate()
+        critical = [e for e in errors if e.severity == "error"]
+        if critical:
+            plan.quality_warning = True
+            return plan
+
+        return plan
+
+    def _state_to_plan(self, state: Mapping[str, Any]) -> VideoPlan:
+        shot_order = cast(list[str], state.get("shot_order", []))
+        shots_by_id = cast(dict[str, dict[str, Any]], state.get("shots_by_id", {}))
+        copy_by_shot_id = cast(dict[str, dict[str, Any]], state.get("copy_by_shot_id", {}))
+        prompts_by_shot_id = cast(dict[str, dict[str, Any]], state.get("prompts_by_shot_id", {}))
+
+        shots: list[VideoShot] = []
+        for index, shot_id in enumerate(shot_order, start=1):
+            shot_data = shots_by_id.get(shot_id, {})
+            copy_data = copy_by_shot_id.get(shot_id, {})
+            prompt_data = prompts_by_shot_id.get(shot_id, {})
+            shots.append(
+                VideoShot(
+                    index=index,
+                    duration_sec=int(float(shot_data.get("duration_sec", 5))),
+                    shot_type=str(shot_data.get("purpose", "main")),
+                    script=str(shot_data.get("scene_description", "")),
+                    caption=str(copy_data.get("caption", "")),
+                    background_prompt=str(prompt_data.get("video_prompt", "")),
+                )
+            )
+
+        plan = VideoPlan(
+            id=f"video_{self.account_id}_{self._generate_id()}",
+            account=self.account_id,
+            intent=cast(VideoIntent, self.intent),
+            goal=str(state.get("creative_brief", {}).get("objective", "")),
+            source=VideoSource(type="account_only", id=self.content_id),
+            brand_style=BrandStyle(tone=""),
+            shots=shots,
+            target_services=self.services,
+            platforms=self.platforms,
+            production_specs=cast(dict[str, dict[str, Any]], state.get("production_by_shot_id", {})),
+            audio_specs=cast(dict[str, dict[str, Any]], state.get("audio_by_shot_id", {})),
+            stitch_plan=cast(dict[str, Any], state.get("stitch_plan", {})),
+            asset_manifest=cast(list[dict[str, Any]], state.get("asset_manifest", [])),
+            platform_variants=[],
+            publish_status="pending",
+        )
+        plan.render_briefs = build_render_briefs(state)
+
+        plan_review = cast(dict[str, Any], state.get("plan_review", {}))
+        if isinstance(plan_review.get("quality_score"), (int, float)):
+            plan.quality_score = float(plan_review["quality_score"])
+        issues = plan_review.get("issues", [])
+        if isinstance(issues, list):
+            plan.quality_issues = [str(item.get("code", "")) for item in issues if isinstance(item, dict)]
+        notes = plan_review.get("feedback_notes", [])
+        if isinstance(notes, list):
+            plan.quality_suggestions = [str(note) for note in notes]
+
         return plan
 
     def _generate_plan(self) -> VideoPlan:
@@ -126,7 +224,7 @@ class VideoGenerator:
 ## 계정 정보
 - 계정명: {identity.account_id}
 - 한 줄 소개: {identity.one_liner}
-- 타겟 오디언스: {', '.join(identity.target_audience)}
+- 타겟 오디언스: {", ".join(identity.target_audience)}
 - 가치 제안: {identity.value_proposition}
 """
 
@@ -156,7 +254,7 @@ class VideoGenerator:
         if self._feedback:
             feedback_info = f"""
 ## 이전 시도 피드백 (반영 필요)
-{chr(10).join(f'- {f}' for f in self._feedback)}
+{chr(10).join(f"- {f}" for f in self._feedback)}
 """
 
         return f"""
@@ -166,9 +264,9 @@ class VideoGenerator:
 
 ## 영상 목적
 - Intent: {self.intent}
-- 권장 길이: {intent_config['duration']}
-- 권장 샷 수: {intent_config['shots']}
-- 톤 가이드: {intent_config['tone']}
+- 권장 길이: {intent_config["duration"]}
+- 권장 샷 수: {intent_config["shots"]}
+- 톤 가이드: {intent_config["tone"]}
 
 {weekly_info}
 {content_info}
@@ -200,7 +298,7 @@ class VideoGenerator:
             schemas.append(f'"{service}": {{ "prompt": "서비스용 프롬프트 (영문)", "negative_prompt": "제외 요소" }}')
         return ", ".join(schemas)
 
-    def _get_intent_config(self) -> dict:
+    def _get_intent_config(self) -> dict[str, str]:
         """Intent별 설정"""
         configs = {
             "ad": {
@@ -312,7 +410,7 @@ class VideoGenerator:
         plan = VideoPlan(
             id=f"video_{self.account_id}_{self._generate_id()}",
             account=self.account_id,
-            intent=self.intent,
+            intent=cast(VideoIntent, self.intent),
             goal=data.get("goal", ""),
             source=VideoSource(
                 type="longform" if content_summary else "account_only",
