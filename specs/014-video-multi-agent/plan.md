@@ -4,6 +4,10 @@
 
 스펙 문서 `specs/014-video-multi-agent/spec.md` v4 기반 구현 계획.
 
+**구현 목표**: 비디오 planning / recipe selection / render QA / publish gate 코어를 완성한다.
+캠페인 전략, KPI 최적화, 실험 자동화, 브랜드 운영 자동화는 본 구현 범위에 포함하지 않는다.
+단, 해당 레이어가 추후 무리 없이 붙을 수 있도록 reserved input/state/output/hook은 함께 구현한다.
+
 **v2 핵심 변경사항**:
 - shot_id 기반 상태 스키마 (배열 인덱스 제거)
 - recipe-based production (2단 레시피 선택)
@@ -12,7 +16,7 @@
 - TerminalStatus enum (boolean 조합 제거)
 - 구조화된 이슈 코드 (키워드 매칭 제거)
 - CreativeBrief 입력 스키마
-- Provider/Service/Platform 3층 출력
+- Provider/Service 출력 구현, Platform layer는 `platform_variants` reserved field로 P1에 구현
 - manual_assisted -> API 전환 설계
 
 ---
@@ -141,6 +145,40 @@ API 전환 시: render_brief -> API executor -> artifact_reviewer -> publish_rev
 
 ---
 
+## Scope Control
+
+### Keep — 현재 구현 포함
+
+- CreativeBrief core fields (account_id, intent, platforms, services, execution_mode, target_duration_sec, audience, emotional_target, message_pillar, product_surface, cta_policy)
+- shot_id 기반 상태 모델
+- recipe-based production (production_mode + render_recipe + fallback)
+- audio_strategy
+- deterministic QA
+- artifact VLM QA
+- publish gate (human gate)
+- render_briefs
+- platform_variants reserved field (`[]`)
+- human decision handling
+
+### Reserve — 향후 마케팅 레이어에서 구현
+
+- `objective`, `series_id` (저장/전달만 보장, 코어 분기 조건 아님)
+- `campaign_context`, `performance_hints`, `experiment_vars` (state에 보존, 비활성)
+- `review_marketing_fit` hook (인터페이스만, no-op)
+- Product/UI Insert Planner 출력 슬롯 (`ui_insert_shot_ids` 등)
+- `marketing_metadata`
+
+### Remove — 현재 구현 범위 제외
+
+- KPI 최적화 로직
+- 실험 생성 로직
+- 캠페인 점수화 로직
+- 성과 기반 creative iteration
+- 브랜드 가이드 자동 업데이트
+- 마케팅 대시보드 로직
+
+---
+
 ## Phase 1: Foundation (2-3일)
 
 ### 1.1 의존성 설치
@@ -167,6 +205,7 @@ touch picko/video/agents/nodes/stitch_planner.py
 touch picko/video/agents/nodes/audio_director.py
 touch picko/video/agents/nodes/plan_reviewer.py
 touch picko/video/agents/nodes/artifact_reviewer.py
+touch picko/video/agents/nodes/publish_reviewer.py
 touch picko/video/agents/nodes/orchestrator.py
 
 # tool 파일
@@ -960,7 +999,8 @@ def plan_reviewer_node(state: VideoAgentState) -> dict:
     scorer = VideoPlanScorer()
     score = scorer.score(temp_plan, state["services"])
 
-    # 멀티에이전트 전용 추가 검수
+    # 현재 단계 활성 검수: structure, production_fit, audio_fit, brand
+    # review_marketing_fit은 reserved no-op (향후 마케팅 레이어에서 활성화)
     production_issues = _review_production_fit(state)
     audio_issues = _review_audio_fit(state)
 
@@ -982,6 +1022,11 @@ def plan_reviewer_node(state: VideoAgentState) -> dict:
         "tokens_used_estimate": 1200,
         "cost_usd_estimate": 0.0048,
     }
+
+
+# reserved for future marketing layer — no-op in current phase
+def review_marketing_fit(*args, **kwargs) -> list:
+    return []
 
 
 def _classify_issue(issue_text: str) -> ReviewIssue:
@@ -1053,10 +1098,19 @@ def orchestrator_node(state: VideoAgentState) -> dict:
         updates["terminal_status"] = "needs_human_review"
         return updates
 
-    # Hard fail: brand violation -> story_writer 필수 (D4 규칙)
+    # Hard fail: brand violation (모든 도메인) 또는 critical severity -> story_writer 필수 (D4 규칙)
     issues = state.get("revision_issues", [])
+    _BRAND_HARD_FAIL_PREFIXES = (
+        "copy.brand_violation",
+        "prompt.brand_violation",
+        "audio.brand_violation",
+        "production.brand_violation",
+        "story.brand_violation",
+    )
     has_brand_violation = any(
-        i.get("code", "").startswith("copy.brand_violation") for i in issues
+        i.get("code", "").startswith(_BRAND_HARD_FAIL_PREFIXES)
+        or i.get("severity") == "critical"
+        for i in issues
     )
     if has_brand_violation:
         updates["terminal_status"] = "revise_required"
@@ -1090,6 +1144,39 @@ def _build_invalidation_updates(revision_target: str) -> dict:
 - [ ] revision loop 동작 (이슈 코드 -> agent routing)
 - [ ] 비용 초과 -> BLOCKED
 - [ ] max_iterations -> MAX_ITERATIONS_REACHED
+- [ ] `prompt.brand_violation`, `audio.brand_violation`, `production.brand_violation`도 hard fail로 story_writer cascade 되는지 검증
+- [ ] severity == "critical" 이슈도 hard fail 경로로 진입하는지 검증
+
+---
+
+## Execution Interface (Phase 3 완료 후 확정)
+
+Planning graph와 manual loop는 **실행 진입점이 분리된 두 개의 경로**다. 구현자가 혼동하지 않도록 인터페이스를 명시한다.
+
+### A. Planning entrypoint
+```python
+# picko/video/agents/graph.py
+class VideoAgentGraph:
+    def generate(self, creative_brief: dict, **kwargs) -> VideoAgentState:
+        """planning graph 실행. 반환 state에 render_briefs 포함."""
+```
+
+### B. Artifact review entrypoint
+```python
+# picko/video/generator.py 또는 picko/video/agents/runtime.py
+def review_rendered_artifact(self, plan: VideoPlan, uploaded_file: str) -> dict:
+    """deterministic QA -> VLM QA -> artifact_review dict 반환.
+    plan.render_briefs에서 expected 값을 파싱해 expected 파라미터 구성."""
+```
+
+### C. Publish gate entrypoint
+```python
+def apply_publish_decision(self, plan: VideoPlan, human_decision: str) -> dict:
+    """human_decision: 'approved' | 'blocked'
+    publish_status 갱신 후 반환."""
+```
+
+세 진입점은 각각 독립적으로 호출 가능. B와 C는 planning graph 완료 후 별도 세션에서도 호출 가능하도록 설계한다 (state를 파일/DB에서 복원 가능).
 
 ---
 
@@ -1230,7 +1317,17 @@ def artifact_reviewer_node(state: dict, uploaded_file: str) -> dict:
     }
 ```
 
-### 4.4 Publish Reviewer Node (Human Gate)
+### 4.4 Publish Reviewer Node (Human Gate — 코어 범위 한정)
+
+**현재 단계 판단 범위**:
+- 게시 가능 여부
+- 브랜드 안전성 (기술적 기준 내)
+- artifact 품질 기준 충족 여부
+- 사람 승인 상태 반영
+
+**현재 단계 판단 범위 밖** (향후 마케팅 레이어):
+- 캠페인 효과성, KPI 달성 가능성
+- 채널 운영 전략, 노출 최적화
 **파일**: `picko/video/agents/nodes/publish_reviewer.py`
 
 artifact_reviewer 통과 후 반드시 거치는 human gate. 제거 불가.
@@ -1347,6 +1444,18 @@ def _state_to_plan(self, state: VideoAgentState) -> VideoPlan:
 
 ## Phase 6: Testing & Polish (2-3일)
 
+### P1. Platform Variant Builder (별도 Phase)
+
+`platform_variants=[]` reserved field를 실제 구현할 때의 설계 포인트.
+
+- **입력**: master plan, `state["platforms"][]`
+- **출력**: `platform_variants: list[PlatformVariantSpec]`
+- **항목**: aspect_ratio, safe_zone, duration_variant, hook_strategy, CTA placement, cover frame shot_id, caption_max_length
+- **파일**: `picko/video/agents/nodes/platform_variant_builder.py`
+- **검증**: `tests/video/agents/test_platform_variants.py` 추가
+
+이 Phase 전까지는 `platform_variants=[]`가 유효하며, `_state_to_plan()`이 빈 리스트를 반환하는 것은 정상 동작.
+
 ### 6.1 단위 테스트
 **파일**: `tests/video/agents/`
 
@@ -1422,6 +1531,37 @@ pytest tests/video/agents/test_render_brief.py -v
 # Full suite
 pytest tests/video/agents/ -v --cov=picko.video.agents
 ```
+
+---
+
+## Future Marketing Layer (현재 Tasks 범위 외)
+
+아래 항목은 현재 구현 task 범위에 포함하지 않는다. 추후 별도 마케팅 레이어 문서/로드맵에서 다룬다.
+
+- KPI optimization engine
+- performance-based creative iteration
+- experiment generation and prioritization
+- emotional keyword discovery
+- series planning automation
+- campaign strategy engine
+- channel-specific growth heuristics
+- marketing dashboard / reporting UI
+- `review_marketing_fit` 활성화
+- Product/UI Insert Planner 활성화
+
+---
+
+### Core vs Marketing Layer Boundary
+
+현재 문서는 비디오 생성/검수 코어를 정의한다. 마케팅 레이어는 추후 별도로 설계 및 연결한다.
+
+따라서 현재 단계에서는:
+- 마케팅 로직을 구현하지 않는다
+- 마케팅 확장 포인트만 보존한다 (reserved fields, no-op hooks)
+- KPI/성과/실험 기반 자동 최적화는 구현하지 않는다
+- 단, 향후 레이어 결합을 위해 입력 필드, reserved state, reviewer hook, metadata slot은 남긴다
+
+**이 경계는 tasks 작업 명세 작성 시에도 유지되어야 한다.**
 
 ---
 

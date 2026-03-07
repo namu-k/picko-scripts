@@ -10,6 +10,25 @@
 
 ---
 
+## 0. 문서 범위 (Core vs Marketing Layer Boundary)
+
+이 문서는 **"비디오 planning / production recipe selection / render QA / publish gate"를 담당하는 코어 시스템**을 정의한다.
+
+캠페인 전략, KPI 최적화, 실험 생성, 브랜드 운영 자동화는 **본 문서 범위 밖**이며, 향후 별도 마케팅 레이어에서 담당한다.
+단, 추후 마케팅 레이어 통합을 위해 필요한 확장 포인트와 reserved field는 본 문서에 포함한다.
+
+```
+현재 단계의 원칙:
+
+1. 마케팅 전략 로직은 In Scope에 넣지 않는다.
+2. KPI 최적화, 실험 설계, 캠페인 전략, 브랜드 거버넌스 자동화는 Out of Scope.
+3. 향후 마케팅 레이어가 연결될 수 있도록 입력 필드, reserved state, reviewer hook, metadata 슬롯은 유지한다.
+4. 플랫폼 적응, 오디오 전략, 제품/UI 삽입 가능성, 사람 승인 흐름은 코어에 남긴다.
+5. "마케팅 기능 구현"과 "마케팅 확장 가능성 보장"을 구분한다.
+```
+
+---
+
 ## 1. 목적
 
 현재 VideoGenerator는 단일 LLM 호출로 VideoPlan을 생성한다. 이 방식의 한계:
@@ -33,31 +52,51 @@
 
 > **새벽 감성 숏폼 영상을 위한 "기획 + 카피 + 프롬프트 + 오디오전략 + 제작전략 + 품질검수" 패키지를 멀티에이전트로 생성하고, 수동-보조형 렌더 루프를 통해 실제 영상까지 닫힌 production loop를 구축한다.**
 
-### 범위 밖 (Out of Scope)
+### In Scope
 
-- 감성 키워드 발굴, 브랜드 가이드 초안화
-- 시리즈 기획, 실험 설계, 성과 분석
-- 외부 피드백 통합, 레퍼런스 탐색 시스템
-- Product/UI Insert Planner (ad/explainer intent 전용 - P1)
+- CreativeBrief 기반 비디오 planning
+- shot/segment 단위 production mode 선택
+- provider/service/platform 제약 반영
+- audio_strategy 반영
+- render_brief 생성
+- deterministic QA
+- VLM 기반 artifact QA
+- human gate / publish gate
+- marketing-facing extension points (reserved fields / hooks / metadata slots)
+- platform_variants (delivery adaptation — 마케팅 전략이 아닌 출력 포맷 적응)
+
+### Out of Scope
+
+- KPI 기반 자동 최적화
+- 캠페인 전략 생성 및 우선순위화
+- 실험 설계 및 성과 기반 creative iteration
+- 브랜드 가이드 자동 생성/수정
+- 감성 키워드 발굴 시스템
+- 채널 운영 정책 엔진
+- 마케터용 대시보드 및 운영 분석 UI
+- Product/UI Insert Planner 활성화 (ad/explainer 전용 - reserved, P1)
 - Vault retrieval (과거 시리즈/anchor 재사용 - P1)
 
-### 마케팅 레이어 확장 포인트
+### 마케팅 레이어 확장 포인트 (Reserved — 현재 미구현)
 
-향후 마케팅 기능이 추가될 때를 대비해 명시적 확장 슬롯을 정의한다:
+아래는 현재 코어 엔진이 직접 사용하지 않는 reserved 슬롯이다.
+향후 마케팅 기능이 추가될 때 별도 레이어에서 주입한다.
+현재 단계에서는 저장/전달만 보장하고, 코어 의사결정의 필수 기준으로 사용하지 않는다.
 
 ```python
-# VideoAgentState 내 확장 필드
-campaign_context: dict | None      # 시리즈/캠페인 맥락 (Story Writer 참조)
-performance_hints: list[str]       # 과거 성과 기반 힌트 (Plan Reviewer 참조)
-experiment_vars: dict | None       # A/B 테스트 변수 (Orchestrator 참조)
+# VideoAgentState 내 확장 필드 (Reserved — 현재 코어 분기 로직에 사용하지 않음)
+# 현재 단계에서는 전달/저장만 보장. 향후 마케팅 레이어에서 주입/사용.
+campaign_context: dict | None      # 시리즈/캠페인 맥락
+performance_hints: list[str]       # 과거 성과 기반 힌트
+experiment_vars: dict | None       # A/B 테스트 변수
 ```
 
-| 마케팅 기능 | 주입 포인트 | 참조 에이전트 |
-|------------|------------|---------------|
-| A/B 실험 변수 | `experiment_vars` | Orchestrator |
-| 성과 데이터 피드백 | `performance_hints` | Plan Reviewer |
-| 시리즈/캠페인 컨텍스트 | `campaign_context` | Story Writer |
-| 채널별 포맷 적응 | `platform_variants[]` | Platform Variant Builder (P1) |
+| 마케팅 기능 | 주입 포인트 | 현재 상태 |
+|------------|------------|-----------|
+| A/B 실험 변수 | `experiment_vars` | reserved, 비활성 |
+| 성과 데이터 피드백 | `performance_hints` | reserved, 비활성 |
+| 시리즈/캠페인 컨텍스트 | `campaign_context` | reserved, 비활성 |
+| 채널별 포맷 적응 | `platform_variants[]` | P1 (delivery adaptation) |
 
 ---
 
@@ -75,6 +114,21 @@ experiment_vars: dict | None       # A/B 테스트 변수 (Orchestrator 참조)
 - 렌더 결과물 검수 (Artifact Review - VLM + deterministic)
 - 최종 게시 검수 (Publish Review - human gate)
 - 필요 시 특정 에이전트 재호출
+
+### C. Product/UI Insert Planner (Reserved Extension — 미활성)
+
+ad/explainer 마케팅 레이어에서 활성화될 수 있는 확장 포인트. 현재 코어 범위에서는 agent node로 활성화하지 않는다.
+
+아래 출력 슬롯만 reserved field로 유지한다:
+- `ui_insert_shot_ids: list[str]` — 제품 UI 삽입이 필요한 shot
+- `product_proof_required: bool` — 제품 증거 삽입 필요 여부
+- `proof_overlay_copy: list[str]` — 증거 오버레이 카피
+- `product_surface_mode: str` — 제품 노출 방식
+
+현재 단계에서 `product_surface`가 존재하더라도 코어가 이를 강제 최적화하지 않는다.
+필요 시 사람이 render brief를 수동 조정할 수 있도록만 한다.
+
+---
 
 ### B. Production Execution Graph (향후 - API 전환 시)
 
@@ -338,6 +392,12 @@ PlanReviewResult = {
 | `review_structure` | LLM | 전체 구조 품질 평가 |
 | `review_production_fit` | LLM | shot과 제작 방식 적합성 평가 |
 | `review_audio_fit` | LLM | 오디오 전략과 감정선 적합성 |
+| `review_marketing_fit` | — | **reserved hook** — 현재 단계 비활성. 향후 마케팅 레이어에서 활성화 |
+
+### Marketing Fit Hook (Reserved)
+현재 Plan Reviewer는 **구조 품질, 제작 적합성, 오디오 적합성, 브랜드 안전성**만 평가한다.
+`review_marketing_fit()`는 인터페이스만 예약하고 현재 실행 그래프에 연결하지 않는다.
+KPI 정렬성, 캠페인 목표 달성 가능성 평가는 향후 마케팅 레이어에서 담당한다.
 
 ---
 
@@ -517,7 +577,8 @@ class VideoAgentState(TypedDict):
     account_config: dict
     weekly_slot: dict | None
 
-    # Marketing extension
+    # === Reserved Marketing Fields (현재 코어 분기 로직에 사용하지 않음) ===
+    # 향후 마케팅 레이어에서 주입/사용. 현재는 전달/저장만 보장.
     campaign_context: dict | None
     performance_hints: list[str]
     experiment_vars: dict | None
@@ -568,6 +629,15 @@ class VideoAgentState(TypedDict):
 ## 6. 데이터 계약
 
 ### 6.1 CreativeBrief (풍부한 입력 스키마)
+
+**설계 원칙**: CreativeBrief는 코어 엔진이 직접 사용하는 필드와, 향후 마케팅 레이어가 주입하는 optional reserved 필드를 함께 가진다.
+단, reserved 필드는 현재 planning/QA 로직의 필수 분기 조건으로 사용하지 않는다.
+
+| 구분 | 필드 | 현재 단계 사용 여부 |
+|------|------|-------------------|
+| **Core** | account_id, intent, platforms, services, execution_mode, target_duration_sec, audience, emotional_target, message_pillar | 필수 |
+| **Core optional** | product_surface, cta_policy, brand_rules_ref | 코어에서 참조 가능 |
+| **Reserved** | objective, series_id | 전달/저장만, 코어 분기 조건 아님 |
 
 ```python
 @dataclass
@@ -638,7 +708,10 @@ class RenderRecipe:
 #### Layer 1: Master Creative Plan
 - 이야기와 감정선, 샷 구조, visual anchor, copy intent
 
-#### Layer 2: Platform Variant Spec (P1)
+#### Layer 2: Platform Variant Spec (P1 — delivery adaptation)
+
+> `platform_variants`는 **마케팅 전략 레이어가 아니라 delivery/output adaptation 레이어**다.
+> 따라서 본 코어 문서 범위에 포함한다. 다만 초기 단계에서는 reserved field (`[]`)로만 제공한다.
 ```python
 @dataclass
 class PlatformVariantSpec:
@@ -866,6 +939,7 @@ picko/video/
 |   |   +-- audio_director.py   # NEW
 |   |   +-- plan_reviewer.py    # RENAMED from reviewer.py
 |   |   +-- artifact_reviewer.py # NEW
+|   |   +-- publish_reviewer.py  # NEW (human gate)
 |   |   +-- orchestrator.py
 |   |
 |   +-- tools/
@@ -925,6 +999,7 @@ class VideoPlan:
     production_specs: dict = field(default_factory=dict)  # shot_id -> ProductionSpec
     audio_specs: dict = field(default_factory=dict)       # shot_id -> AudioSpec
     render_briefs: list[dict] = field(default_factory=list)  # 서비스별 렌더 브리프
+    platform_variants: list[dict] = field(default_factory=list)  # P1 reserved field
 ```
 
 ---
